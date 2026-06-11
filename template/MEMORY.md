@@ -1,0 +1,3 @@
+- [Memory System Protocol](memory/README.md) — How the self-evolving memory system works
+- [Learned Rules](memory/learned-rules.md) — Auto-promoted permanent rules (max 50 lines)
+- [Evolution Log](memory/evolution-log.md) — `/evolve` audit decision history

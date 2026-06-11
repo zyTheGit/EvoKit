@@ -1,0 +1,39 @@
+# EvoKit — .gitignore
+
+# Personal learning data (DO NOT COMMIT)
+template/memory/corrections.jsonl
+template/memory/observations.jsonl
+template/memory/violations.jsonl
+template/memory/sessions.jsonl
+
+# User's own .claude directory (personal)
+.claude/
+*.claude/
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  template-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test template structure
+        run: |
+          test -f template/CLAUDE.md
+          test -f template/settings.json
+          test -f template/MEMORY.md
+          test -f template/hooks/session-start.sh
+          test -f template/hooks/stop.sh
+          test -f template/hooks/export-system.sh
+          test -f template/rules/security.md
+          test -f template/rules/coding.md
+          test -f template/rules/core-invariants.md
+          test -f template/agents/architect.md
+          test -f template/agents/reviewer.md
+          test -f template/commands/boot.md
+          test -f template/commands/evolve.md
+          test -f template/commands/review.md
+          test -f template/memory/README.md
+
+      - name: Check no personal paths in template
+        run: |
+          ! grep -r "hpee2" template/ 2>/dev/null || false
+          ! grep -r "/home/" template/settings.json 2>/dev/null || false
+
+      - name: Shellcheck hooks
+        run: |
+          shellcheck template/hooks/*.sh
+
+      - name: Test dry-run install
+        run: |
+          bash bin/evokit-install.sh --dry-run
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck all scripts
+        run: |
+          shellcheck bin/*.sh
+          shellcheck template/hooks/*.sh
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check docs exist
+        run: |
+          test -f README.md
+          test -f LICENSE
+          test -f CONTRIBUTING.md
+          test -f CHANGELOG.md
+          test -f docs/ARCHITECTURE.md
+          test -f docs/EVOLUTION.md
+          test -f docs/INSTALL.md
+          test -f docs/MIGRATION.md
+          test -f docs/CUSTOMIZE.md
+          test -f docs/FAQ.md
+          test -f docs/MULTI_AGENT.md
