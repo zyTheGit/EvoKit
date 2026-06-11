@@ -20,41 +20,80 @@
 
 ## 📸 预览 / Preview
 
-<!--
-  TODO: Add screenshots and demo GIF
-  ![Demo GIF](docs/assets/demo.gif)
-  ![Boot Screenshot](docs/assets/boot-screenshot.png)
--->
-
 <div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <p><b>🚀 Installing EvoKit</b></p>
-        <!-- TODO: Add install GIF -->
-        <img src="docs/assets/install-screenshot.png" alt="Install" width="400px">
-      </td>
-      <td align="center">
-        <p><b>🔍 Running /boot</b></p>
-        <!-- TODO: Add /boot screenshot -->
-        <img src="docs/assets/boot-screenshot.png" alt="Boot" width="400px">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <p><b>🔄 Running /evolve</b></p>
-        <!-- TODO: Add /evolve screenshot -->
-        <img src="docs/assets/evolve-screenshot.png" alt="Evolve" width="400px">
-      </td>
-      <td align="center">
-        <p><b>📦 Export &amp; Migrate</b></p>
-        <!-- TODO: Add export screenshot -->
-        <img src="docs/assets/export-screenshot.png" alt="Export" width="400px">
-      </td>
-    </tr>
-  </table>
-  <p><i>📷 Screenshots coming soon — contributions welcome!</i></p>
+
+```
+╔═══════════════════════════════════════════╗
+║   EvoKit — Self-Evolving System Install   ║
+╚═══════════════════════════════════════════╝
+📁 Creating directories...
+  ✓ .claude/rules/    ✓ .claude/agents/
+  ✓ .claude/commands/ ✓ .claude/memory/
+  ✓ .claude/hooks/
+📄 Installing template files...
+  ✓ CLAUDE.md    ✓ MEMORY.md
+  ✓ settings.json   ✓ hooks/  ✓ rules/
+  ✓ agents/      ✓ commands/
+🔒 Setting permissions...
+✅ EvoKit installed successfully!
+```
+
 </div>
+
+<table align="center">
+  <tr>
+    <td width="50%">
+      <pre>
+[EVOLUTION BOOT] ═══════════════════════
+  Self-Evolving System: checking integrity...
+  ✓ .claude/rules/
+  ✓ .claude/agents/
+  ✓ .claude/commands/
+  ✓ .claude/memory/
+  ✓ .claude/hooks/
+  ✓ CLAUDE.md: 55 lines (limit 150)
+  ✓ learned-rules.md: 3 lines (limit 50)
+═══════════════════════════════════════</pre>
+      <p align="center"><b>🔍 <code>/boot</code></b></p>
+    </td>
+    <td width="50%">
+      <pre>
+[EVOLUTION AUDIT] ═════════════════════
+  Rotating: corrections.jsonl (12 kept, 5 archived)
+  Rotating: observations.jsonl (8 kept, 3 archived)
+  Analyzing corrections...
+  ✓ Promoted: "use uv instead of pip" (2×)
+  ✓ Promoted: "no console.log in prod" (3×)
+  ✓ learned-rules.md: 6 lines (limit 50)
+═══════════════════════════════════════</pre>
+      <p align="center"><b>🔄 <code>/evolve</code></b></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <pre>
+📦 Creating migration package...
+  ✓ system files copied
+  ✓ rotation applied
+  ✓ install.sh generated
+🗜️  Packaging...
+✅ claude-evolution-20260611.tar.gz
+
+📊 Data overview:
+  corrections:  12 entries
+  observations: 8 entries
+  learned-rules: 6 lines</pre>
+      <p align="center"><b>📦 <code>export-system.sh</code></b></p>
+    </td>
+    <td width="50%">
+      <p align="center"><i>📷 Screenshots coming&nbsp;soon —<br>contributions welcome!</i></p>
+      <p align="center">
+        <a href="docs/ARCHITECTURE.md">📖 Architecture</a> ·
+        <a href="docs/EVOLUTION.md">🧬 Evolution</a>
+      </p>
+    </td>
+  </tr>
+</table>
 
 ---
 
