@@ -17,6 +17,9 @@ Thumbs.db
 *.swo
 *~
 
+# Codegraph local index
+.codegraph/
+
 # IDE
 .idea/
 .vscode/
