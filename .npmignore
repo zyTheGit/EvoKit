@@ -1,0 +1,28 @@
+# Source & config (not needed at runtime)
+src/
+tsconfig.json
+vitest.config.ts
+
+# Development
+tests/
+examples/
+docs/
+.github/
+.claude/
+.codegraph/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Archives
+*.tgz

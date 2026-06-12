@@ -28,4 +28,4 @@
 // - Cross-session state management
 // - Advanced analytics
 
-export const CLAUDE_ADAPTER_VERSION = '0.1.0';
+export const CLAUDE_ADAPTER_VERSION = '0.2.0';

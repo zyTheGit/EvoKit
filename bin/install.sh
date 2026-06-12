@@ -216,6 +216,8 @@ echo "  Next steps:"
 echo "  1. Start Claude Code"
 echo "  2. Run /boot to verify system health"
 echo ""
+echo "  💡 Also available via npm: npm install -g @zythegit/evokit"
+echo ""
 if [ "${CLEANUP_TMP}" = true ]; then
   echo "  Need help?"
   echo "  - Docs:  https://github.com/${REPO}/tree/${BRANCH}/docs"

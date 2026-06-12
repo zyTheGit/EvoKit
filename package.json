@@ -1,0 +1,60 @@
+{
+  "name": "@zythegit/evokit",
+  "version": "0.2.0",
+  "description": "EvoKit — Self-Evolving System Framework for AI Coding Assistants",
+  "keywords": [
+    "claude",
+    "ai",
+    "coding-assistant",
+    "evolution",
+    "self-evolving",
+    "memory",
+    "framework"
+  ],
+  "homepage": "https://github.com/zyTheGit/EvoKit",
+  "bugs": {
+    "url": "https://github.com/zyTheGit/EvoKit/issues"
+  },
+  "license": "MIT",
+  "author": "zyTheGit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zyTheGit/EvoKit.git"
+  },
+  "type": "module",
+  "bin": {
+    "evokit": "./bin/evokit.cjs"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "template/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node bin/evokit",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test",
+    "postinstall": "echo 'EvoKit installed! Run `evokit init` to get started.'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "conf": "^12.0.0",
+    "fs-extra": "^11.3.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^18.19.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

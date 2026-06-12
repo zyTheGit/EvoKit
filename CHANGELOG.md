@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.0 (2026-06-12)
+
+### Major
+- 🚀 `evokit` CLI — standalone Node.js CLI tool replacing bash scripts
+- ✨ `evokit init` — initialize EvoKit with template installation
+- 🔄 `evokit evolve` — run evolution audit (rotation, decay, promotion, pruning)
+- 📦 `evokit export` / `evokit import` — cross-machine migration management
+- 🔍 `evokit doctor` — system integrity verification
+- 📦 npm package: `@zythegit/evokit`
+
+### Internal
+- 🔧 TypeScript rewrite of install.sh, export-system.sh, evolve.md, boot.md
+- 🧪 41 vitest tests covering core modules
+- 📚 docs/HOMEBREW.md — Homebrew tap instructions
+- 🔗 GitHub Actions: npm publish workflow
+
 ## v0.1.0 (2026-06-11)
 
 ### Initial Release

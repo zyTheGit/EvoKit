@@ -37,6 +37,16 @@ Desktop.ini
 # Logs
 *.log
 
+# Build output
+dist/
+node_modules/
+
+# Test output
+coverage/
+
+# npm
+*.tgz
+
 # Environment files
 .env
 .env.local
