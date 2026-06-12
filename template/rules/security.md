@@ -11,8 +11,11 @@ paths: "*/security*"
 - Never commit `.env` or `.env.local` files to git.
 
 ## Sensitive Operations
-- Before running destructive operations (rm -rf, git reset --hard, API DELETE), explain what will happen and confirm with the user.
-- Before modifying permissions (chmod, chown), explain why.
+- **Destructive file ops (`rm *`, `rm -rf`, `mv` overwrite, `dd`, `mkfs`):** Never execute directly — explain what will be removed and ask the user to run the command manually.
+- **Git push / force push (`git push`, `git push --force`, `git push origin +main`):** Never execute directly — explain the impact (which branch, what commits) and ask the user to run the command manually.
+- **Git destructive ops (`git reset --hard`, `git checkout --`, `git rebase`, `git merge`, `git clean -fd`):** Explain what will happen and confirm with the user before executing.
+- **Permissions (`chmod`, `chown`):** Explain why before modifying.
+- **API DELETE / database mutations:** Confirm with the user before executing.
 
 ## Code Security
 - No `eval()` or `Function()` constructor with dynamic strings.

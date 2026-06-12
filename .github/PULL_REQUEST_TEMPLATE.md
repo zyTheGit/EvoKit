@@ -16,7 +16,7 @@ Fixes # (issue)
 
 - [ ] Template files remain free of personal data
 - [ ] Shell scripts pass `shellcheck`
-- [ ] Installation tested (`bash bin/evokit-install.sh --dry-run`)
+- [ ] Installation tested (`bash bin/install.sh --dry-run`)
 - [ ] Documentation updated (if applicable)
 - [ ] CHANGELOG.md updated (if applicable)
 

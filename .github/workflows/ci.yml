@@ -41,7 +41,7 @@ jobs:
 
       - name: Test dry-run install
         run: |
-          bash bin/evokit-install.sh --dry-run
+          bash bin/install.sh --dry-run
 
   shellcheck:
     runs-on: ubuntu-latest

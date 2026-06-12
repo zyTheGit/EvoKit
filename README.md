@@ -162,10 +162,13 @@ CLAUDE.md / rules/ ← 毕业 / Graduated
 ### 安装 / Install
 
 ```bash
-# 从 GitHub 安装 / Install from GitHub
+# 一行命令安装 / One-liner install (recommended)
+curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
+
+# 或者从 Git 克隆安装 / Or clone from GitHub
 git clone https://github.com/zyTheGit/EvoKit.git
 cd EvoKit
-bash bin/evokit-install.sh
+bash bin/install.sh
 ```
 
 ### 验证 / Verify

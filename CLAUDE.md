@@ -27,7 +27,7 @@ See `docs/ARCHITECTURE.md` for full detail.
   - `template/rules/` — Path-scoped rules deployed to users
   - `template/agents/` — Sub-agent definitions
   - `template/memory/` — Learning data files (seeded empty for users)
-- **`bin/`** — `evokit-install.sh` (one-click installer, supports `--dry-run` and `--template`)
+- **`bin/`** — `install.sh` (one-click installer, supports `--dry-run` and `--template`)
 - **`src/adapters/`** — Multi-agent adapter TypeScript sources (Claude Code: done; Codex/OpenCode/Aider: planned)
 - **`docs/`** — Architecture, evolution pipeline, migration, multi-agent, customization, FAQ
 - **`examples/`** — Example custom rules, agents, and commands for users
@@ -47,10 +47,10 @@ These are commands for **developing this repository** (not the user-facing `/boo
 
 ```bash
 # Dry-run install (validate template structure without modifying anything)
-bash bin/evokit-install.sh --dry-run
+bash bin/install.sh --dry-run
 
 # Install to a test home directory
-HOME=/tmp/evokit-test-home bash bin/evokit-install.sh --template template
+HOME=/tmp/evokit-test-home bash bin/install.sh --template template
 
 # Shellcheck all shell scripts
 shellcheck bin/*.sh template/hooks/*.sh

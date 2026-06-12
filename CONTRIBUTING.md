@@ -65,7 +65,7 @@ cd EvoKit
 
 # The project is template-based — no build step needed
 # Test the template locally:
-bash bin/evokit-install.sh --template template --dry-run
+bash bin/install.sh --template template --dry-run
 ```
 
 ## Testing
@@ -80,7 +80,7 @@ bash bin/evokit-install.sh --template template --dry-run
 ```bash
 # Create a temporary home for testing
 mkdir -p /tmp/evokit-test-home
-HOME=/tmp/evokit-test-home bash bin/evokit-install.sh --template template
+HOME=/tmp/evokit-test-home bash bin/install.sh --template template
 
 # Verify installation
 ls -la /tmp/evokit-test-home/.claude/
