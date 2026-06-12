@@ -33,7 +33,6 @@ while [[ $# -gt 0 ]]; do
     --template) TEMPLATE_DIR="$2"; TEMPLATE_EXPLICIT=true; shift 2 ;;
     --branch)   BRANCH="$2"; shift 2 ;;
     --dry-run)  DRY_RUN=true; shift ;;
-    --prefix)   PREFIX="$2"; shift 2 ;;
     *) echo "Unknown: $1"; exit 1 ;;
   esac
 done
@@ -43,7 +42,11 @@ echo "║   EvoKit — Self-Evolving System Install   ║"
 echo "╚═══════════════════════════════════════════╝"
 echo ""
 echo "  Template: ${TEMPLATE_DIR:-"(downloading from GitHub)"}"
-echo "  Target:   ${HOME}/.claude$($DRY_RUN && echo " (DRY RUN)" || true)"
+TARGET_MSG="${HOME}/.claude"
+if [ "$DRY_RUN" = true ]; then
+  TARGET_MSG="${TARGET_MSG} (DRY RUN)"
+fi
+echo "  Target:   ${TARGET_MSG}"
 echo ""
 
 # ──────────────────────────────────────────
@@ -190,8 +193,8 @@ if [ "$DRY_RUN" = true ]; then
   echo "   [DRY RUN] chmod +x $CLAUDE_DIR/hooks/*.sh"
   echo "   [DRY RUN] chmod 600 $CLAUDE_DIR/memory/*.jsonl"
 else
-  chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null && echo "  ✓ hooks/*.sh → executable" || true
-  chmod 600 "$CLAUDE_DIR/memory/"*.jsonl 2>/dev/null && echo "  ✓ memory/*.jsonl → 600" || true
+  if chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null; then echo "  ✓ hooks/*.sh → executable"; fi
+  if chmod 600 "$CLAUDE_DIR/memory/"*.jsonl 2>/dev/null; then echo "  ✓ memory/*.jsonl → 600"; fi
 fi
 
 # ──────────────────────────────────────────
