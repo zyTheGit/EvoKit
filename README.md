@@ -162,13 +162,42 @@ CLAUDE.md / rules/ ← 毕业 / Graduated
 ### 安装 / Install
 
 ```bash
-# 一行命令安装 / One-liner install (recommended)
+# npm 安装（推荐） / npm install (recommended)
+npm install -g @zythegit/evokit
+evokit init
+
+# Homebrew 安装 / Homebrew install
+brew tap zyTheGit/homebrew-evokit
+brew install evokit
+
+# 或者一行命令安装 / Or one-liner install (classic)
 curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
 
 # 或者从 Git 克隆安装 / Or clone from GitHub
 git clone https://github.com/zyTheGit/EvoKit.git
 cd EvoKit
 bash bin/install.sh
+```
+
+### CLI 命令参考 / CLI Command Reference
+
+安装后可用 `evokit` 命令管理系统：
+
+| 命令 | 功能 |
+|------|------|
+| `evokit init` | 初始化 EvoKit（安装模板到 `~/.claude/`） |
+| `evokit evolve` | 运行进化审计（旋转归档、晋升模式、修剪规则） |
+| `evokit export` | 导出系统状态（用于跨机迁移） |
+| `evokit import <包>` | 导入迁移包 |
+| `evokit doctor` | 系统健康检查 |
+
+```bash
+# 查看所有命令
+evokit --help
+
+# 查看具体命令帮助
+evokit init --help
+evokit evolve --help
 ```
 
 ### 验证 / Verify
@@ -271,14 +300,16 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
   - ✅ 跨平台支持（Linux / macOS / WSL / Git Bash）
   - ✅ 隐私优先：零遥测、全本地存储
 
-### 进行中 / In Progress 🔄
+### 已完成 / Completed ✅
 
 - **v0.2.0** — 独立 CLI 工具
-  - ☐ `evokit` 命令行（替代 bash 脚本）
-  - ☐ `evokit init` — 初始化项目
-  - ☐ `evokit evolve` — 运行进化审计
-  - ☐ `evokit export` / `evokit import` — 迁移管理
-  - ☐ npm / Homebrew 发布
+  - ✅ `evokit` 命令行（TypeScript/Node.js，替代 bash 脚本）
+  - ✅ `evokit init` — 初始化项目，支持 `--template`, `--branch`, `--dry-run`, `--verify`
+  - ✅ `evokit evolve` — 运行进化审计（旋转、置信度衰减、晋升、修剪）
+  - ✅ `evokit export` / `evokit import` — 跨机迁移管理
+  - ✅ `evokit doctor` — 系统完整性验证
+  - ✅ npm 包发布（`@zythegit/evokit`）+ Homebrew 支持
+  - ✅ 41 个 vitest 测试用例
 
 ### 规划中 / Planned 🔜
 

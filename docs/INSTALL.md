@@ -9,7 +9,25 @@
 
 ## Quick Install (Recommended)
 
-### One-liner (curl | bash)
+### npm (Node.js 18+)
+
+```bash
+# Install globally via npm
+npm install -g @zythegit/evokit
+
+# Initialize EvoKit
+evokit init
+```
+
+### Homebrew
+
+```bash
+# Add the tap and install
+brew tap zyTheGit/homebrew-evokit
+brew install evokit
+```
+
+### One-liner (curl | bash) — classic
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
