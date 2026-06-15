@@ -4,8 +4,8 @@ class Evokit < Formula
   license "MIT"
   depends_on "node"
 
-  url "https://registry.npmjs.org/@zythegit/evokit/-/evokit-0.2.0.tgz"
-  sha256 "09510d8c439007b94ff85896fb689a137f4c2ef5"
+  url "https://registry.npmjs.org/@zythegit/evokit/-/evokit-0.2.1.tgz"
+  sha256 "205d1980b01a26575e4180a011fe2b5040c1214fa82c611df87486e39f602555"
 
   def install
     system "npm", "install", *std_npm_args(prefix: false)
