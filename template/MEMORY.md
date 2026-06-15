@@ -1,3 +1,7 @@
 - [Memory System Protocol](memory/README.md) — How the self-evolving memory system works
 - [Learned Rules](memory/learned-rules.md) — Auto-promoted permanent rules (max 50 lines)
 - [Evolution Log](memory/evolution-log.md) — `/evolve` audit decision history
+- [Corrections](memory/corrections.jsonl) — User corrections (pattern, context, count)
+- [Observations](memory/observations.jsonl) — Code pattern observations with confidence scoring
+- [Sessions](memory/sessions.jsonl) — Session scorecards and duration tracking
+- [Violations](memory/violations.jsonl) — Rule violations detected during `/boot`
