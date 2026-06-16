@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__HOME__/.codex/hooks-scripts/session-start.sh",
+            "timeout": 30,
+            "statusMessage": "EvoKit: verifying system integrity"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__HOME__/.codex/hooks-scripts/stop.sh",
+            "timeout": 15,
+            "statusMessage": "EvoKit: recording session"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__HOME__/.codex/hooks-scripts/pre-tool-use.sh",
+            "timeout": 10,
+            "statusMessage": "EvoKit: checking tool policy"
+          }
+        ]
+      }
+    ]
+  }
+}

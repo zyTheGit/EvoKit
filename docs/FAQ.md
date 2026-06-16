@@ -47,13 +47,32 @@ The installer backs up your existing configuration first to `~/.claude/backups/`
 ## Multi-Agent
 
 ### Does EvoKit work with Codex?
-Not yet. Codex adapter is planned for v0.3.0.
+**Yes!** Codex CLI support is available as of v0.3.0. Install with:
+
+```bash
+evokit init --adapter codex
+```
+
+This installs EvoKit templates to `~/.codex/`, configuring:
+- `AGENTS.md` — cognitive core with thinking framework and evolution protocol
+- `hooks.json` — lifecycle hooks (SessionStart, Stop, PreToolUse)
+- `rules/` — Starlark safety rules
+- Shared `~/.claude/memory/` for learning data
+
+Corrections made in Codex CLI sessions are saved to the same shared memory and benefit both Codex and Claude Code.
 
 ### Does EvoKit work with OpenCode?
 Not yet. OpenCode adapter is planned for v0.4.0.
 
 ### Can I use the same learning data across different AI assistants?
-In future versions, yes. The adapter architecture is designed to share the same learning data across different assistants.
+**Yes!** All adapters share the same `~/.claude/memory/` directory. Each session record is tagged by assistant (`"assistant": "codex"` or `"assistant": "claude"`), so corrections from one assistant benefit all assistants.
+
+### How do I check if my Codex installation is healthy?
+```bash
+evokit doctor --adapter codex
+# Or check all adapters:
+evokit doctor --adapter all
+```
 
 ## Troubleshooting
 

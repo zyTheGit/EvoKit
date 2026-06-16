@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.3.0 (2026-06-16)
+
+### Major
+- 🎉 **Codex CLI Adapter** — EvoKit now supports OpenAI Codex CLI!
+  - `evokit init --adapter codex` — install to `~/.codex/` with AGENTS.md, hooks.json, and Starlark rules
+  - Lifecycle hooks: SessionStart (boot), Stop (session recording), PreToolUse (learned rules injection)
+  - Starlark-based safety rules in `~/.codex/rules/`
+  - Shared `~/.claude/memory/` — corrections from Codex benefit all assistants
+- 🧩 **Shared Memory Layer** — `src/core/shared-memory.ts` for cross-adapter read/write
+  - Session records tagged by assistant (`"assistant": "codex"` / `"claude"`)
+  - All adapters share the same memory files
+- 🔧 **CLI Extended**
+  - `evokit init --adapter codex` — Codex-specific template installation
+  - `evokit doctor --adapter codex|claude|all` — per-adapter health checks
+  - `evokit evolve` — cross-adapter session breakdown in audit output
+
+### Internal
+- 🔌 `src/adapters/codex-adapter.ts` — full AgentAdapter implementation
+- 📦 `src/adapters/codex-installer.ts` — Codex template installation logic
+- 🪝 `src/adapters/codex-hooks.ts` — hooks.json builder with TOML and merge support
+- 🧪 22 new tests covering installer, hooks, memory, and status
+- 📚 Updated MULTI_AGENT.md, INSTALL.md, FAQ.md with Codex documentation
+
 ## v0.2.1 (2026-06-15)
 
 ### Improvement

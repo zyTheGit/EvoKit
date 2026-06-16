@@ -75,7 +75,19 @@ export const evolveCommand = new Command('evolve')
     // Step 5: Stale rules
     const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
     const sessions = readJsonlFile<SessionEntry>(sessionsPath);
-    console.log(pc.cyan(`\n🗑️  Pruning stale rules (${sessions.length} sessions)...`));
+
+    // Show per-assistant breakdown
+    const claudeSessions = sessions.filter((s) => !s.assistant || s.assistant === 'claude').length;
+    const codexSessions = sessions.filter((s) => s.assistant === 'codex').length;
+    const otherSessions = sessions.length - claudeSessions - codexSessions;
+    let sessionDetail = `${sessions.length} total`;
+    if (codexSessions > 0 || otherSessions > 0) {
+      sessionDetail += ` (Claude: ${claudeSessions}`;
+      if (codexSessions > 0) sessionDetail += `, Codex: ${codexSessions}`;
+      if (otherSessions > 0) sessionDetail += `, other: ${otherSessions}`;
+      sessionDetail += ')';
+    }
+    console.log(pc.cyan(`\n🗑️  Pruning stale rules (${sessionDetail})...`));
     const pruneResults = pruneStaleRules(config, sessions);
     if (pruneResults.length === 0) {
       console.log(`  ${pc.green('✓')} No stale rules found`);

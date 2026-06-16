@@ -1,0 +1,64 @@
+# EvoKit Base Rules — Codex CLI Starlark
+# These rules define safe defaults for the self-evolving system.
+# Loaded by Codex at startup from ~/.codex/rules/
+
+# ── Destructive file operations ──
+# Prompt before recursive removal
+prefix_rule(
+    pattern = ["rm", "-rf"],
+    decision = "prompt",
+    justification = "Recursive deletion can destroy project files. Verify the target first.",
+    match = [
+        "rm -rf node_modules",
+        "rm -rf dist",
+    ],
+    not_match = [
+        "rm -rf /",
+        "rm -rf ~",
+    ],
+)
+
+# Prompt before force removal
+prefix_rule(
+    pattern = ["rm", "-f"],
+    decision = "prompt",
+    justification = "Force deletion bypasses confirmation. Use with care.",
+)
+
+# ── Git safety ──
+# Prompt before force push
+prefix_rule(
+    pattern = ["git", "push", "--force"],
+    decision = "prompt",
+    justification = "Force push rewrites remote history. Confirm this is intentional.",
+)
+
+# Prompt before reset --hard
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "prompt",
+    justification = "Hard reset discards uncommitted changes. Verify first.",
+)
+
+# ── System commands ──
+# Prompt before sudo
+prefix_rule(
+    pattern = ["sudo"],
+    decision = "prompt",
+    justification = "Running with superuser privileges requires confirmation.",
+)
+
+# Prompt before chmod -R
+prefix_rule(
+    pattern = ["chmod", "-R"],
+    decision = "prompt",
+    justification = "Recursive permission changes can affect many files.",
+)
+
+# ── Network ──
+# Prompt before curl | bash (piped to shell)
+prefix_rule(
+    pattern = ["sh", "-c"],
+    decision = "prompt",
+    justification = "Piped shell scripts can execute arbitrary code.",
+)

@@ -94,15 +94,48 @@ interface CommandResult {
 | Agents | Sub-agent definitions in `.claude/agents/` |
 | Status | ✅ Complete |
 
-### Codex CLI Adapter (v0.3 — 🔜 Planned)
+### Codex CLI Adapter (v0.3 — ✅ Implemented)
 
 | Aspect | Implementation |
 |--------|---------------|
-| Installation | Codex config file + rules setup |
-| Hooks | Codex hook mechanism (TBD) |
-| Memory | Shared `.claude/memory/` |
-| Commands | Codex command system |
-| Status | 🔜 In design |
+| Installation | `evokit init --adapter codex` — copies to `~/.codex/` |
+| Hooks | `hooks.json` — SessionStart, Stop, PreToolUse events |
+| Rules | Starlark `.rules` files in `~/.codex/rules/` |
+| Memory | Shared `~/.claude/memory/` (with `assistant: "codex"` tag) |
+| Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md) |
+| Config | `~/.codex/config.toml` (features, model, permissions) |
+| Commands | `evokit evolve`, `evokit doctor`, shell-based `/boot` |
+| Status | ✅ v0.3.0 — Complete |
+
+#### EvoKit → Codex CLI Mapping
+
+| EvoKit Concept | Codex CLI Equivalent |
+|----------------|----------------------|
+| `~/.claude/` + `CLAUDE.md` | `~/.codex/` + `AGENTS.md` |
+| `.claude/hooks/settings.json` | `hooks.json` + inline `[hooks]` TOML |
+| `.claude/rules/` (markdown) | `.codex/rules/` (Starlark `.rules`) |
+| `.claude/agents/` | Subagents + Skills |
+| `.claude/commands/` (`/boot`) | SessionStart hook + `codex exec` |
+| `.claude/memory/` (JSONL) | Shared `~/.claude/memory/` |
+
+#### Installed Structure
+
+When installed with `evokit init --adapter codex`, the following is created:
+
+```
+~/.codex/
+├── AGENTS.md              # L1 cognitive core (thinking framework, evolution protocol)
+├── hooks.json             # Lifecycle hooks configuration
+├── config.toml            # Feature flags, permissions, model settings
+├── rules/
+│   └── evokit-base.rules  # Starlark safety rules (rm -rf, git push --force, sudo...)
+├── hooks-scripts/
+│   ├── session-start.sh   # Boot verification on session start
+│   ├── stop.sh            # Session recording to shared memory
+│   └── pre-tool-use.sh    # Learned rules context injection
+└── memory/
+    └── README.md          # Pointer to shared ~/.claude/memory/
+```
 
 ### OpenCode CLI Adapter (v0.4 — 🔜 Planned)
 
