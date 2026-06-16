@@ -110,7 +110,7 @@ describe('codex-installer', () => {
       const templateDir = path.resolve('template');
       installCodexTemplate({ homeDir, templateDir, dryRun: false });
       // Create shared memory (for fully complete setup)
-      fs.mkdirSync(path.join(homeDir, '.claude', 'memory'), { recursive: true });
+      fs.mkdirSync(path.join(homeDir, '.codex', 'memory'), { recursive: true });
 
       const codexHome = resolveCodexHome(homeDir);
       const checks = verifyCodexInstallation(codexHome);
@@ -228,7 +228,7 @@ describe('codex-adapter memory', () => {
 
       expect(files).toBeGreaterThan(0);
 
-      const memDir = path.join(homeDir, '.claude', 'memory');
+      const memDir = path.join(homeDir, '.codex', 'memory');
       const content = fs.readFileSync(path.join(memDir, 'corrections.jsonl'), 'utf-8');
       expect(content).toContain('test pattern');
       expect(content).toContain('test context');
@@ -243,7 +243,7 @@ describe('codex-adapter memory', () => {
         observations: [{ pattern: 'obs pattern', confidence: 0.8, source: 'test' }],
       });
 
-      const memDir = path.join(homeDir, '.claude', 'memory');
+      const memDir = path.join(homeDir, '.codex', 'memory');
       const content = fs.readFileSync(path.join(memDir, 'observations.jsonl'), 'utf-8');
       expect(content).toContain('obs pattern');
       expect(content).toContain('0.8');
@@ -280,7 +280,7 @@ describe('codex-adapter memory', () => {
         score: 'A',
       });
 
-      const memDir = path.join(homeDir, '.claude', 'memory');
+      const memDir = path.join(homeDir, '.codex', 'memory');
       const content = fs.readFileSync(path.join(memDir, 'sessions.jsonl'), 'utf-8');
       expect(content).toContain('"assistant":"codex"');
       expect(content).toContain('"duration_seconds":300');
