@@ -202,9 +202,22 @@ PYEOF
 
   if [ $merge_exit -ne 0 ]; then
     # Extract the error message from the stderr file
-    local err_msg
-    err_msg=$(grep -o 'MERGE_ERROR:.*' "$merge_stderr" 2>/dev/null | sed 's/MERGE_ERROR: //' || echo "Unknown error (exit code $merge_exit)")
+    local raw_stderr
+    raw_stderr=$(cat "$merge_stderr" 2>/dev/null || true)
     rm -f "$merge_stderr"
+
+    local err_msg
+    err_msg=$(echo "$raw_stderr" | grep -o 'MERGE_ERROR:.*' | sed 's/MERGE_ERROR: //' || true)
+
+    if [ -z "$err_msg" ] && [ -n "$raw_stderr" ]; then
+      # No MERGE_ERROR tag found — show raw stderr
+      err_msg=$(echo "$raw_stderr" | head -3 | tr '\n' '; ')
+    fi
+
+    if [ -z "$err_msg" ]; then
+      err_msg="Python process exited with code ${merge_exit}"
+    fi
+
     echo "ERROR_PYTHON_FAILED|${err_msg}"
   else
     rm -f "$merge_stderr"
@@ -350,8 +363,8 @@ install_claude() {
         ERROR_PYTHON_FAILED*)
           local err_detail="${merge_result#ERROR_PYTHON_FAILED|}"
           echo "  ⚠ settings.json unchanged — could not merge hooks"
-          echo "    ${err_detail}"
-          echo "  ℹ Existing file backed up as settings.json.bak.evokit"
+          echo "    Reason: ${err_detail}"
+          echo "  ℹ Run with bash -x for full traceback"
           ;;
       esac
     fi
