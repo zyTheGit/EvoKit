@@ -265,12 +265,14 @@ See: [MIGRATION.md](docs/MIGRATION.md)
 - ✅ npm package (`@zythegit/evokit`) + Homebrew support
 - ✅ 41 vitest test cases
 
-### Planned 🔜
+**v0.3.0 — Codex Adapter** 🆕
+- ✅ Codex CLI integration adapter (`~/.codex/` templates, AGENTS.md, hooks.json, config.toml)
+- ✅ Codex hook mechanism mapping (SessionStart / Stop / PreToolUse)
+- ✅ Shared learning data across assistants (shared `~/.claude/memory/`)
+- ✅ Interactive adapter selection menu (`evokit init` and `bin/install.sh`)
+- ✅ 29 new tests (adapter + shared memory)
 
-**v0.3.0 — Codex Adapter**
-- ☐ Codex CLI integration adapter
-- ☐ Codex hook mechanism mapping
-- ☐ Shared learning data across assistants
+### Planned 🔜
 
 **v0.4.0 — OpenCode + Aider Adapters**
 - ☐ OpenCode CLI plugin integration

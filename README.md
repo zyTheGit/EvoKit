@@ -265,12 +265,14 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ npm 包发布（`@zythegit/evokit`）+ Homebrew 支持
 - ✅ 41 个 vitest 测试用例
 
-### 规划中 🔜
+**v0.3.0 — Codex 适配器** 🆕
+- ✅ Codex CLI 集成适配器（`~/.codex/` 模板、AGENTS.md、hooks.json、config.toml）
+- ✅ Codex 钩子机制映射（SessionStart / Stop / PreToolUse）
+- ✅ 跨助手学习数据同步（共享 `~/.claude/memory/`）
+- ✅ 交互式适配器选择菜单（`evokit init` 和 `bin/install.sh`）
+- ✅ 29 个新测试（适配器 + 共享内存）
 
-**v0.3.0 — Codex 适配器**
-- ☐ Codex CLI 集成适配器
-- ☐ Codex 钩子机制映射
-- ☐ 跨助手学习数据同步
+### 规划中 🔜
 
 **v0.4.0 — OpenCode + Aider 适配器**
 - ☐ OpenCode CLI 插件集成
