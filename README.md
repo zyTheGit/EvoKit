@@ -301,12 +301,19 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ 交互式适配器选择菜单（带 box-drawing UI，支持多选和默认回车）
 - ✅ 29 个新测试（适配器 + 共享内存）
 
-### 规划中 🔜
+### 开发中 🚧
 
 **v0.4.0 — OpenCode + Aider 适配器**
-- ☐ OpenCode CLI 插件集成
-- ☐ Aider convention 文件集成
+- ✅ OpenCode CLI 插件集成（AGENTS.md / opencode.json / 项目级安装）
+- 🚧 OpenCode 钩子机制映射（SessionStart / Stop / PreToolUse）
+- 🚧 Aider convention 文件集成（存根待实现）
 - ☐ 统一适配器接口注册表
+- 🚧 配置文件智能合并（不覆盖已有 settings / AGENTS.md / opencode.json）
+- 🚧 自修复 CI 流水线
+
+> **版本说明**：v0.4.x 系列持续开发中，所有中间修复和迭代均为修订号更新（v0.4.1 / v0.4.2 / ...），次版本号仅在有完整功能里程碑时递增。
+
+### 规划中 🔜
 
 **v0.5.0 — 进化引擎独立化**
 - ☐ 独立的规则晋升引擎（可脱离 Claude Code 运行）
