@@ -49,7 +49,7 @@ merge_settings_json() {
 
   # Use a temp Python script instead of inline -c to avoid quoting issues
   local py_script
-  py_script=$(mktemp)
+  py_script=$(mktemp) || { echo "ERROR_PYTHON_FAILED|cannot create temp file for merge script"; return 0; }
   cat > "$py_script" << 'PYEOF'
 import json, os, sys
 
@@ -200,9 +200,14 @@ PYEOF
   local merge_exit=0
   local errors=()
 
+  # Disable errexit around the loop to avoid local+set -e edge cases
+  local _saved_e=
+  [[ -o errexit ]] && _saved_e=1
+  set +e
+
   for py_cmd in "${py_commands[@]}"; do
     local merge_stderr
-    merge_stderr=$(mktemp)
+    merge_stderr=$(mktemp 2>/dev/null) || { errors+=("'${py_cmd}' cannot create temp file"); continue; }
     # $py_cmd intentionally unquoted to support multi-word commands like "uv run --isolated python3"
     merge_stdout=$($py_cmd "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
     merge_exit=$?
@@ -219,6 +224,9 @@ PYEOF
     errors+=("'${py_cmd}' exit=${merge_exit} stderr=[${raw_stderr}]")
     merge_stdout=""  # Reset on failure
   done
+
+  # Restore errexit if it was set
+  [ "$_saved_e" = 1 ] && set -e || true
 
   rm -f "$py_script"
 
@@ -354,26 +362,34 @@ install_claude() {
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] Would merge hooks into existing settings.json"
     else
-      local merge_result
-      merge_result=$(merge_settings_json "${claude_dir}/settings.json" "$TEMPLATE_DIR/settings.json")
-      case "$merge_result" in
-        MERGED)
-          echo "  ✓ settings.json (hooks merged)"
-          ;;
-        SKIPPED)
-          echo "  - settings.json unchanged (hooks already present)"
-          ;;
-        ERROR_NO_PYTHON)
-          echo "  ⚠ settings.json unchanged — no Python available for JSON merge"
-          echo "    Install python3 or uv, then re-run to merge hooks"
-          ;;
-        ERROR_PYTHON_FAILED*)
-          local err_detail="${merge_result#ERROR_PYTHON_FAILED|}"
-          echo "  ⚠ settings.json unchanged — could not merge hooks"
-          echo "    Reason: ${err_detail}"
-          echo "  ℹ Run with bash -x for full traceback"
-          ;;
-      esac
+      # Pre-check: if hook events already present, skip Python merge entirely
+      # This avoids needing Python for the common re-install/upgrade case
+      if grep -q '"SessionStart"' "${claude_dir}/settings.json" 2>/dev/null \
+         && grep -q '"Stop"' "${claude_dir}/settings.json" 2>/dev/null \
+         && grep -q '"PreToolUse"' "${claude_dir}/settings.json" 2>/dev/null; then
+        echo "  - settings.json unchanged (hooks already present)"
+      else
+        local merge_result
+        merge_result=$(merge_settings_json "${claude_dir}/settings.json" "$TEMPLATE_DIR/settings.json")
+        case "$merge_result" in
+          MERGED)
+            echo "  ✓ settings.json (hooks merged)"
+            ;;
+          SKIPPED)
+            echo "  - settings.json unchanged (hooks already present)"
+            ;;
+          ERROR_NO_PYTHON)
+            echo "  ⚠ settings.json unchanged — no Python available for JSON merge"
+            echo "    Install python3 or uv, then re-run to merge hooks"
+            ;;
+          ERROR_PYTHON_FAILED*)
+            local err_detail="${merge_result#ERROR_PYTHON_FAILED|}"
+            echo "  ⚠ settings.json unchanged — could not merge hooks"
+            echo "    Reason: ${err_detail}"
+            echo "  ℹ Run with bash -x for full traceback"
+            ;;
+        esac
+      fi
     fi
   fi
 
