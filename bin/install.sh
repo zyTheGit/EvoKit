@@ -237,7 +237,8 @@ install_codex() {
   if [ -d "$CODEX_TEMPLATE/memory" ]; then
     for mem_file in "$CODEX_TEMPLATE/memory"/*.md; do
       if [ -f "$mem_file" ]; then
-        local mem_target="${codex_dir}/memory/$(basename "$mem_file")"
+        local mem_target
+        mem_target="${codex_dir}/memory/$(basename "$mem_file")"
         if [ ! -f "$mem_target" ]; then
           if [ "$DRY_RUN" = true ]; then
             echo "   [DRY RUN] cp $mem_file $mem_target"
@@ -277,7 +278,6 @@ install_codex() {
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || echo "")"
 TEMPLATE_DIR="${SCRIPT_DIR:+${SCRIPT_DIR}/template}"
 DRY_RUN=false
-CLAUDE_DIR="${HOME}/.claude"
 TEMPLATE_EXPLICIT=false
 ADAPTERS=""
 
@@ -352,7 +352,7 @@ if [ -z "$ADAPTERS" ]; then
   fi
 fi
 
-echo "  Selected: $(echo "$ADAPTERS" | sed 's/,/, /g')"
+echo "  Selected: ${ADAPTERS//,/, }"
 echo ""
 
 # ──────────────────────────────────────────
