@@ -1,0 +1,27 @@
+# EvoKit — Codex CLI Configuration
+# Installed by evokit init --adapter codex
+
+# ── Model ────────────────────────────────────
+# model = "gpt-5.5"
+
+# ── Features ─────────────────────────────────
+[features]
+hooks = true
+memories = true
+multi_agent = true
+
+# ── Memory ───────────────────────────────────
+memories = true
+
+# ── Approval Policy ──────────────────────────
+# "on-request" = prompt before every tool call
+# "untrusted" = prompt only for untrusted commands
+# "never" = auto-approve (use with caution)
+approval_policy = "on-request"
+
+# ── Sandbox ──────────────────────────────────
+sandbox_mode = "workspace-write"
+
+# ── Shell Environment ────────────────────────
+[shell_environment_policy]
+include_only = ["PATH", "HOME", "USER"]

@@ -2,7 +2,10 @@
 
 ## Prerequisites
 
-- **Supported AI coding assistant:** Claude Code (others coming in future versions)
+- **Supported AI coding assistants:**
+  - **Claude Code** (via `~/.claude/`) — ✅ Complete
+  - **Codex CLI** (via `~/.codex/`) — ✅ v0.3.0
+  - **OpenCode / Aider** — 🔜 Planned
 - **OS:** Linux, macOS, or Windows (WSL/Git Bash)
 - **Shell:** bash 4.0+
 - **Tools:** `curl` or `wget` (for remote install)
@@ -15,8 +18,11 @@
 # Install globally via npm
 npm install -g @zythegit/evokit
 
-# Initialize EvoKit
+# Initialize EvoKit for Claude Code (default)
 evokit init
+
+# Or initialize for Codex CLI
+evokit init --adapter codex
 ```
 
 ### Homebrew
@@ -51,6 +57,40 @@ bash bin/install.sh
 # Or point to a specific template directory
 bash bin/install.sh --template /path/to/template
 ```
+
+## Adapter-Specific Installation
+
+### Claude Code
+
+Installs to `~/.claude/` with settings.json hooks, markdown rules, and slash commands:
+
+```bash
+evokit init --adapter claude
+```
+
+After installation, start Claude Code and run `/boot`.
+
+### Codex CLI
+
+Installs to `~/.codex/` with hooks.json lifecycle hooks, Starlark rules, and AGENTS.md:
+
+```bash
+evokit init --adapter codex
+```
+
+After installation, start Codex CLI — the `/boot` equivalent runs automatically on every session start via the SessionStart hook. Run `evokit doctor` to verify health.
+
+Codex CLI specific options:
+
+```bash
+# With verification
+evokit init --adapter codex --verify
+
+# Dry run to preview
+evokit init --adapter codex --dry-run
+```
+
+**Note:** Codex CLI support requires Codex v0.1+ with hooks feature enabled (default).
 
 ## Installer Options
 
