@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.2 (2026-06-16)
+
+### Fix
+- 🔧 **Shellcheck CI 修复** — pre-tool-use.sh SC2016 误报修复（正则中 `$HOME` 改为双引号 + 正确转义，不改变语义）
+
 ## v0.3.1 (2026-06-16)
 
 ### Major
