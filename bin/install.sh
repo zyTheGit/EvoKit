@@ -332,8 +332,10 @@ echo ""
 # Adapter selection
 # ──────────────────────────────────────────
 if [ -z "$ADAPTERS" ]; then
-  # Check if we're in an interactive terminal
-  if [ -t 0 ]; then
+  # Save original stdin, try to redirect from /dev/tty for interactive prompt
+  # This works under curl | bash where stdin is a pipe, not a terminal
+  exec 3<&0
+  if exec < /dev/tty 2>/dev/null; then
     echo "Select AI assistants to configure:"
     echo ""
     echo "  [1] Claude Code  (recommended)  — ~/.claude/"
@@ -343,6 +345,8 @@ if [ -z "$ADAPTERS" ]; then
     echo ""
     read -p "  Choice (e.g. 1 2 for multiple): " -r choice_input
     echo ""
+    # Restore original stdin
+    exec 0<&3 3<&-
 
     ADAPTERS=""
     for c in $choice_input; do
@@ -372,7 +376,10 @@ if [ -z "$ADAPTERS" ]; then
       ADAPTERS="claude"
     fi
   else
-    # Non-interactive (curl | bash) — default to Claude only
+    exec 0<&3 3<&-
+    # No terminal available (CI, cron, etc.) — default to Claude only
+    echo "  ℹ Non-interactive mode detected, defaulting to Claude Code"
+    echo "  ℹ Use --adapter claude,codex to select specific adapters"
     ADAPTERS="claude"
   fi
 fi
