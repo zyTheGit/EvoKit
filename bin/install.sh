@@ -17,6 +17,153 @@ set -e
 # Install functions (defined before use)
 # ════════════════════════════════════════════
 
+# ── JSON merge helpers (Python) ─────────────────────────────────────
+# Used for merging EvoKit hooks into existing settings.json
+find_python() {
+  if command -v uv &>/dev/null; then
+    echo "uv run --isolated python3"
+  elif command -v python3 &>/dev/null; then
+    echo "python3"
+  elif command -v python &>/dev/null; then
+    echo "python"
+  else
+    echo ""
+  fi
+}
+
+merge_settings_json() {
+  local settings_file="$1"
+  local template_file="$2"
+  local py_cmd
+  py_cmd=$(find_python)
+
+  if [ -z "$py_cmd" ]; then
+    echo "ERROR_NO_PYTHON"
+    return 1
+  fi
+
+  $py_cmd -c "
+import json, os, sys
+
+settings_path = sys.argv[1]
+template_path = sys.argv[2]
+home = os.environ.get('HOME', '')
+
+with open(settings_path, 'r') as f:
+    settings = json.load(f)
+
+with open(template_path, 'r') as f:
+    raw = f.read()
+
+template_raw = raw.replace('__HOME__', home)
+template = json.loads(template_raw)
+
+changed = False
+
+# Merge hooks — add only missing hook events
+template_hooks = template.get('hooks', {})
+if template_hooks:
+    existing_hooks = settings.get('hooks')
+    if not isinstance(existing_hooks, dict):
+        existing_hooks = {}
+        changed = True
+    merged_hooks = dict(existing_hooks)
+    for event, hooks_list in template_hooks.items():
+        if event not in existing_hooks:
+            merged_hooks[event] = hooks_list
+            changed = True
+    if changed:
+        settings['hooks'] = merged_hooks
+
+# Enforce autoMemoryEnabled
+template_auto = template.get('autoMemoryEnabled', True)
+if settings.get('autoMemoryEnabled') != template_auto:
+    settings['autoMemoryEnabled'] = template_auto
+    changed = True
+
+# Enforce env settings (CLAUDE_CODE_DISABLE_AUTO_MEMORY)
+template_env = template.get('env', {})
+current_env = settings.get('env', {})
+if not isinstance(current_env, dict):
+    current_env = {}
+    changed = True
+merged_env = dict(current_env)
+for k, v in template_env.items():
+    if current_env.get(k) != v:
+        merged_env[k] = v
+        changed = True
+settings['env'] = merged_env
+
+if changed:
+    with open(settings_path, 'w') as f:
+        json.dump(settings, f, indent=2)
+        f.write('\n')
+    if os.path.exists(settings_path + '.bak.merge'):
+        os.remove(settings_path + '.bak.merge')
+    print('MERGED')
+else:
+    if os.path.exists(settings_path + '.bak.merge'):
+        os.remove(settings_path + '.bak.merge')
+    print('SKIPPED')
+" "$settings_file" "$template_file"
+}
+
+# ── CLAUDE.md protocol check ───────────────────────────────────────
+# Appends the Self-Evolving System Protocol if not already present
+ensure_claude_protocol() {
+  local target_file="$1"
+  local template_file="$2"
+
+  # If file doesn't exist at all, signal fresh install
+  if [ ! -f "$target_file" ]; then
+    echo "FRESH"
+    return 0
+  fi
+
+  # Check if protocol is already present
+  if grep -q -F "Self-Evolving System Protocol" "$target_file" 2>/dev/null; then
+    echo "SKIPPED"
+    return 0
+  fi
+
+  # Append protocol to existing file
+  {
+    echo ""
+    echo "---"
+    echo ""
+    cat "$template_file"
+  } >> "$target_file"
+
+  echo "APPENDED"
+}
+
+# ── Generic marker-based append helper ──────────────────────────────
+# For markdown/config files: template appended if marker string not found
+ensure_marker_appended() {
+  local target_file="$1"
+  local template_file="$2"
+  local marker="$3"
+
+  if [ ! -f "$target_file" ]; then
+    echo "FRESH"
+    return 0
+  fi
+
+  if grep -q -F "$marker" "$target_file" 2>/dev/null; then
+    echo "SKIPPED"
+    return 0
+  fi
+
+  {
+    echo ""
+    echo "---"
+    echo ""
+    cat "$template_file"
+  } >> "$target_file"
+
+  echo "APPENDED"
+}
+
 install_claude() {
   local claude_dir="${HOME}/.claude"
 
@@ -42,17 +189,25 @@ install_claude() {
   echo ""
   echo "📄 Installing template files..."
 
-  # CLAUDE.md (only if not exists)
-  if [ ! -f "${HOME}/CLAUDE.md" ]; then
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $TEMPLATE_DIR/CLAUDE.md $HOME/"
-    else
-      cp "$TEMPLATE_DIR/CLAUDE.md" "$HOME/"
-      echo "  ✓ CLAUDE.md"
-    fi
-  else
-    echo "  - CLAUDE.md exists, keeping existing"
-  fi
+  # CLAUDE.md — merge protocol if already exists, otherwise fresh copy
+  local claude_result
+  claude_result=$(ensure_claude_protocol "${HOME}/CLAUDE.md" "$TEMPLATE_DIR/CLAUDE.md")
+  case "$claude_result" in
+    FRESH)
+      if [ "$DRY_RUN" = true ]; then
+        echo "   [DRY RUN] cp $TEMPLATE_DIR/CLAUDE.md $HOME/"
+      else
+        cp "$TEMPLATE_DIR/CLAUDE.md" "$HOME/"
+        echo "  ✓ CLAUDE.md"
+      fi
+      ;;
+    APPENDED)
+      echo "  ✓ CLAUDE.md (protocol appended)"
+      ;;
+    SKIPPED)
+      echo "  - CLAUDE.md unchanged (protocol already present)"
+      ;;
+  esac
 
   # MEMORY.md
   if [ "$DRY_RUN" = true ]; then
@@ -62,17 +217,34 @@ install_claude() {
     echo "  ✓ MEMORY.md"
   fi
 
-  # settings.json (only if not exists)
+  # settings.json — merge hooks if already exists, otherwise fresh copy
   if [ ! -f "${claude_dir}/settings.json" ]; then
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] cp $TEMPLATE_DIR/settings.json $claude_dir/ (with path replacement)"
     else
-      cp "$TEMPLATE_DIR/settings.json" "$claude_dir/"
+      cp "$TEMPLATE_DIR/settings.json" "${claude_dir}/settings.json"
       sed -i "s|__HOME__|${HOME}|g" "${claude_dir}/settings.json"
       echo "  ✓ settings.json"
     fi
   else
-    echo "  - settings.json exists, keeping existing"
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] Would merge hooks into existing settings.json"
+    else
+      local merge_result
+      merge_result=$(merge_settings_json "${claude_dir}/settings.json" "$TEMPLATE_DIR/settings.json")
+      case "$merge_result" in
+        MERGED)
+          echo "  ✓ settings.json (hooks merged)"
+          ;;
+        SKIPPED)
+          echo "  - settings.json unchanged (hooks already present)"
+          ;;
+        ERROR_NO_PYTHON)
+          echo "  ⚠ settings.json unchanged — no Python available for JSON merge"
+          echo "    Install python3 or uv, then re-run to merge hooks"
+          ;;
+      esac
+    fi
   fi
 
   # Hooks
@@ -196,9 +368,10 @@ install_opencode() {
     fi
   done
 
-  # 2. AGENTS.md (project root, only if not exists)
+  # 2. AGENTS.md (project root — merge if exists, otherwise fresh copy)
   echo ""
   echo "📄 Installing template files..."
+  local oc_agents_marker="Self-Evolving System Protocol"
   if [ ! -f "${project_dir}/AGENTS.md" ]; then
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] cp $OPENCODE_TEMPLATE/AGENTS.md ${project_dir}/ (with path replacement)"
@@ -206,11 +379,27 @@ install_opencode() {
       sed "s|__HOME__|${HOME}|g" "$OPENCODE_TEMPLATE/AGENTS.md" > "${project_dir}/AGENTS.md"
       echo "  ✓ AGENTS.md (project root)"
     fi
+  elif grep -q -F "$oc_agents_marker" "${project_dir}/AGENTS.md" 2>/dev/null; then
+    echo "  - AGENTS.md unchanged (protocol already present)"
   else
-    echo "  - AGENTS.md exists, keeping existing"
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] Would append protocol to existing AGENTS.md"
+    else
+      local oc_agents_tmp
+      oc_agents_tmp=$(mktemp)
+      sed "s|__HOME__|${HOME}|g" "$OPENCODE_TEMPLATE/AGENTS.md" > "$oc_agents_tmp"
+      {
+        echo ""
+        echo "---"
+        echo ""
+        cat "$oc_agents_tmp"
+      } >> "${project_dir}/AGENTS.md"
+      rm -f "$oc_agents_tmp"
+      echo "  ✓ AGENTS.md (protocol appended)"
+    fi
   fi
 
-  # 3. opencode.json (project root, only if not exists)
+  # 3. opencode.json (project root — merge if exists, otherwise fresh copy)
   if [ ! -f "${project_dir}/opencode.json" ]; then
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] cp $OPENCODE_TEMPLATE/opencode.json ${project_dir}/"
@@ -219,7 +408,24 @@ install_opencode() {
       echo "  ✓ opencode.json (project root)"
     fi
   else
-    echo "  - opencode.json exists, keeping existing"
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] Would merge EvoKit config into existing opencode.json"
+    else
+      local oc_json_result
+      oc_json_result=$(merge_settings_json "${project_dir}/opencode.json" "$OPENCODE_TEMPLATE/opencode.json")
+      case "$oc_json_result" in
+        MERGED)
+          echo "  ✓ opencode.json (config merged)"
+          ;;
+        SKIPPED)
+          echo "  - opencode.json unchanged (config already present)"
+          ;;
+        ERROR_NO_PYTHON)
+          echo "  ⚠ opencode.json unchanged — no Python available for JSON merge"
+          echo "    Install python3 or uv, then re-run to merge"
+          ;;
+      esac
+    fi
   fi
 
   # 4. Tools (always copy — upgrade path, with __HOME__)
@@ -316,7 +522,8 @@ install_codex() {
   echo ""
   echo "📄 Installing Codex template files..."
 
-  # AGENTS.md (only if not exists)
+  # AGENTS.md (merge if exists, otherwise fresh copy)
+  local cx_agents_marker="EvoKit — Self-Evolving System Protocol"
   if [ ! -f "${codex_dir}/AGENTS.md" ]; then
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] cp $CODEX_TEMPLATE/AGENTS.md ${codex_dir}/ (with path replacement)"
@@ -324,8 +531,24 @@ install_codex() {
       sed "s|__HOME__|${HOME}|g" "$CODEX_TEMPLATE/AGENTS.md" > "${codex_dir}/AGENTS.md"
       echo "  ✓ AGENTS.md"
     fi
+  elif grep -q -F "$cx_agents_marker" "${codex_dir}/AGENTS.md" 2>/dev/null; then
+    echo "  - AGENTS.md unchanged (protocol already present)"
   else
-    echo "  - AGENTS.md exists, keeping existing"
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] Would append protocol to existing AGENTS.md"
+    else
+      local cx_agents_tmp
+      cx_agents_tmp=$(mktemp)
+      sed "s|__HOME__|${HOME}|g" "$CODEX_TEMPLATE/AGENTS.md" > "$cx_agents_tmp"
+      {
+        echo ""
+        echo "---"
+        echo ""
+        cat "$cx_agents_tmp"
+      } >> "${codex_dir}/AGENTS.md"
+      rm -f "$cx_agents_tmp"
+      echo "  ✓ AGENTS.md (protocol appended)"
+    fi
   fi
 
   # hooks.json (always copy — upgrade path, with __HOME__ replacement)
@@ -336,17 +559,25 @@ install_codex() {
     echo "  ✓ hooks.json"
   fi
 
-  # config.toml (only if not exists)
-  if [ ! -f "${codex_dir}/config.toml" ]; then
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $CODEX_TEMPLATE/config.toml ${codex_dir}/"
-    else
-      cp "$CODEX_TEMPLATE/config.toml" "${codex_dir}/"
-      echo "  ✓ config.toml"
-    fi
-  else
-    echo "  - config.toml exists, keeping existing"
-  fi
+  # config.toml (merge if exists, otherwise fresh copy)
+  local cx_toml_result
+  cx_toml_result=$(ensure_marker_appended "${codex_dir}/config.toml" "$CODEX_TEMPLATE/config.toml" "EvoKit — Codex CLI Configuration")
+  case "$cx_toml_result" in
+    FRESH)
+      if [ "$DRY_RUN" = true ]; then
+        echo "   [DRY RUN] cp $CODEX_TEMPLATE/config.toml ${codex_dir}/"
+      else
+        cp "$CODEX_TEMPLATE/config.toml" "${codex_dir}/"
+        echo "  ✓ config.toml"
+      fi
+      ;;
+    APPENDED)
+      echo "  ✓ config.toml (EvoKit config appended)"
+      ;;
+    SKIPPED)
+      echo "  - config.toml unchanged (EvoKit config already present)"
+      ;;
+  esac
 
   # Rules (always copy — upgrade path)
   if [ -d "$CODEX_TEMPLATE/rules" ]; then
