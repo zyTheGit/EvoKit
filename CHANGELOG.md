@@ -10,6 +10,7 @@
 - 💡 **Better UX** — Pressing Enter defaults to `[1] Claude Code`; input now accepts commas (`1,3` same as `1 3`); cleaner prompt with `→` indicator
 - 🛡️ **More robust input handling** — Strips `\r`, trims whitespace, accumulates only validated choices before parsing
 - 📝 **README updated** — Preview section shows the new interactive menu; install docs highlight `--adapter` flag for non-interactive use
+- 📋 **README roadmap updated** — v0.4.0 moved from "规划中 🔜" to "开发中 🚧" with actual OpenCode/Aider progress reflected; versioning rule documented
 
 ## v0.3.2 (2026-06-16)
 
