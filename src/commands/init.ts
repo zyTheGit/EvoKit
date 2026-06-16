@@ -5,12 +5,14 @@ import fse from 'fs-extra';
 import { resolveTemplateDir, installTemplate, verifyInstallation } from '../core/template.js';
 import { installCodexTemplate, resolveCodexHome, verifyCodexInstallation } from '../adapters/codex-installer.js';
 import { setupCodexHooks } from '../adapters/codex-adapter.js';
+import { installOpenCodeTemplate, resolveOpenCodeProjectDir } from '../adapters/opencode-installer.js';
 
-type Adapter = 'claude' | 'codex';
+type Adapter = 'claude' | 'codex' | 'opencode';
 
 const ALL_ADAPTERS: { id: Adapter; label: string; description: string; available: boolean }[] = [
-  { id: 'claude', label: 'Claude Code',   description: '~/.claude/',  available: true },
-  { id: 'codex',  label: 'Codex CLI',     description: '~/.codex/',  available: true },
+  { id: 'claude',   label: 'Claude Code',  description: '~/.claude/',        available: true },
+  { id: 'codex',    label: 'Codex CLI',    description: '~/.codex/',         available: true },
+  { id: 'opencode', label: 'OpenCode CLI', description: '.opencode/ (proj)', available: true },
 ];
 
 export const initCommand = new Command('init')
@@ -20,7 +22,7 @@ export const initCommand = new Command('init')
   .option('--branch <name>', 'GitHub branch to download template from', 'main')
   .option('--dry-run', 'Preview installation without modifying files')
   .option('--verify', 'Run boot verification after installation')
-  .option('--adapter <name>', 'Target AI assistant (claude | codex). Omit for interactive selection.')
+  .option('--adapter <name>', 'Target AI assistant (claude | codex | opencode). Omit for interactive selection.')
   .action(async (directory, options) => {
     const homeDir = directory || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -63,6 +65,9 @@ export const initCommand = new Command('init')
         case 'codex':
           await initCodex(homeDir, templateDir, options);
           break;
+        case 'opencode':
+          await initOpenCode(templateDir, options);
+          break;
         default:
           console.error(pc.red(`\n❌ Unknown adapter: ${adapter}`));
           process.exit(1);
@@ -88,11 +93,12 @@ async function promptAdapterSelection(): Promise<Adapter[]> {
     console.log(pc.cyan('\nSelect AI assistants to configure:'));
     console.log('');
 
-    for (const a of ALL_ADAPTERS) {
+    for (let i = 0; i < ALL_ADAPTERS.length; i++) {
+      const a = ALL_ADAPTERS[i];
       const icon = a.available ? pc.green('◻') : pc.dim('◻ (coming soon)');
-      console.log(`  ${icon}  ${a.id === 'claude' ? pc.bold('[1]') : pc.bold('[2]')} ${a.label}${pc.dim(` — ${a.description}`)}`);
+      console.log(`  ${icon}  ${pc.bold(`[${i + 1}]`)} ${a.label}${pc.dim(` — ${a.description}`)}`);
     }
-    console.log(`  ${pc.bold('  [3]')} All of the above`);
+    console.log(`  ${pc.bold('  [4]')} All of the above`);
     console.log('');
 
     rl.question(pc.cyan('  Choice (e.g. "1 2" for multiple, Enter=Claude): '), (input) => {
@@ -107,8 +113,8 @@ async function promptAdapterSelection(): Promise<Adapter[]> {
 
       const choices = trimmed.split(/\s+/).map(Number);
 
-      if (choices.includes(3)) {
-        resolve(['claude', 'codex']);
+      if (choices.includes(4)) {
+        resolve(['claude', 'codex', 'opencode']);
         return;
       }
 
@@ -125,6 +131,42 @@ async function promptAdapterSelection(): Promise<Adapter[]> {
       resolve(selected.length > 0 ? [...new Set(selected)] : ['claude']);
     });
   });
+}
+
+async function initOpenCode(templateDir: string, options: any): Promise<void> {
+  const projectDir = process.cwd();
+  const opencodeDir = resolveOpenCodeProjectDir(projectDir);
+  console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
+  console.log(pc.cyan('║   EvoKit — Install for OpenCode CLI        ║'));
+  console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
+  console.log('');
+  console.log(`  Target: ${opencodeDir}${options.dryRun ? pc.yellow(' (DRY RUN)') : ''}`);
+  console.log(`  AGENTS.md + opencode.json → project root`);
+  console.log(`  Template: ${templateDir}`);
+  console.log('');
+
+  // Install
+  console.log(pc.cyan('📁 Installing OpenCode template files...'));
+  const summary = installOpenCodeTemplate({
+    homeDir: process.env.HOME || '',
+    projectDir,
+    templateDir,
+    dryRun: options.dryRun,
+  });
+  printSummary(summary);
+
+  // Done
+  console.log('');
+  if (options.dryRun) {
+    console.log(pc.green('✅ Dry run complete — no files were modified'));
+  } else {
+    console.log(pc.green('✅ EvoKit installed for OpenCode CLI!'));
+    console.log('');
+    console.log(pc.cyan('  Next steps:'));
+    console.log('  1. OpenCode will load AGENTS.md automatically');
+    console.log('  2. Call evokit-boot tool to verify system health');
+    console.log('  3. Call evokit-session with action: end before finishing each session');
+  }
 }
 
 async function initClaude(homeDir: string, templateDir: string, options: any): Promise<void> {

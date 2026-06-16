@@ -6,7 +6,7 @@
 set -e
 
 HOME_DIR="${HOME}"
-SESSIONS_FILE="${HOME_DIR}/.claude/memory/sessions.jsonl"
+SESSIONS_FILE="${HOME_DIR}/.codex/memory/sessions.jsonl"
 SESSION_ID="${CODEX_SESSION_ID:-unknown}"
 MODEL="${CODEX_MODEL:-unknown}"
 START_TIME="${CODEX_SESSION_START:-$(date +%s)}"

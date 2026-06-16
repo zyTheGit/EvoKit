@@ -7,7 +7,7 @@
  * - hooks.json for lifecycle hooks (SessionStart, Stop, PreToolUse)
  * - config.toml for configuration
  * - .codex/rules/ for Starlark permission rules
- * - Shared ~/.claude/memory/ for evolution data
+ * - ~/.codex/memory/ for evolution data
  *
  * @packageDocumentation
  */
@@ -33,7 +33,7 @@ const __dirname = path.dirname(__filename);
 
 export const CODEX_ADAPTER_VERSION = '0.3.0';
 
-const SHARED_MEMORY_DIR = '.claude/memory';
+const CODEX_MEMORY_DIR = '.codex/memory';
 
 // ─── Public API ────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ export function injectCodexMemory(
 ): number {
   const memoryDir = options.sharedMemoryDir
     ? path.resolve(options.sharedMemoryDir)
-    : path.resolve(homeDir, SHARED_MEMORY_DIR);
+    : path.resolve(homeDir, CODEX_MEMORY_DIR);
 
   fse.ensureDirSync(memoryDir);
   let filesWritten = 0;
@@ -136,7 +136,7 @@ export function exportCodexMemory(
 } {
   const memoryDir = options.sharedMemoryDir
     ? path.resolve(options.sharedMemoryDir)
-    : path.resolve(homeDir, SHARED_MEMORY_DIR);
+    : path.resolve(homeDir, CODEX_MEMORY_DIR);
 
   const result = {
     corrections: [] as unknown[],
@@ -201,7 +201,7 @@ export function recordCodexSession(
 ): void {
   const memoryDir = options.sharedMemoryDir
     ? path.resolve(options.sharedMemoryDir)
-    : path.resolve(homeDir, SHARED_MEMORY_DIR);
+    : path.resolve(homeDir, CODEX_MEMORY_DIR);
 
   fse.ensureDirSync(memoryDir);
   const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
@@ -327,7 +327,7 @@ export function getCodexStatus(
       result.ruleCount = fs.readdirSync(rulesDir).filter((f) => f.endsWith('.rules')).length;
     }
 
-    const memDir = path.join(homeDir, SHARED_MEMORY_DIR);
+    const memDir = path.join(homeDir, CODEX_MEMORY_DIR);
     result.sharedMemoryPresent = fse.existsSync(memDir);
 
     result.installed =

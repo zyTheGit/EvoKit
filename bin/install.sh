@@ -3,7 +3,7 @@
 # EvoKit — One-click Installer
 # Usage:
 #   bash bin/install.sh
-#   bash bin/install.sh --adapter claude,codex
+#   bash bin/install.sh --adapter claude,codex,opencode
 #   bash bin/install.sh --template /path/to/template
 #   bash bin/install.sh --dry-run
 #   bash bin/install.sh --branch develop
@@ -162,6 +162,124 @@ install_claude() {
 
   echo ""
   echo "✅ Claude Code installation complete!"
+  echo ""
+}
+
+install_opencode() {
+  local project_dir="${PWD}"
+  local opencode_dir="${project_dir}/.opencode"
+
+  echo "╔═══════════════════════════════════════════╗"
+  echo "║   Installing for OpenCode CLI             ║"
+  echo "╚═══════════════════════════════════════════╝"
+  echo "  Target: ${opencode_dir}${DRY_RUN:+ (DRY RUN)}"
+  echo "  AGENTS.md + opencode.json → project root"
+  echo ""
+
+  local OPENCODE_TEMPLATE="${TEMPLATE_DIR}/opencode"
+
+  if [ ! -f "$OPENCODE_TEMPLATE/AGENTS.md" ]; then
+    echo "⚠ OpenCode template not found at: $OPENCODE_TEMPLATE"
+    echo "  Skipping OpenCode installation."
+    return
+  fi
+
+  # 1. Create directories
+  echo "📁 Creating directories..."
+  for dir in tools agents memory; do
+    local target="${opencode_dir}/$dir"
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] mkdir -p $target"
+    else
+      mkdir -p "$target"
+      echo "  ✓ .opencode/$dir/"
+    fi
+  done
+
+  # 2. AGENTS.md (project root, only if not exists)
+  echo ""
+  echo "📄 Installing template files..."
+  if [ ! -f "${project_dir}/AGENTS.md" ]; then
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] cp $OPENCODE_TEMPLATE/AGENTS.md ${project_dir}/ (with path replacement)"
+    else
+      sed "s|__HOME__|${HOME}|g" "$OPENCODE_TEMPLATE/AGENTS.md" > "${project_dir}/AGENTS.md"
+      echo "  ✓ AGENTS.md (project root)"
+    fi
+  else
+    echo "  - AGENTS.md exists, keeping existing"
+  fi
+
+  # 3. opencode.json (project root, only if not exists)
+  if [ ! -f "${project_dir}/opencode.json" ]; then
+    if [ "$DRY_RUN" = true ]; then
+      echo "   [DRY RUN] cp $OPENCODE_TEMPLATE/opencode.json ${project_dir}/"
+    else
+      cp "$OPENCODE_TEMPLATE/opencode.json" "${project_dir}/"
+      echo "  ✓ opencode.json (project root)"
+    fi
+  else
+    echo "  - opencode.json exists, keeping existing"
+  fi
+
+  # 4. Tools (always copy — upgrade path, with __HOME__)
+  if [ -d "$OPENCODE_TEMPLATE/tools" ]; then
+    for tool_file in "$OPENCODE_TEMPLATE/tools"/*.ts; do
+      if [ -f "$tool_file" ]; then
+        if [ "$DRY_RUN" = true ]; then
+          echo "   [DRY RUN] cp $tool_file ${opencode_dir}/tools/ (with path replacement)"
+        else
+          sed "s|__HOME__|${HOME}|g" "$tool_file" > "${opencode_dir}/tools/$(basename "$tool_file")"
+          echo "  ✓ tools/$(basename "$tool_file")"
+        fi
+      fi
+    done
+  fi
+
+  # 5. Agents (always copy — upgrade path)
+  if [ -d "$OPENCODE_TEMPLATE/agents" ]; then
+    for agent_file in "$OPENCODE_TEMPLATE/agents"/*.md; do
+      if [ -f "$agent_file" ]; then
+        if [ "$DRY_RUN" = true ]; then
+          echo "   [DRY RUN] cp $agent_file ${opencode_dir}/agents/"
+        else
+          cp "$agent_file" "${opencode_dir}/agents/"
+          echo "  ✓ agents/$(basename "$agent_file")"
+        fi
+      fi
+    done
+  fi
+
+  # 6. Memory seed files (only if not exists)
+  if [ -d "$OPENCODE_TEMPLATE/memory" ]; then
+    for mem_file in "$OPENCODE_TEMPLATE/memory"/*.md; do
+      if [ -f "$mem_file" ]; then
+        local mem_target
+        mem_target="${opencode_dir}/memory/$(basename "$mem_file")"
+        if [ ! -f "$mem_target" ]; then
+          if [ "$DRY_RUN" = true ]; then
+            echo "   [DRY RUN] cp $mem_file $mem_target"
+          else
+            cp "$mem_file" "$mem_target"
+            echo "  ✓ memory/$(basename "$mem_file")"
+          fi
+        else
+          echo "  - memory/$(basename "$mem_file") exists, keeping existing"
+        fi
+      fi
+    done
+  fi
+
+  # 7. Set permissions
+  echo ""
+  echo "🔒 Setting permissions..."
+  if [ "$DRY_RUN" = false ]; then
+    chmod 644 "${opencode_dir}/tools/"*.ts 2>/dev/null || true
+    echo "  ✓ tools/*.ts → readable"
+  fi
+
+  echo ""
+  echo "✅ OpenCode CLI installation complete!"
   echo ""
 }
 
@@ -340,10 +458,11 @@ if [ -z "$ADAPTERS" ]; then
     echo ""
     echo "  [1] Claude Code  (recommended)  — ~/.claude/"
     echo "  [2] Codex CLI    (v0.3.0)       — ~/.codex/"
-    echo "  [3] All of the above"
-    echo "  [4] Codex CLI only"
+    echo "  [3] OpenCode CLI (v0.4.0)       — .opencode/ (project)"
+    echo "  [4] All of the above"
+    echo "  [5] Codex CLI + OpenCode"
     echo ""
-    read -p "  Choice (e.g. 1 2 for multiple): " -r choice_input
+    read -p "  Choice (e.g. 1 3 for multiple): " -r choice_input
     echo ""
     # Restore original stdin
     exec 0<&3 3<&-
@@ -351,22 +470,25 @@ if [ -z "$ADAPTERS" ]; then
     ADAPTERS=""
     for c in $choice_input; do
       case "$c" in
-        1|2|3|4) ;;
+        1|2|3|4|5) ;;
         *) echo "  ⚠ Invalid choice: $c (skipped)";;
       esac
     done
 
     # Parse choices into adapter list
-    if echo "$choice_input" | grep -q "3"; then
-      ADAPTERS="claude,codex"
-    elif echo "$choice_input" | grep -q "4"; then
-      ADAPTERS="codex"
+    if echo "$choice_input" | grep -q "4"; then
+      ADAPTERS="claude,codex,opencode"
+    elif echo "$choice_input" | grep -q "5"; then
+      ADAPTERS="codex,opencode"
     else
       if echo "$choice_input" | grep -q "1"; then
         ADAPTERS="${ADAPTERS}claude"
       fi
       if echo "$choice_input" | grep -q "2"; then
         ADAPTERS="${ADAPTERS},codex"
+      fi
+      if echo "$choice_input" | grep -q "3"; then
+        ADAPTERS="${ADAPTERS},opencode"
       fi
     fi
     ADAPTERS="${ADAPTERS#,}"
@@ -379,7 +501,7 @@ if [ -z "$ADAPTERS" ]; then
     exec 0<&3 3<&-
     # No terminal available (CI, cron, etc.) — default to Claude only
     echo "  ℹ Non-interactive mode detected, defaulting to Claude Code"
-    echo "  ℹ Use --adapter claude,codex to select specific adapters"
+    echo "  ℹ Use --adapter claude,codex,opencode to select specific adapters"
     ADAPTERS="claude"
   fi
 fi
@@ -431,9 +553,10 @@ fi
 IFS=',' read -ra ADAPTER_LIST <<< "$ADAPTERS"
 for adapter in "${ADAPTER_LIST[@]}"; do
   case "$adapter" in
-    claude) install_claude ;;
-    codex)  install_codex ;;
-    *)      echo "⚠ Unknown adapter: $adapter (supported: claude, codex)" ;;
+    claude)   install_claude ;;
+    codex)    install_codex ;;
+    opencode) install_opencode ;;
+    *)        echo "⚠ Unknown adapter: $adapter (supported: claude, codex, opencode)" ;;
   esac
 done
 
@@ -469,6 +592,13 @@ for adapter in "${ADAPTER_LIST[@]}"; do
       echo "  📖 Codex CLI:"
       echo "    1. Start Codex (hooks run automatically)"
       echo "    2. Run: evokit doctor --adapter codex"
+      echo ""
+      ;;
+    opencode)
+      echo "  📖 OpenCode CLI:"
+      echo "    1. cd to project and start OpenCode"
+      echo "    2. Run evokit-boot tool to verify"
+      echo "    3. Call evokit-session before finishing each session"
       echo ""
       ;;
   esac

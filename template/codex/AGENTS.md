@@ -37,7 +37,7 @@ A task is "done" ONLY when ALL conditions are met:
 | All changes tested | Run the project's test command |
 | No debug artifacts | `grep -r 'console.log\|TODO\|FIXME\|debugger' --include='*.{ts,js,py,sh}'` |
 | No accidental deletions | Check git status — confirm only intended files changed |
-| Corrections recorded | If user corrected you, entry exists in `__HOME__/.claude/memory/corrections.jsonl` |
+| Corrections recorded | If user corrected you, entry exists in `__HOME__/.codex/memory/corrections.jsonl` |
 
 ---
 
@@ -64,7 +64,7 @@ rejected rules → evolution-log.md (never re-propose)
 
 ### Where Learning Data Lives
 
-All evolution data is stored in `__HOME__/.claude/memory/` — shared with other assistants (Claude Code, etc.):
+All evolution data is stored in `__HOME__/.codex/memory/`:
 
 - `corrections.jsonl` — User corrections (append-only)
 - `observations.jsonl` — Self-noticed patterns
@@ -104,7 +104,7 @@ All evolution data is stored in `__HOME__/.claude/memory/` — shared with other
 ### Invariants
 - `corrections.jsonl` and `observations.jsonl` are **append-only** — never delete or edit.
 - **Never modify files outside the project** without explicit user permission.
-- `__HOME__/.claude/memory/` is the **canonical data store** — write corrections and observations there.
+- `__HOME__/.codex/memory/` is the **canonical data store** — write corrections and observations there.
 
 ### Error Reporting
 - If a command fails: explain what went wrong and suggest a fix.

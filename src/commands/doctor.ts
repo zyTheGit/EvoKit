@@ -3,14 +3,15 @@ import pc from 'picocolors';
 import fse from 'fs-extra';
 import path from 'node:path';
 import { verifyInstallation } from '../core/template.js';
-import { getFileLineCount, getMemoryDir } from '../core/memory.js';
+import { getFileLineCount } from '../core/memory.js';
 import { getCodexStatus, verifyCodexSetup } from '../adapters/codex-adapter.js';
+import { getOpenCodeStatus } from '../adapters/opencode-adapter.js';
 
 export const doctorCommand = new Command('doctor')
   .description('Verify EvoKit system integrity')
   .option('--home <path>', 'EvoKit home directory (default: $HOME)')
   .option('--fix', 'Attempt to fix common issues')
-  .option('--adapter <name>', 'Check specific adapter (claude | codex | all)', 'all')
+  .option('--adapter <name>', 'Check specific adapter (claude | codex | opencode | all)', 'all')
   .action(async (options) => {
     const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -39,8 +40,15 @@ export const doctorCommand = new Command('doctor')
       allPass = !(await checkCodex(homeDir, options)) && allPass;
     }
 
-    // Shared memory check (always)
-    allPass = !checkSharedMemory(homeDir) && allPass;
+    // Check OpenCode CLI adapter
+    if (adapter === 'all' || adapter === 'opencode') {
+      allPass = !(await checkOpenCode()) && allPass;
+    }
+
+    // Memory check
+    if (adapter === 'all' || adapter === 'claude') {
+      allPass = !checkMemory(homeDir, '.claude') && allPass;
+    }
 
     // Summary
     console.log('');
@@ -107,12 +115,45 @@ async function checkCodex(homeDir: string, options: any): Promise<boolean> {
   return pass;
 }
 
-function checkSharedMemory(homeDir: string): boolean {
-  const memoryDir = getMemoryDir(homeDir);
-  console.log(pc.cyan('\n💾 Shared memory (~/.claude/memory/)...'));
+async function checkOpenCode(): Promise<boolean> {
+  const projectDir = process.cwd();
+  const status = getOpenCodeStatus(projectDir);
+
+  if (!status.installed) {
+    console.log(pc.yellow(`  ⚠ OpenCode CLI adapter: not installed`));
+    console.log(`    Run: evokit init --adapter opencode`);
+    return false;
+  }
+
+  console.log(pc.cyan('\n📁 OpenCode CLI...'));
+  let pass = true;
+
+  const checks = [
+    { name: 'AGENTS.md (project root)',   pass: status.agentsPresent },
+    { name: 'opencode.json (project root)', pass: status.configPresent },
+    { name: '.opencode/tools/',             pass: status.toolsPresent },
+    { name: '.opencode/memory/',            pass: status.memoryPresent },
+  ];
+
+  for (const check of checks) {
+    const icon = check.pass ? pc.green('✓') : pc.red('✗');
+    console.log(`  ${icon} ${check.name}`);
+    if (!check.pass) pass = false;
+  }
+
+  if (status.agentCount > 0) {
+    console.log(`  ${pc.green('✓')} Sub-agents: ${status.agentCount} defined`);
+  }
+
+  return pass;
+}
+
+function checkMemory(homeDir: string, subDir: string): boolean {
+  const memoryDir = path.join(homeDir, subDir, 'memory');
+  console.log(pc.cyan(`\n💾 Memory (${subDir}/memory/)...`));
 
   if (!fse.existsSync(memoryDir)) {
-    console.log(`  ${pc.yellow('⚠')} Shared memory directory not found`);
+    console.log(`  ${pc.yellow('⚠')} Memory directory not found`);
     return false;
   }
 

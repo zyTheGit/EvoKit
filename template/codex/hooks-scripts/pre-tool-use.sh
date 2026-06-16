@@ -6,7 +6,7 @@
 set -e
 
 HOME_DIR="${HOME}"
-LEARNED_RULES="${HOME_DIR}/.claude/memory/learned-rules.md"
+LEARNED_RULES="${HOME_DIR}/.codex/memory/learned-rules.md"
 
 if [ -f "$LEARNED_RULES" ] && [ -s "$LEARNED_RULES" ]; then
   RULES_CONTENT=$(cat "$LEARNED_RULES")
