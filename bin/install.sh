@@ -39,7 +39,7 @@ merge_settings_json() {
 
   if [ -z "$py_cmd" ]; then
     echo "ERROR_NO_PYTHON"
-    return 1
+    return 0
   fi
 
   $py_cmd -c "
@@ -105,7 +105,7 @@ else:
     if os.path.exists(settings_path + '.bak.merge'):
         os.remove(settings_path + '.bak.merge')
     print('SKIPPED')
-" "$settings_file" "$template_file"
+" "$settings_file" "$template_file" || echo "ERROR_PYTHON_FAILED"
 }
 
 # ── CLAUDE.md protocol check ───────────────────────────────────────
@@ -243,6 +243,10 @@ install_claude() {
           echo "  ⚠ settings.json unchanged — no Python available for JSON merge"
           echo "    Install python3 or uv, then re-run to merge hooks"
           ;;
+        ERROR_PYTHON_FAILED)
+          echo "  ⚠ settings.json unchanged — Python merge script failed"
+          echo "    Check that your settings.json contains valid JSON"
+          ;;
       esac
     fi
   fi
@@ -328,7 +332,7 @@ install_claude() {
   fi
 
   # Ensure shared memory dir exists
-  if [ "$DRY_RUN" = false ]; then
+  if [ "$DRY_RUN" != true ]; then
     mkdir -p "${claude_dir}/memory"
   fi
 
@@ -424,6 +428,10 @@ install_opencode() {
           echo "  ⚠ opencode.json unchanged — no Python available for JSON merge"
           echo "    Install python3 or uv, then re-run to merge"
           ;;
+        ERROR_PYTHON_FAILED)
+          echo "  ⚠ opencode.json unchanged — Python merge script failed"
+          echo "    Check that your opencode.json contains valid JSON"
+          ;;
       esac
     fi
   fi
@@ -479,7 +487,7 @@ install_opencode() {
   # 7. Set permissions
   echo ""
   echo "🔒 Setting permissions..."
-  if [ "$DRY_RUN" = false ]; then
+  if [ "$DRY_RUN" != true ]; then
     chmod 644 "${opencode_dir}/tools/"*.ts 2>/dev/null || true
     echo "  ✓ tools/*.ts → readable"
   fi
@@ -637,7 +645,7 @@ install_codex() {
   fi
 
   # Ensure shared Claude memory dir exists for cross-adapter data
-  if [ "$DRY_RUN" = false ]; then
+  if [ "$DRY_RUN" != true ]; then
     mkdir -p "${HOME}/.claude/memory"
   fi
 
@@ -651,7 +659,7 @@ install_codex() {
 # ──────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || echo "")"
 TEMPLATE_DIR="${SCRIPT_DIR:+${SCRIPT_DIR}/template}"
-DRY_RUN=false
+DRY_RUN=""
 TEMPLATE_EXPLICIT=false
 ADAPTERS=""
 
