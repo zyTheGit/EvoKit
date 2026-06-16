@@ -18,7 +18,8 @@ if [ -n "$CMD" ]; then
     BLOCKED=false
 
     # Pattern: rm -rf on critical paths
-    if echo "$CMD" | grep -qE '(^|[;&|])\s*rm\s+-rf\s+(\/|~\/\.|\$HOME\/\.)'; then
+    RM_RF_PATTERN="(^|[;&|])\\s*rm\\s+-rf\\s+(\\/|~\\/\\.|\\\$HOME\\/\\.)"
+    if echo "$CMD" | grep -qE "$RM_RF_PATTERN"; then
         echo "BLOCKED: rm -rf on protected path is not allowed" >&2
         BLOCKED=true
     fi
