@@ -185,7 +185,7 @@ install_claude() {
   fi
 
   # Hooks
-  for hook in session-start.sh stop.sh export-system.sh pre-tool-use.sh post-tool-use.sh pre-compact.sh; do
+  for hook in session-start.sh stop.sh export-system.sh pre-tool-use.sh post-tool-use.sh pre-compact.sh dotenv-append.sh; do
     [ -f "$TEMPLATE_DIR/hooks/$hook" ] || continue
     _cp "$TEMPLATE_DIR/hooks/$hook" "${claude_dir}/hooks/${hook}" true && _ok "hooks/${hook}"
   done
