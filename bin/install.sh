@@ -20,12 +20,14 @@ set -e
 # ── JSON merge helpers (Python) ─────────────────────────────────────
 # Used for merging EvoKit hooks into existing settings.json
 find_python() {
-  if command -v uv &>/dev/null; then
-    echo "uv run --isolated python3"
-  elif command -v python3 &>/dev/null; then
+  # Try system Python first — faster and more reliable than uv download
+  if command -v python3 &>/dev/null; then
     echo "python3"
   elif command -v python &>/dev/null; then
     echo "python"
+  elif command -v uv &>/dev/null; then
+    # Only fall back to uv if no system Python is available
+    echo "uv run --isolated python3"
   else
     echo ""
   fi
@@ -245,7 +247,7 @@ install_claude() {
           ;;
         ERROR_PYTHON_FAILED)
           echo "  ⚠ settings.json unchanged — Python merge script failed"
-          echo "    Check that your settings.json contains valid JSON"
+          echo "  The existing file was preserved, no changes made"
           ;;
       esac
     fi
@@ -430,7 +432,7 @@ install_opencode() {
           ;;
         ERROR_PYTHON_FAILED)
           echo "  ⚠ opencode.json unchanged — Python merge script failed"
-          echo "    Check that your opencode.json contains valid JSON"
+          echo "  The existing opencode.json was preserved, no changes made"
           ;;
       esac
     fi
