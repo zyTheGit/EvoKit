@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.0 (2026-06-16)
+## v0.3.1 (2026-06-16)
 
 ### Major
 - 🤖 **Skills System** — New `.claude/skills/` directory with reusable skill modules (code-review, debug, learning-recorder)
