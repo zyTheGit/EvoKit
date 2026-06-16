@@ -14,287 +14,124 @@
 set -e
 
 # ════════════════════════════════════════════
-# Install functions (defined before use)
+# UI & file-operation helpers (DRY_RUN-aware)
 # ════════════════════════════════════════════
 
-# ── JSON merge helpers (Python) ─────────────────────────────────────
-# Used for merging EvoKit hooks into existing settings.json
-list_python_commands() {
-  # Returns available Python runners in priority order (one per line)
-  if command -v uv &>/dev/null; then
-    echo "uv run --isolated python3"
+_dry()  { echo "   [DRY RUN] $*"; }
+_ok()   { echo "  ✓ $1"; }
+_skip() { echo "  - $1"; }
+_warn() { echo "  ⚠ $1"; }
+
+# Execute a command (or echo in dry-run mode)
+_run() {
+  if [ "$DRY_RUN" = true ]; then _dry "$@"; return 0; fi
+  "$@"
+}
+
+# Copy file, optionally substitute __HOME__ → $HOME
+_cp() {
+  local src="$1" dst="$2" subst="${3:-}"
+  if [ "$DRY_RUN" = true ]; then
+    _dry "cp $src $dst${subst:+ (with __HOME__ replacement)}"
+    return
   fi
-  if command -v python3 &>/dev/null; then
-    echo "python3"
+  if [ "$subst" = true ]; then sed "s|__HOME__|${HOME}|g" "$src" > "$dst"
+  else cp "$src" "$dst"
   fi
-  if command -v python &>/dev/null; then
-    echo "python"
-  fi
+}
+
+# Copy only if destination doesn't exist (seed files)
+_cp_seed() {
+  local src="$1" dst="$2" subst="${3:-}"
+  if [ -f "$dst" ]; then _skip "$(basename "$dst") exists, keeping"; return 0; fi
+  _cp "$src" "$dst" "$subst" && _ok "$(basename "$dst")"
+}
+
+# Copy all files from a template subdirectory
+_install_dir() {
+  local src="$1" dst="$2" subst="${3:-}"
+  [ -d "$src" ] || return 0
+  for f in "$src"/*; do
+    [ -f "$f" ] || continue
+    _cp "$f" "${dst}/$(basename "$f")" "$subst" && _ok "$(basename "$f")"
+  done
+}
+
+# Seed memory files (only if not existing)
+_seed_memory() {
+  local src="$1" dst="$2"
+  [ -d "$src" ] || return 0
+  for f in "$src"/*; do
+    [ -f "$f" ] || continue
+    _cp_seed "$f" "${dst}/$(basename "$f")"
+  done
+}
+
+# ── JSON merge helpers (Node.js primary, Python fallback) ────────────
+# Priority: node → nodejs → uv+python3 → python3 → python
+
+# Try a single merge runner; appends errors to _MERGE_ERRORS
+_run_merge() {
+  local name="$1" script="$2" sf="$3" tf="$4"
+  local first="${name%% *}"
+  command -v "$first" &>/dev/null || return 1
+
+  local stderr stdout ec err
+  stderr=$(mktemp 2>/dev/null) || return 1
+  # $name intentionally unquoted to support multi-word commands ("uv run --isolated python3")
+  # shellcheck disable=SC2086
+  stdout=$($name "$script" "$sf" "$tf" 2>"$stderr"); ec=$?
+  err=$(head -5 "$stderr" 2>/dev/null | tr '\n' '; ' || true)
+  rm -f "$stderr"
+  if [ $ec -eq 0 ]; then echo "$stdout"; return 0; fi
+  _MERGE_ERRORS+=("'${name}' exit=${ec} stderr=[${err}]")
+  return 1
 }
 
 merge_settings_json() {
-  local settings_file="$1"
-  local template_file="$2"
+  local settings_file="$1" template_file="$2"
+  local js_script="${TEMPLATE_DIR}/merge/merge-settings.js"
+  local py_script="${TEMPLATE_DIR}/merge/merge-settings.py"
 
-  # Collect all available Python commands
-  local py_commands=()
-  while IFS= read -r cmd; do
-    py_commands+=("$cmd")
-  done < <(list_python_commands)
+  local _MERGE_ERRORS=() result
 
-  if [ ${#py_commands[@]} -eq 0 ]; then
-    echo "ERROR_NO_PYTHON"
-    return 0
-  fi
-
-  # Use a temp Python script instead of inline -c to avoid quoting issues
-  local py_script
-  py_script=$(mktemp) || { echo "ERROR_PYTHON_FAILED|cannot create temp file for merge script"; return 0; }
-  cat > "$py_script" << 'PYEOF'
-import json, os, sys
-
-def merge_config(settings_path, template_path):
-    """Merge template hooks into settings.json. Returns (changed, error_msg)."""
-    try:
-        home = os.environ.get('HOME', '')
-
-        # Read existing settings
-        try:
-            with open(settings_path, 'r') as f:
-                settings = json.load(f)
-        except FileNotFoundError:
-            return False, f"File not found: {settings_path}"
-        except json.JSONDecodeError as e:
-            return False, f"Invalid JSON in {settings_path}: {e}"
-
-        # Read and prepare template
-        try:
-            with open(template_path, 'r') as f:
-                raw = f.read()
-        except FileNotFoundError:
-            return False, f"Template not found: {template_path}"
-
-        template_raw = raw.replace('__HOME__', home)
-        try:
-            template = json.loads(template_raw)
-        except json.JSONDecodeError as e:
-            return False, f"Invalid JSON in template after __HOME__ replacement: {e}"
-
-        changed = False
-
-        # Merge hooks — add only missing hook events
-        template_hooks = template.get('hooks', {})
-        if template_hooks:
-            existing_hooks = settings.get('hooks')
-            if not isinstance(existing_hooks, dict):
-                existing_hooks = {}
-                changed = True
-            merged_hooks = dict(existing_hooks)
-            for event, hooks_list in template_hooks.items():
-                if event not in existing_hooks:
-                    merged_hooks[event] = hooks_list
-                    changed = True
-            if changed:
-                settings['hooks'] = merged_hooks
-
-        # Enforce autoMemoryEnabled
-        template_auto = template.get('autoMemoryEnabled', True)
-        if settings.get('autoMemoryEnabled') != template_auto:
-            settings['autoMemoryEnabled'] = template_auto
-            changed = True
-
-        # Enforce env settings (CLAUDE_CODE_DISABLE_AUTO_MEMORY)
-        template_env = template.get('env', {})
-        current_env = settings.get('env', {})
-        if not isinstance(current_env, dict):
-            current_env = {}
-            changed = True
-        merged_env = dict(current_env)
-        for k, v in template_env.items():
-            if current_env.get(k) != v:
-                merged_env[k] = v
-                changed = True
-        settings['env'] = merged_env
-
-        if not changed:
-            # Clean up stale .bak.merge if any — ignore failure
-            try:
-                if os.path.exists(settings_path + '.bak.merge'):
-                    os.remove(settings_path + '.bak.merge')
-            except OSError:
-                pass
-            return False, None  # SKIPPED
-
-        # --- Write changes safely ---
-        # 1. Write to temp file first
-        tmp_path = settings_path + '.merge.tmp'
-        try:
-            with open(tmp_path, 'w') as f:
-                json.dump(settings, f, indent=2)
-                f.write('\n')
-        except OSError as e:
-            return False, f"Cannot write temp file {tmp_path}: {e}"
-
-        # 2. Validate the temp file is valid JSON
-        try:
-            with open(tmp_path, 'r') as f:
-                json.load(f)
-        except json.JSONDecodeError as e:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-            return False, f"Write validation failed for {tmp_path}: {e}"
-
-        # 3. Backup existing file
-        backup_path = settings_path + '.bak.evokit'
-        try:
-            if os.path.exists(backup_path):
-                os.remove(backup_path)
-            os.rename(settings_path, backup_path)
-        except OSError as e:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-            return False, f"Cannot backup {settings_path}: {e}"
-
-        # 4. Atomic rename
-        try:
-            os.rename(tmp_path, settings_path)
-        except OSError as e:
-            # Restore from backup
-            if os.path.exists(backup_path):
-                os.rename(backup_path, settings_path)
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-            return False, f"Cannot write {settings_path}: {e}"
-
-        # Clean up stale .bak.merge — ignore failure
-        try:
-            if os.path.exists(settings_path + '.bak.merge'):
-                os.remove(settings_path + '.bak.merge')
-        except OSError:
-            pass
-
-        return True, None  # MERGED
-
-    except Exception as e:
-        return False, f"Unexpected error: {e}"
-
-
-if __name__ == '__main__':
-    settings_path = sys.argv[1]
-    template_path = sys.argv[2]
-    changed, err = merge_config(settings_path, template_path)
-    if err:
-        print('ERROR', flush=True)
-        sys.stderr.write(f'MERGE_ERROR: {err}\n')
-        sys.exit(1)
-    elif changed:
-        print('MERGED', flush=True)
-        sys.exit(0)
-    else:
-        print('SKIPPED', flush=True)
-        sys.exit(0)
-PYEOF
-
-  # Try each available Python command in order until one succeeds
-  local merge_stdout=""
-  local merge_exit=0
-  local errors=()
-
-  # Disable errexit around the loop to avoid local+set -e edge cases
-  local _saved_e=
-  [[ -o errexit ]] && _saved_e=1
-  set +e
-
-  for py_cmd in "${py_commands[@]}"; do
-    local merge_stderr
-    merge_stderr=$(mktemp 2>/dev/null) || { errors+=("'${py_cmd}' cannot create temp file"); continue; }
-    # $py_cmd intentionally unquoted to support multi-word commands like "uv run --isolated python3"
-    merge_stdout=$($py_cmd "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
-    merge_exit=$?
-
-    if [ $merge_exit -eq 0 ]; then
-      rm -f "$merge_stderr"
-      break  # Success!
+  for runner in "node" "nodejs"; do
+    if result=$(_run_merge "$runner" "$js_script" "$settings_file" "$template_file"); then
+      echo "$result"; return 0
     fi
-
-    # Capture error details for this attempt
-    local raw_stderr
-    raw_stderr=$(cat "$merge_stderr" 2>/dev/null | head -5 | tr '\n' '; ' || true)
-    rm -f "$merge_stderr"
-    errors+=("'${py_cmd}' exit=${merge_exit} stderr=[${raw_stderr}]")
-    merge_stdout=""  # Reset on failure
   done
 
-  # Restore errexit if it was set
-  [ "$_saved_e" = 1 ] && set -e || true
+  for runner in "uv run --isolated python3" "python3" "python"; do
+    if result=$(_run_merge "$runner" "$py_script" "$settings_file" "$template_file"); then
+      echo "$result"; return 0
+    fi
+  done
 
-  rm -f "$py_script"
-
-  if [ $merge_exit -ne 0 ]; then
-    # All attempts failed — report all errors
-    local err_msg
-    err_msg=$(IFS='; '; echo "${errors[*]}")
-    echo "ERROR_PYTHON_FAILED|All Python runners failed: ${err_msg}"
-  else
-    echo "$merge_stdout"
-  fi
+  local err_msg; err_msg=$(IFS='; '; echo "${_MERGE_ERRORS[*]}")
+  echo "ERROR_MERGE_FAILED|${err_msg}"
 }
 
-# ── CLAUDE.md protocol check ───────────────────────────────────────
-# Appends the Self-Evolving System Protocol if not already present
 ensure_claude_protocol() {
-  local target_file="$1"
-  local template_file="$2"
-
-  # If file doesn't exist at all, signal fresh install
-  if [ ! -f "$target_file" ]; then
-    echo "FRESH"
-    return 0
-  fi
-
-  # Check if protocol is already present
+  local target_file="$1" template_file="$2"
+  if [ ! -f "$target_file" ]; then echo "FRESH"; return 0; fi
   if grep -q -F "Self-Evolving System Protocol" "$target_file" 2>/dev/null; then
-    echo "SKIPPED"
-    return 0
+    echo "SKIPPED"; return 0
   fi
-
-  # Append protocol to existing file
-  {
-    echo ""
-    echo "---"
-    echo ""
-    cat "$template_file"
-  } >> "$target_file"
-
+  { echo ""; echo "---"; echo ""; cat "$template_file"; } >> "$target_file"
   echo "APPENDED"
 }
 
-# ── Generic marker-based append helper ──────────────────────────────
-# For markdown/config files: template appended if marker string not found
 ensure_marker_appended() {
-  local target_file="$1"
-  local template_file="$2"
-  local marker="$3"
-
-  if [ ! -f "$target_file" ]; then
-    echo "FRESH"
-    return 0
-  fi
-
+  local target_file="$1" template_file="$2" marker="$3"
+  if [ ! -f "$target_file" ]; then echo "FRESH"; return 0; fi
   if grep -q -F "$marker" "$target_file" 2>/dev/null; then
-    echo "SKIPPED"
-    return 0
+    echo "SKIPPED"; return 0
   fi
-
-  {
-    echo ""
-    echo "---"
-    echo ""
-    cat "$template_file"
-  } >> "$target_file"
-
+  { echo ""; echo "---"; echo ""; cat "$template_file"; } >> "$target_file"
   echo "APPENDED"
 }
+
+# ── Adapter installation functions ─────────────────────────────────
 
 install_claude() {
   local claude_dir="${HOME}/.claude"
@@ -305,178 +142,83 @@ install_claude() {
   echo "  Target: ${claude_dir}${DRY_RUN:+ (DRY RUN)}"
   echo ""
 
-  # 1. Create directories
   echo "📁 Creating directories..."
   for dir in rules agents commands memory hooks skills; do
-    local target="${claude_dir}/$dir"
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] mkdir -p $target"
-    else
-      mkdir -p "$target"
-      echo "  ✓ .claude/$dir/"
-    fi
+    _run mkdir -p "${claude_dir}/${dir}" && _ok ".claude/${dir}/"
   done
 
-  # 2. Copy template files
   echo ""
   echo "📄 Installing template files..."
 
-  # CLAUDE.md — merge protocol if already exists, otherwise fresh copy
+  # CLAUDE.md — merge protocol if exists, otherwise fresh copy
   local claude_result
   claude_result=$(ensure_claude_protocol "${HOME}/CLAUDE.md" "$TEMPLATE_DIR/CLAUDE.md")
   case "$claude_result" in
-    FRESH)
-      if [ "$DRY_RUN" = true ]; then
-        echo "   [DRY RUN] cp $TEMPLATE_DIR/CLAUDE.md $HOME/"
-      else
-        cp "$TEMPLATE_DIR/CLAUDE.md" "$HOME/"
-        echo "  ✓ CLAUDE.md"
-      fi
-      ;;
-    APPENDED)
-      echo "  ✓ CLAUDE.md (protocol appended)"
-      ;;
-    SKIPPED)
-      echo "  - CLAUDE.md unchanged (protocol already present)"
-      ;;
+    FRESH)    _cp "$TEMPLATE_DIR/CLAUDE.md" "${HOME}/CLAUDE.md" && _ok "CLAUDE.md" ;;
+    APPENDED) _ok "CLAUDE.md (protocol appended)" ;;
+    SKIPPED)  _skip "CLAUDE.md unchanged (protocol already present)" ;;
   esac
 
   # MEMORY.md
-  if [ "$DRY_RUN" = true ]; then
-    echo "   [DRY RUN] cp $TEMPLATE_DIR/MEMORY.md $claude_dir/"
-  else
-    cp "$TEMPLATE_DIR/MEMORY.md" "$claude_dir/" 2>/dev/null || true
-    echo "  ✓ MEMORY.md"
-  fi
+  _cp "$TEMPLATE_DIR/MEMORY.md" "${claude_dir}/MEMORY.md" && _ok "MEMORY.md"
 
-  # settings.json — merge hooks if already exists, otherwise fresh copy
+  # settings.json — merge hooks if already exists
   if [ ! -f "${claude_dir}/settings.json" ]; then
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $TEMPLATE_DIR/settings.json $claude_dir/ (with path replacement)"
-    else
-      cp "$TEMPLATE_DIR/settings.json" "${claude_dir}/settings.json"
-      sed -i "s|__HOME__|${HOME}|g" "${claude_dir}/settings.json"
-      echo "  ✓ settings.json"
-    fi
+    _cp "$TEMPLATE_DIR/settings.json" "${claude_dir}/settings.json" true && _ok "settings.json"
   else
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] Would merge hooks into existing settings.json"
+    # Pre-check: if any EvoKit hook event exists, skip merge entirely
+    if grep -qE '"SessionStart"|"PreToolUse"|"PostToolUse"|"PreCompact"|"Stop"' \
+      "${claude_dir}/settings.json" 2>/dev/null; then
+      _skip "settings.json unchanged (hooks already present)"
     else
-      # Pre-check: if hook events already present, skip Python merge entirely
-      # This avoids needing Python for the common re-install/upgrade case
-      if grep -q '"SessionStart"' "${claude_dir}/settings.json" 2>/dev/null \
-         && grep -q '"Stop"' "${claude_dir}/settings.json" 2>/dev/null \
-         && grep -q '"PreToolUse"' "${claude_dir}/settings.json" 2>/dev/null; then
-        echo "  - settings.json unchanged (hooks already present)"
-      else
-        local merge_result
-        merge_result=$(merge_settings_json "${claude_dir}/settings.json" "$TEMPLATE_DIR/settings.json")
-        case "$merge_result" in
-          MERGED)
-            echo "  ✓ settings.json (hooks merged)"
-            ;;
-          SKIPPED)
-            echo "  - settings.json unchanged (hooks already present)"
-            ;;
-          ERROR_NO_PYTHON)
-            echo "  ⚠ settings.json unchanged — no Python available for JSON merge"
-            echo "    Install python3 or uv, then re-run to merge hooks"
-            ;;
-          ERROR_PYTHON_FAILED*)
-            local err_detail="${merge_result#ERROR_PYTHON_FAILED|}"
-            echo "  ⚠ settings.json unchanged — could not merge hooks"
-            echo "    Reason: ${err_detail}"
-            echo "  ℹ Run with bash -x for full traceback"
-            ;;
-        esac
-      fi
+      local merge_result
+      merge_result=$(merge_settings_json "${claude_dir}/settings.json" "$TEMPLATE_DIR/settings.json")
+      case "$merge_result" in
+        MERGED)  _ok "settings.json (hooks merged)" ;;
+        SKIPPED) _skip "settings.json unchanged (hooks already present)" ;;
+        ERROR_MERGE_FAILED*)
+          _warn "settings.json unchanged — could not merge hooks"
+          echo "    Reason: ${merge_result#ERROR_MERGE_FAILED|}"
+          ;;
+      esac
     fi
   fi
 
   # Hooks
   for hook in session-start.sh stop.sh export-system.sh pre-tool-use.sh post-tool-use.sh pre-compact.sh; do
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $TEMPLATE_DIR/hooks/$hook $claude_dir/hooks/"
-    else
-      if [ -f "$TEMPLATE_DIR/hooks/$hook" ]; then
-        cp "$TEMPLATE_DIR/hooks/$hook" "$claude_dir/hooks/"
-        sed -i "s|__HOME__|${HOME}|g" "${claude_dir}/hooks/${hook}" 2>/dev/null || true
-        echo "  ✓ hooks/$hook"
-      fi
-    fi
+    [ -f "$TEMPLATE_DIR/hooks/$hook" ] || continue
+    _cp "$TEMPLATE_DIR/hooks/$hook" "${claude_dir}/hooks/${hook}" true && _ok "hooks/${hook}"
   done
 
-  # Rules, agents, commands
-  for dir in rules agents commands; do
-    for file in "$TEMPLATE_DIR/$dir"/*.md; do
-      if [ -f "$file" ]; then
-        if [ "$DRY_RUN" = true ]; then
-          echo "   [DRY RUN] cp $file $claude_dir/$dir/"
-        else
-          cp "$file" "$claude_dir/$dir/"
-          echo "  ✓ $dir/$(basename "$file")"
-        fi
-      fi
-    done
-  done
+  # Rules, agents, commands, skills
+  _install_dir "$TEMPLATE_DIR/rules"    "${claude_dir}/rules"
+  _install_dir "$TEMPLATE_DIR/agents"   "${claude_dir}/agents"
+  _install_dir "$TEMPLATE_DIR/commands" "${claude_dir}/commands"
 
-  # Skills (always copy, upgrade path)
+  # Skills (each skill in its own subdirectory)
   if [ -d "$TEMPLATE_DIR/skills" ]; then
     for skill_entry in "$TEMPLATE_DIR/skills/"*; do
       if [ -d "$skill_entry" ] && [ -f "${skill_entry}/SKILL.md" ]; then
-        skill_name=$(basename "$skill_entry")
-        if [ "$DRY_RUN" = true ]; then
-          echo "   [DRY RUN] cp -r $skill_entry $claude_dir/skills/$skill_name/"
-        else
-          mkdir -p "$claude_dir/skills/$skill_name"
-          cp "${skill_entry}/SKILL.md" "$claude_dir/skills/$skill_name/"
-          echo "  ✓ skills/$skill_name/SKILL.md"
-        fi
+        local skill_name; skill_name=$(basename "$skill_entry")
+        _run mkdir -p "${claude_dir}/skills/${skill_name}"
+        _cp "${skill_entry}/SKILL.md" "${claude_dir}/skills/${skill_name}/SKILL.md" && _ok "skills/${skill_name}/SKILL.md"
       fi
     done
-    # Copy skills README
-    if [ -f "$TEMPLATE_DIR/skills/README.md" ]; then
-      if [ "$DRY_RUN" = true ]; then
-        echo "   [DRY RUN] cp $TEMPLATE_DIR/skills/README.md $claude_dir/skills/"
-      else
-        cp "$TEMPLATE_DIR/skills/README.md" "$claude_dir/skills/"
-        echo "  ✓ skills/README.md"
-      fi
-    fi
+    [ -f "$TEMPLATE_DIR/skills/README.md" ] && \
+      _cp "$TEMPLATE_DIR/skills/README.md" "${claude_dir}/skills/README.md" && _ok "skills/README.md"
   fi
 
-  # Memory files (only if not existing — preserve existing learning data)
-  for file in README.md learned-rules.md evolution-log.md corrections.jsonl observations.jsonl violations.jsonl sessions.jsonl; do
-    local target="${claude_dir}/memory/$file"
-    if [ ! -f "$target" ]; then
-      if [ "$DRY_RUN" = true ]; then
-        echo "   [DRY RUN] cp $TEMPLATE_DIR/memory/$file $target"
-      else
-        if [ -f "$TEMPLATE_DIR/memory/$file" ]; then
-          cp "$TEMPLATE_DIR/memory/$file" "$target"
-          echo "  ✓ memory/$file"
-        fi
-      fi
-    else
-      echo "  - memory/$file exists, keeping existing"
-    fi
-  done
+  # Memory files (seed — never overwrite existing)
+  _seed_memory "$TEMPLATE_DIR/memory" "${claude_dir}/memory"
 
-  # 3. Set permissions
+  # Permissions
   echo ""
   echo "🔒 Setting permissions..."
-  if [ "$DRY_RUN" = true ]; then
-    echo "   [DRY RUN] chmod +x $claude_dir/hooks/*.sh"
-    echo "   [DRY RUN] chmod 600 $claude_dir/memory/*.jsonl"
-  else
-    if chmod +x "$claude_dir/hooks/"*.sh 2>/dev/null; then echo "  ✓ hooks/*.sh → executable"; fi
-    if chmod 600 "$claude_dir/memory/"*.jsonl 2>/dev/null; then echo "  ✓ memory/*.jsonl → 600"; fi
-  fi
+  if _run chmod +x "${claude_dir}/hooks/"*.sh 2>/dev/null; then _ok "hooks/*.sh → executable"; fi
+  if _run chmod 600 "${claude_dir}/memory/"*.jsonl 2>/dev/null; then _ok "memory/*.jsonl → 600"; fi
 
   # Ensure shared memory dir exists
-  if [ "$DRY_RUN" != true ]; then
-    mkdir -p "${claude_dir}/memory"
-  fi
+  _run mkdir -p "${claude_dir}/memory"
 
   echo ""
   echo "✅ Claude Code installation complete!"
@@ -494,147 +236,61 @@ install_opencode() {
   echo "  AGENTS.md + opencode.json → project root"
   echo ""
 
-  local OPENCODE_TEMPLATE="${TEMPLATE_DIR}/opencode"
-
-  if [ ! -f "$OPENCODE_TEMPLATE/AGENTS.md" ]; then
-    echo "⚠ OpenCode template not found at: $OPENCODE_TEMPLATE"
-    echo "  Skipping OpenCode installation."
-    return
+  local oc_template="${TEMPLATE_DIR}/opencode"
+  if [ ! -f "$oc_template/AGENTS.md" ]; then
+    _warn "OpenCode template not found at: $oc_template"; echo "  Skipping OpenCode installation."; return
   fi
 
-  # 1. Create directories
   echo "📁 Creating directories..."
   for dir in tools agents memory; do
-    local target="${opencode_dir}/$dir"
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] mkdir -p $target"
-    else
-      mkdir -p "$target"
-      echo "  ✓ .opencode/$dir/"
-    fi
+    _run mkdir -p "${opencode_dir}/${dir}" && _ok ".opencode/${dir}/"
   done
 
-  # 2. AGENTS.md (project root — merge if exists, otherwise fresh copy)
   echo ""
   echo "📄 Installing template files..."
-  local oc_agents_marker="Self-Evolving System Protocol"
+
+  # AGENTS.md — merge if exists
+  local oc_marker="Self-Evolving System Protocol"
   if [ ! -f "${project_dir}/AGENTS.md" ]; then
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $OPENCODE_TEMPLATE/AGENTS.md ${project_dir}/ (with path replacement)"
-    else
-      sed "s|__HOME__|${HOME}|g" "$OPENCODE_TEMPLATE/AGENTS.md" > "${project_dir}/AGENTS.md"
-      echo "  ✓ AGENTS.md (project root)"
-    fi
-  elif grep -q -F "$oc_agents_marker" "${project_dir}/AGENTS.md" 2>/dev/null; then
-    echo "  - AGENTS.md unchanged (protocol already present)"
+    _cp "$oc_template/AGENTS.md" "${project_dir}/AGENTS.md" true && _ok "AGENTS.md (project root)"
+  elif grep -q -F "$oc_marker" "${project_dir}/AGENTS.md" 2>/dev/null; then
+    _skip "AGENTS.md unchanged (protocol already present)"
   else
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] Would append protocol to existing AGENTS.md"
+    if [ "$DRY_RUN" != true ]; then
+      local tmp; tmp=$(mktemp)
+      sed "s|__HOME__|${HOME}|g" "$oc_template/AGENTS.md" > "$tmp"
+      { echo ""; echo "---"; echo ""; cat "$tmp"; } >> "${project_dir}/AGENTS.md"
+      rm -f "$tmp"
+      _ok "AGENTS.md (protocol appended)"
     else
-      local oc_agents_tmp
-      oc_agents_tmp=$(mktemp)
-      sed "s|__HOME__|${HOME}|g" "$OPENCODE_TEMPLATE/AGENTS.md" > "$oc_agents_tmp"
-      {
-        echo ""
-        echo "---"
-        echo ""
-        cat "$oc_agents_tmp"
-      } >> "${project_dir}/AGENTS.md"
-      rm -f "$oc_agents_tmp"
-      echo "  ✓ AGENTS.md (protocol appended)"
+      _dry "Would append protocol to existing AGENTS.md"
     fi
   fi
 
-  # 3. opencode.json (project root — merge if exists, otherwise fresh copy)
+  # opencode.json — merge if exists
   if [ ! -f "${project_dir}/opencode.json" ]; then
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $OPENCODE_TEMPLATE/opencode.json ${project_dir}/"
-    else
-      cp "$OPENCODE_TEMPLATE/opencode.json" "${project_dir}/"
-      echo "  ✓ opencode.json (project root)"
-    fi
+    _cp "$oc_template/opencode.json" "${project_dir}/opencode.json" && _ok "opencode.json (project root)"
   else
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] Would merge EvoKit config into existing opencode.json"
-    else
-      local oc_json_result
-      oc_json_result=$(merge_settings_json "${project_dir}/opencode.json" "$OPENCODE_TEMPLATE/opencode.json")
-      case "$oc_json_result" in
-        MERGED)
-          echo "  ✓ opencode.json (config merged)"
-          ;;
-        SKIPPED)
-          echo "  - opencode.json unchanged (config already present)"
-          ;;
-        ERROR_NO_PYTHON)
-          echo "  ⚠ opencode.json unchanged — no Python available for JSON merge"
-          echo "    Install python3 or uv, then re-run to merge"
-          ;;
-        ERROR_PYTHON_FAILED*)
-          local err_detail="${oc_json_result#ERROR_PYTHON_FAILED|}"
-          echo "  ⚠ opencode.json unchanged — could not merge config"
-          echo "    ${err_detail}"
-          echo "  ℹ Existing file backed up as opencode.json.bak.evokit"
-          ;;
-      esac
-    fi
+    local oc_json_result
+    oc_json_result=$(merge_settings_json "${project_dir}/opencode.json" "$oc_template/opencode.json")
+    case "$oc_json_result" in
+      MERGED)  _ok "opencode.json (config merged)" ;;
+      SKIPPED) _skip "opencode.json unchanged (config already present)" ;;
+      ERROR_MERGE_FAILED*)
+        _warn "opencode.json unchanged — could not merge config"
+        echo "    ${oc_json_result#ERROR_MERGE_FAILED|}"
+        ;;
+    esac
   fi
 
-  # 4. Tools (always copy — upgrade path, with __HOME__)
-  if [ -d "$OPENCODE_TEMPLATE/tools" ]; then
-    for tool_file in "$OPENCODE_TEMPLATE/tools"/*.ts; do
-      if [ -f "$tool_file" ]; then
-        if [ "$DRY_RUN" = true ]; then
-          echo "   [DRY RUN] cp $tool_file ${opencode_dir}/tools/ (with path replacement)"
-        else
-          sed "s|__HOME__|${HOME}|g" "$tool_file" > "${opencode_dir}/tools/$(basename "$tool_file")"
-          echo "  ✓ tools/$(basename "$tool_file")"
-        fi
-      fi
-    done
-  fi
+  # Tools (with __HOME__), agents, memory
+  _install_dir "$oc_template/tools"  "${opencode_dir}/tools"  true
+  _install_dir "$oc_template/agents" "${opencode_dir}/agents"
+  _seed_memory "$oc_template/memory" "${opencode_dir}/memory"
 
-  # 5. Agents (always copy — upgrade path)
-  if [ -d "$OPENCODE_TEMPLATE/agents" ]; then
-    for agent_file in "$OPENCODE_TEMPLATE/agents"/*.md; do
-      if [ -f "$agent_file" ]; then
-        if [ "$DRY_RUN" = true ]; then
-          echo "   [DRY RUN] cp $agent_file ${opencode_dir}/agents/"
-        else
-          cp "$agent_file" "${opencode_dir}/agents/"
-          echo "  ✓ agents/$(basename "$agent_file")"
-        fi
-      fi
-    done
-  fi
-
-  # 6. Memory seed files (only if not exists)
-  if [ -d "$OPENCODE_TEMPLATE/memory" ]; then
-    for mem_file in "$OPENCODE_TEMPLATE/memory"/*.md; do
-      if [ -f "$mem_file" ]; then
-        local mem_target
-        mem_target="${opencode_dir}/memory/$(basename "$mem_file")"
-        if [ ! -f "$mem_target" ]; then
-          if [ "$DRY_RUN" = true ]; then
-            echo "   [DRY RUN] cp $mem_file $mem_target"
-          else
-            cp "$mem_file" "$mem_target"
-            echo "  ✓ memory/$(basename "$mem_file")"
-          fi
-        else
-          echo "  - memory/$(basename "$mem_file") exists, keeping existing"
-        fi
-      fi
-    done
-  fi
-
-  # 7. Set permissions
   echo ""
   echo "🔒 Setting permissions..."
-  if [ "$DRY_RUN" != true ]; then
-    chmod 644 "${opencode_dir}/tools/"*.ts 2>/dev/null || true
-    echo "  ✓ tools/*.ts → readable"
-  fi
+  if _run chmod 644 "${opencode_dir}/tools/"*.ts 2>/dev/null; then _ok "tools/*.ts → readable"; fi
 
   echo ""
   echo "✅ OpenCode CLI installation complete!"
@@ -650,170 +306,141 @@ install_codex() {
   echo "  Target: ${codex_dir}${DRY_RUN:+ (DRY RUN)}"
   echo ""
 
-  local CODEX_TEMPLATE="${TEMPLATE_DIR}/codex"
-
-  if [ ! -f "$CODEX_TEMPLATE/AGENTS.md" ]; then
-    echo "⚠ Codex template not found at: $CODEX_TEMPLATE"
-    echo "  Skipping Codex installation."
-    return
+  local cx_template="${TEMPLATE_DIR}/codex"
+  if [ ! -f "$cx_template/AGENTS.md" ]; then
+    _warn "Codex template not found at: $cx_template"; echo "  Skipping Codex installation."; return
   fi
 
-  # 1. Create directories
   echo "📁 Creating directories..."
   for dir in rules hooks-scripts memory; do
-    local target="${codex_dir}/$dir"
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] mkdir -p $target"
-    else
-      mkdir -p "$target"
-      echo "  ✓ .codex/$dir/"
-    fi
+    _run mkdir -p "${codex_dir}/${dir}" && _ok ".codex/${dir}/"
   done
 
-  # 2. Copy template files
   echo ""
   echo "📄 Installing Codex template files..."
 
-  # AGENTS.md (merge if exists, otherwise fresh copy)
-  local cx_agents_marker="EvoKit — Self-Evolving System Protocol"
+  # AGENTS.md — merge if exists
+  local cx_marker="EvoKit — Self-Evolving System Protocol"
   if [ ! -f "${codex_dir}/AGENTS.md" ]; then
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] cp $CODEX_TEMPLATE/AGENTS.md ${codex_dir}/ (with path replacement)"
-    else
-      sed "s|__HOME__|${HOME}|g" "$CODEX_TEMPLATE/AGENTS.md" > "${codex_dir}/AGENTS.md"
-      echo "  ✓ AGENTS.md"
-    fi
-  elif grep -q -F "$cx_agents_marker" "${codex_dir}/AGENTS.md" 2>/dev/null; then
-    echo "  - AGENTS.md unchanged (protocol already present)"
+    _cp "$cx_template/AGENTS.md" "${codex_dir}/AGENTS.md" true && _ok "AGENTS.md"
+  elif grep -q -F "$cx_marker" "${codex_dir}/AGENTS.md" 2>/dev/null; then
+    _skip "AGENTS.md unchanged (protocol already present)"
   else
-    if [ "$DRY_RUN" = true ]; then
-      echo "   [DRY RUN] Would append protocol to existing AGENTS.md"
+    if [ "$DRY_RUN" != true ]; then
+      local tmp; tmp=$(mktemp)
+      sed "s|__HOME__|${HOME}|g" "$cx_template/AGENTS.md" > "$tmp"
+      { echo ""; echo "---"; echo ""; cat "$tmp"; } >> "${codex_dir}/AGENTS.md"
+      rm -f "$tmp"
+      _ok "AGENTS.md (protocol appended)"
     else
-      local cx_agents_tmp
-      cx_agents_tmp=$(mktemp)
-      sed "s|__HOME__|${HOME}|g" "$CODEX_TEMPLATE/AGENTS.md" > "$cx_agents_tmp"
-      {
-        echo ""
-        echo "---"
-        echo ""
-        cat "$cx_agents_tmp"
-      } >> "${codex_dir}/AGENTS.md"
-      rm -f "$cx_agents_tmp"
-      echo "  ✓ AGENTS.md (protocol appended)"
+      _dry "Would append protocol to existing AGENTS.md"
     fi
   fi
 
-  # hooks.json (always copy — upgrade path, with __HOME__ replacement)
-  if [ "$DRY_RUN" = true ]; then
-    echo "   [DRY RUN] cp $CODEX_TEMPLATE/hooks.json ${codex_dir}/ (with path replacement)"
-  else
-    sed "s|__HOME__|${HOME}|g" "$CODEX_TEMPLATE/hooks.json" > "${codex_dir}/hooks.json"
-    echo "  ✓ hooks.json"
-  fi
+  # hooks.json (with __HOME__ replacement)
+  _cp "$cx_template/hooks.json" "${codex_dir}/hooks.json" true && _ok "hooks.json"
 
-  # config.toml (merge if exists, otherwise fresh copy)
+  # config.toml — merge if exists
   local cx_toml_result
-  cx_toml_result=$(ensure_marker_appended "${codex_dir}/config.toml" "$CODEX_TEMPLATE/config.toml" "EvoKit — Codex CLI Configuration")
+  cx_toml_result=$(ensure_marker_appended "${codex_dir}/config.toml" "$cx_template/config.toml" "EvoKit — Codex CLI Configuration")
   case "$cx_toml_result" in
-    FRESH)
-      if [ "$DRY_RUN" = true ]; then
-        echo "   [DRY RUN] cp $CODEX_TEMPLATE/config.toml ${codex_dir}/"
-      else
-        cp "$CODEX_TEMPLATE/config.toml" "${codex_dir}/"
-        echo "  ✓ config.toml"
-      fi
-      ;;
-    APPENDED)
-      echo "  ✓ config.toml (EvoKit config appended)"
-      ;;
-    SKIPPED)
-      echo "  - config.toml unchanged (EvoKit config already present)"
-      ;;
+    FRESH)    _cp "$cx_template/config.toml" "${codex_dir}/config.toml" && _ok "config.toml" ;;
+    APPENDED) _ok "config.toml (EvoKit config appended)" ;;
+    SKIPPED)  _skip "config.toml unchanged (EvoKit config already present)" ;;
   esac
 
-  # Rules (always copy — upgrade path)
-  if [ -d "$CODEX_TEMPLATE/rules" ]; then
-    for rule_file in "$CODEX_TEMPLATE/rules"/*.rules; do
-      if [ -f "$rule_file" ]; then
-        if [ "$DRY_RUN" = true ]; then
-          echo "   [DRY RUN] cp $rule_file ${codex_dir}/rules/"
-        else
-          cp "$rule_file" "${codex_dir}/rules/"
-          echo "  ✓ rules/$(basename "$rule_file")"
-        fi
-      fi
-    done
-  fi
+  # Rules, hooks-scripts (with __HOME__), memory
+  _install_dir "$cx_template/rules"        "${codex_dir}/rules"
+  _install_dir "$cx_template/hooks-scripts" "${codex_dir}/hooks-scripts" true
+  _seed_memory "$cx_template/memory"       "${codex_dir}/memory"
 
-  # Hook scripts (always copy, with __HOME__ replacement)
-  if [ -d "$CODEX_TEMPLATE/hooks-scripts" ]; then
-    for script in "$CODEX_TEMPLATE/hooks-scripts"/*.sh; do
-      if [ -f "$script" ]; then
-        if [ "$DRY_RUN" = true ]; then
-          echo "   [DRY RUN] cp $script ${codex_dir}/hooks-scripts/ (with path replacement)"
-        else
-          sed "s|__HOME__|${HOME}|g" "$script" > "${codex_dir}/hooks-scripts/$(basename "$script")"
-          echo "  ✓ hooks-scripts/$(basename "$script")"
-        fi
-      fi
-    done
-  fi
-
-  # Memory seed files (only if not exists)
-  if [ -d "$CODEX_TEMPLATE/memory" ]; then
-    for mem_file in "$CODEX_TEMPLATE/memory"/*.md; do
-      if [ -f "$mem_file" ]; then
-        local mem_target
-        mem_target="${codex_dir}/memory/$(basename "$mem_file")"
-        if [ ! -f "$mem_target" ]; then
-          if [ "$DRY_RUN" = true ]; then
-            echo "   [DRY RUN] cp $mem_file $mem_target"
-          else
-            cp "$mem_file" "$mem_target"
-            echo "  ✓ memory/$(basename "$mem_file")"
-          fi
-        else
-          echo "  - memory/$(basename "$mem_file") exists, keeping existing"
-        fi
-      fi
-    done
-  fi
-
-  # 3. Set permissions
+  # Permissions
   echo ""
   echo "🔒 Setting permissions..."
-  if [ "$DRY_RUN" = true ]; then
-    echo "   [DRY RUN] chmod +x ${codex_dir}/hooks-scripts/*.sh"
-  else
-    if chmod +x "${codex_dir}/hooks-scripts/"*.sh 2>/dev/null; then echo "  ✓ hooks-scripts/*.sh → executable"; fi
-  fi
+  if _run chmod +x "${codex_dir}/hooks-scripts/"*.sh 2>/dev/null; then _ok "hooks-scripts/*.sh → executable"; fi
 
   # Ensure shared Claude memory dir exists for cross-adapter data
-  if [ "$DRY_RUN" != true ]; then
-    mkdir -p "${HOME}/.claude/memory"
-  fi
+  _run mkdir -p "${HOME}/.claude/memory"
 
   echo ""
   echo "✅ Codex CLI installation complete!"
   echo ""
 }
 
-# ──────────────────────────────────────────
+# ── Interactive adapter selection ──────────────────────────────────
+
+_interactive_adapters() {
+  local choice
+  exec 3<&0
+  if ! exec < /dev/tty 2>/dev/null; then
+    exec 0<&3 3<&-
+    echo "  ℹ Non-interactive mode detected, defaulting to Claude Code"
+    echo "  ℹ Use --adapter claude,codex,opencode to select specific adapters"
+    ADAPTERS="claude"
+    return
+  fi
+
+  echo ""
+  echo "  ┌─────────────────────────────────────────────┐"
+  echo "  │  Select AI assistants to configure:          │"
+  echo "  ├─────────────────────────────────────────────┤"
+  echo "  │                                             │"
+  echo "  │  [1] Claude Code (recommended)  ~/.claude/  │"
+  echo "  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │"
+  echo "  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │"
+  echo "  │                                             │"
+  echo "  │  [4] All of the above                       │"
+  echo "  │  [5] Codex CLI + OpenCode                   │"
+  echo "  │                                             │"
+  echo "  │  Enter numbers separated by spaces.          │"
+  echo "  │  Press ENTER for default: [1] Claude Code    │"
+  echo "  └─────────────────────────────────────────────┘"
+  echo ""
+  echo -n "  → "
+  read -r choice
+  exec 0<&3 3<&-
+
+  # Clean input: strip \r (common in curl|bash /dev/tty), commas
+  choice="${choice//$'\r'/}"
+  choice="${choice//,/ }"
+  read -r choice <<< "$choice"
+
+  if [ -z "$choice" ]; then
+    echo "  ℹ Defaulting to Claude Code"
+    ADAPTERS="claude"
+    return
+  fi
+
+  # Map choices to adapter names inline
+  local result=""
+  for c in $choice; do
+    case "$c" in
+      1) result="${result}${result:+,}claude" ;;
+      2) result="${result}${result:+,}codex" ;;
+      3) result="${result}${result:+,}opencode" ;;
+      4) ADAPTERS="claude,codex,opencode"; return ;;
+      5) ADAPTERS="codex,opencode"; return ;;
+      *) _warn "Invalid choice: $c (skipped)" ;;
+    esac
+  done
+  ADAPTERS="${result:-claude}"
+  [ -z "$result" ] && echo "  ℹ Defaulting to Claude Code"
+}
+
+# ════════════════════════════════════════════
+# Main
+# ════════════════════════════════════════════
+
 # Defaults
-# ──────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || echo "")"
 TEMPLATE_DIR="${SCRIPT_DIR:+${SCRIPT_DIR}/template}"
 DRY_RUN=""
 TEMPLATE_EXPLICIT=false
 ADAPTERS=""
-
-# GitHub fallback (used when template not found locally, e.g. curl | bash mode)
 REPO="zyTheGit/EvoKit"
 BRANCH="main"
 
-# ──────────────────────────────────────────
 # Parse args
-# ──────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --template) TEMPLATE_DIR="$2"; TEMPLATE_EXPLICIT=true; shift 2 ;;
@@ -829,104 +456,20 @@ echo "║   EvoKit — Self-Evolving System Install   ║"
 echo "╚═══════════════════════════════════════════╝"
 echo ""
 
-# ──────────────────────────────────────────
-# Adapter selection
-# ──────────────────────────────────────────
-if [ -z "$ADAPTERS" ]; then
-  # Save original stdin, try to redirect from /dev/tty for interactive prompt
-  # This works under curl | bash where stdin is a pipe, not a terminal
-  exec 3<&0
-  if exec < /dev/tty 2>/dev/null; then
-    echo ""
-    echo "  ┌─────────────────────────────────────────────┐"
-    echo "  │  Select AI assistants to configure:          │"
-    echo "  ├─────────────────────────────────────────────┤"
-    echo "  │                                             │"
-    echo "  │  [1] Claude Code (recommended)  ~/.claude/  │"
-    echo "  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │"
-    echo "  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │"
-    echo "  │                                             │"
-    echo "  │  [4] All of the above                       │"
-    echo "  │  [5] Codex CLI + OpenCode                   │"
-    echo "  │                                             │"
-    echo "  │  Enter numbers separated by spaces.          │"
-    echo "  │  Press ENTER for default: [1] Claude Code    │"
-    echo "  └─────────────────────────────────────────────┘"
-    echo ""
-    echo -n "  → "
-    read -r choice_input
-    echo ""
-    # Restore original stdin
-    exec 0<&3 3<&-
-
-    # Clean input: strip \r (common in curl|bash /dev/tty mode), commas, and extra whitespace
-    # \r gets captured by read -r from /dev/tty in some terminal modes
-    choice_input="${choice_input//$'\r'/}"
-    choice_input="${choice_input//,/ }"
-    # Trim leading/trailing whitespace
-    read -r choice_input <<< "$choice_input"
-
-    # Default if empty
-    if [ -z "$choice_input" ]; then
-      choice_input="1"
-      echo "  ℹ Defaulting to Claude Code"
-      echo ""
-    fi
-
-    # Validate choices — collect only valid numbers 1-5
-    ADAPTERS=""
-    for c in $choice_input; do
-      case "$c" in
-        1|2|3|4|5)
-          ADAPTERS="${ADAPTERS}${ADAPTERS:+,}${c}"
-          ;;
-        *)
-          echo "  ⚠ Invalid choice: $c (skipped)"
-          ;;
-      esac
-    done
-
-    # Convert validated numbers to adapter names using ONLY the validated ADAPTERS variable
-    if echo "$ADAPTERS" | grep -q "4"; then
-      ADAPTERS="claude,codex,opencode"
-    elif echo "$ADAPTERS" | grep -q "5"; then
-      ADAPTERS="codex,opencode"
-    else
-      _tmp=""
-      if echo "$ADAPTERS" | grep -q "1"; then _tmp="${_tmp}claude"; fi
-      if echo "$ADAPTERS" | grep -q "2"; then _tmp="${_tmp}${_tmp:+,}codex"; fi
-      if echo "$ADAPTERS" | grep -q "3"; then _tmp="${_tmp}${_tmp:+,}opencode"; fi
-      ADAPTERS="$_tmp"
-    fi
-
-    if [ -z "$ADAPTERS" ]; then
-      echo "  ℹ No valid selection made, defaulting to Claude Code"
-      ADAPTERS="claude"
-    fi
-  else
-    exec 0<&3 3<&-
-    # No terminal available (CI, cron, etc.) — default to Claude only
-    echo "  ℹ Non-interactive mode detected, defaulting to Claude Code"
-    echo "  ℹ Use --adapter claude,codex,opencode to select specific adapters"
-    ADAPTERS="claude"
-  fi
-fi
-
+if [ -z "$ADAPTERS" ]; then _interactive_adapters; fi
 echo "  Selected: ${ADAPTERS//,/, }"
 echo ""
 
-# ──────────────────────────────────────────
 # Validate or download template
-# ──────────────────────────────────────────
 if [ -z "$TEMPLATE_DIR" ] || [ ! -f "$TEMPLATE_DIR/CLAUDE.md" ]; then
   if [ "$TEMPLATE_EXPLICIT" = true ]; then
     echo "❌ Template not found at: $TEMPLATE_DIR"
-    echo "   Specify the correct path with --template"
     exit 1
   fi
 
   echo "📦 Downloading EvoKit from GitHub ($REPO:$BRANCH)..."
   TMP_DIR=$(mktemp -d)
+  CLEANUP_TMP=true
   CLEANUP_TMP=true
 
   if command -v curl &>/dev/null; then
@@ -940,52 +483,39 @@ if [ -z "$TEMPLATE_DIR" ] || [ ! -f "$TEMPLATE_DIR/CLAUDE.md" ]; then
 
   tar xzf "$TMP_DIR/evokit.tar.gz" -C "$TMP_DIR"
 
-  # Find extracted directory (GitHub tarballs create a dir like zyTheGit-EvoKit-<sha>)
   EXTRACTED_DIR=$(find "$TMP_DIR" -maxdepth 1 -type d ! -path "$TMP_DIR" | head -1)
   if [ -z "$EXTRACTED_DIR" ] || [ ! -d "$EXTRACTED_DIR/template" ]; then
     echo "❌ Failed to extract template from GitHub archive."
     rm -rf "$TMP_DIR"
     exit 1
   fi
-
   TEMPLATE_DIR="$EXTRACTED_DIR/template"
   echo "  ✓ Downloaded and extracted from GitHub"
   echo ""
 fi
 
-# ──────────────────────────────────────────
 # Install per adapter
-# ──────────────────────────────────────────
 IFS=',' read -ra ADAPTER_LIST <<< "$ADAPTERS"
 for adapter in "${ADAPTER_LIST[@]}"; do
   case "$adapter" in
     claude)   install_claude ;;
     codex)    install_codex ;;
     opencode) install_opencode ;;
-    *)        echo "⚠ Unknown adapter: $adapter (supported: claude, codex, opencode)" ;;
+    *)        _warn "Unknown adapter: $adapter (supported: claude, codex, opencode)" ;;
   esac
 done
 
-# ──────────────────────────────────────────
 # Cleanup temp dir
-# ──────────────────────────────────────────
-if [ "${CLEANUP_TMP}" = true ]; then
-  rm -rf "$TMP_DIR"
-fi
+if [ "${CLEANUP_TMP}" = true ]; then rm -rf "$TMP_DIR"; fi
 
-# ──────────────────────────────────────────
 # Done
-# ──────────────────────────────────────────
 echo ""
-if [ "$DRY_RUN" = true ]; then
-  echo "✅ Dry run complete — no files were modified"
-else
-  echo "✅ EvoKit installed successfully!"
+if [ "$DRY_RUN" = true ]; then echo "✅ Dry run complete — no files were modified"
+else echo "✅ EvoKit installed successfully!"
 fi
 echo ""
 echo "═══════════════════════════════════════════"
 
-# Show per-adapter next steps
 for adapter in "${ADAPTER_LIST[@]}"; do
   case "$adapter" in
     claude)
@@ -1022,4 +552,3 @@ else
   echo "  - FAQ:   ${SCRIPT_DIR}/docs/FAQ.md"
 fi
 echo "═══════════════════════════════════════════"
-
