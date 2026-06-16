@@ -1,10 +1,10 @@
-# EvoKit — Shared Learning Data
+# EvoKit — Codex CLI Learning Data
 
-This directory references learning data stored in `~/.claude/memory/`, shared across all AI coding assistants (Claude Code, Codex CLI, etc.).
+This directory stores learning data for your Codex CLI EvoKit integration.
 
 ## Data Location
 
-All evolution data lives at: **`~/.claude/memory/`**
+All evolution data lives at: **`~/.codex/memory/`**
 
 | File | Purpose |
 |------|---------|
@@ -15,16 +15,4 @@ All evolution data lives at: **`~/.claude/memory/`**
 | `sessions.jsonl` | Session scorecards (tagged by assistant) |
 | `violations.jsonl` | Boot verification violations |
 
-## Why Shared?
-
-- Corrections made to any assistant benefit all assistants
-- Learned rules apply consistently across tools
-- Single source of truth for evolutionary data
-
-## Session Tagging
-
-Each session record in `sessions.jsonl` includes an `"assistant"` field:
-- `"claude"` — Claude Code session
-- `"codex"` — Codex CLI session
-
-This allows per-assistant analytics while sharing the common learning pool.
+This memory directory is local to Codex CLI and not shared with other assistants.

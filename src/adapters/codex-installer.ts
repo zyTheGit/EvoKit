@@ -230,13 +230,13 @@ export function verifyCodexInstallation(codexHome: string): Array<{
     });
   }
 
-  // Shared memory (optional — created on first write)
-  const sharedMemory = path.join(codexHome, '..', '.claude', 'memory');
-  const hasShared = fse.existsSync(sharedMemory);
+  // Codex memory directory
+  const codexMemory = path.join(codexHome, 'memory');
+  const hasCodexMemory = fse.existsSync(codexMemory);
   checks.push({
-    name: `~/.claude/memory/ (shared)`,
+    name: `.codex/memory/`,
     pass: true,
-    detail: hasShared ? undefined : 'Not yet created (auto-created on first memory write)',
+    detail: hasCodexMemory ? undefined : 'Not yet created (auto-created on first memory write)',
   });
 
   return checks;

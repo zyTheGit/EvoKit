@@ -177,3 +177,20 @@ export interface SharedMemoryEntry {
   timestamp: string;
   data: Record<string, unknown>;
 }
+
+// ─── OpenCode Adapter Types ────────────────────────────────────
+
+/** Options for the OpenCode adapter */
+export interface OpenCodeAdapterOptions {
+  opencodeDir?: string;
+  dryRun?: boolean;
+  verify?: boolean;
+}
+
+/** OpenCode-specific installation config */
+export interface OpenCodeInstallConfig {
+  homeDir: string;
+  projectDir: string;
+  templateDir: string;
+  dryRun?: boolean;
+}

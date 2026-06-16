@@ -6,7 +6,7 @@
 set -e
 
 HOME_DIR="${HOME}"
-CLAUDE_MEMORY="${HOME_DIR}/.claude/memory"
+CODEX_MEMORY="${HOME_DIR}/.codex/memory"
 CODEX_DIR="${HOME_DIR}/.codex"
 
 # ── Integrity Checks ─────────────────────────
@@ -40,14 +40,14 @@ check ".codex/" "$([ -d "$CODEX_DIR" ] && echo "pass" || echo "fail")"
 check ".codex/hooks.json" "$([ -f "$CODEX_DIR/hooks.json" ] && echo "pass" || echo "fail")"
 check ".codex/AGENTS.md" "$([ -f "$CODEX_DIR/AGENTS.md" ] && echo "pass" || echo "fail")"
 
-# Check shared memory
-check ".claude/memory/" "$([ -d "$CLAUDE_MEMORY" ] && echo "pass" || echo "fail")"
-check "corrections.jsonl" "$([ -f "$CLAUDE_MEMORY/corrections.jsonl" ] && echo "pass" || echo "warn" || echo "pass")"
-check "learned-rules.md" "$([ -f "$CLAUDE_MEMORY/learned-rules.md" ] && echo "pass" || echo "warn")"
+# Check Codex memory
+check ".codex/memory/" "$([ -d "$CODEX_MEMORY" ] && echo "pass" || echo "fail")"
+check "corrections.jsonl" "$([ -f "$CODEX_MEMORY/corrections.jsonl" ] && echo "pass" || echo "warn" || echo "pass")"
+check "learned-rules.md" "$([ -f "$CODEX_MEMORY/learned-rules.md" ] && echo "pass" || echo "warn")"
 
 # learned-rules.md line limit check
-if [ -f "$CLAUDE_MEMORY/learned-rules.md" ]; then
-  LINES=$(wc -l < "$CLAUDE_MEMORY/learned-rules.md")
+if [ -f "$CODEX_MEMORY/learned-rules.md" ]; then
+  LINES=$(wc -l < "$CODEX_MEMORY/learned-rules.md")
   if [ "$LINES" -le 50 ]; then
     check "learned-rules.md: ${LINES} lines (limit 50)" "pass"
   else

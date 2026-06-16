@@ -37,6 +37,23 @@ jobs:
           test -f template/skills/code-review/SKILL.md
           test -f template/skills/learning-recorder/SKILL.md
 
+          # Codex CLI template
+          test -f template/codex/AGENTS.md
+          test -f template/codex/hooks.json
+          test -f template/codex/hooks-scripts/session-start.sh
+          test -f template/codex/hooks-scripts/stop.sh
+          test -f template/codex/hooks-scripts/pre-tool-use.sh
+
+          # OpenCode CLI template
+          test -f template/opencode/AGENTS.md
+          test -f template/opencode/opencode.json
+          test -f template/opencode/tools/evokit-boot.ts
+          test -f template/opencode/tools/evokit-evolve.ts
+          test -f template/opencode/tools/evokit-memory.ts
+          test -f template/opencode/tools/evokit-session.ts
+          test -f template/opencode/agents/architect.md
+          test -f template/opencode/agents/reviewer.md
+
       - name: Check no personal paths in template
         run: |
           ! grep -r "hpee2" template/ 2>/dev/null || false
