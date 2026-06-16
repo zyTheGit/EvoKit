@@ -1,10 +1,14 @@
 <div align="center">
 
+[**English**](README.md) · [**中文**](README.zh-CN.md)
+
+<br>
+
 # 🧠⚡ EvoKit
 
 **Evolution Kit for AI Coding Agents**
 
-让 AI 编程助手拥有自我进化能力 — *Make AI coding assistants learn and evolve across sessions*
+*Make AI coding assistants learn and evolve across sessions*
 
 [![Version](https://img.shields.io/github/v/release/zyTheGit/EvoKit?include_prereleases&style=flat-square&label=version)](CHANGELOG.md)
 [![License](https://img.shields.io/github/license/zyTheGit/EvoKit?style=flat-square)](LICENSE)
@@ -13,14 +17,26 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zyTheGit/EvoKit/ci.yml?branch=main&style=flat-square)](https://github.com/zyTheGit/EvoKit/actions)
 [![GitHub issues](https://img.shields.io/github/issues/zyTheGit/EvoKit?style=flat-square)](https://github.com/zyTheGit/EvoKit/issues)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-blue?style=flat-square)]()
+[![npm](https://img.shields.io/npm/v/%40zythegit%2Fevokit?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@zythegit/evokit)
+
+---
+
+**EvoKit** is an open-source **self-evolving system framework** for AI coding assistants. It enables Claude Code, Codex, OpenCode, and other AI tools to **get smarter over time** — by persisting corrections, observations, and rules across sessions, enabling automatic knowledge accumulation and promotion.
+
+| Core Concept | Description |
+|-------------|-------------|
+| 🧠 **Cross-session Memory** | Corrections and observations persist across sessions, never lost |
+| 📈 **Auto-promotion** | Repeated patterns automatically graduate to permanent rules |
+| 🔌 **Hook-driven** | Fully automated session lifecycle management |
+| 🚚 **One-click Migration** | Seamless transfer of learning data between machines |
+| 🔒 **Privacy-first** | All data stored locally — no cloud, no telemetry |
+| 🤖 **Multi-agent** | Adapter architecture supporting Claude Code / Codex / OpenCode / Aider |
 
 </div>
 
 ---
 
-## 📸 预览 / Preview
-
-<div align="center">
+## Preview
 
 ```
 ╔═══════════════════════════════════════════╗
@@ -38,180 +54,120 @@
 ✅ EvoKit installed successfully!
 ```
 
-</div>
-
-<table align="center">
-  <tr>
-    <td width="50%">
-      <pre>
-[EVOLUTION BOOT] ═══════════════════════
-  Self-Evolving System: checking integrity...
-  ✓ .claude/rules/
-  ✓ .claude/agents/
-  ✓ .claude/commands/
-  ✓ .claude/memory/
-  ✓ .claude/hooks/
-  ✓ CLAUDE.md: 55 lines (limit 150)
-  ✓ learned-rules.md: 3 lines (limit 50)
-═══════════════════════════════════════</pre>
-      <p align="center"><b>🔍 <code>/boot</code></b></p>
-    </td>
-    <td width="50%">
-      <pre>
-[EVOLUTION AUDIT] ═════════════════════
-  Rotating: corrections.jsonl (12 kept, 5 archived)
-  Rotating: observations.jsonl (8 kept, 3 archived)
-  Analyzing corrections...
-  ✓ Promoted: "use uv instead of pip" (2×)
-  ✓ Promoted: "no console.log in prod" (3×)
-  ✓ learned-rules.md: 6 lines (limit 50)
-═══════════════════════════════════════</pre>
-      <p align="center"><b>🔄 <code>/evolve</code></b></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <pre>
-📦 Creating migration package...
-  ✓ system files copied
-  ✓ rotation applied
-  ✓ install.sh generated
-🗜️  Packaging...
-✅ claude-evolution-20260611.tar.gz
-
-📊 Data overview:
-  corrections:  12 entries
-  observations: 8 entries
-  learned-rules: 6 lines</pre>
-      <p align="center"><b>📦 <code>export-system.sh</code></b></p>
-    </td>
-    <td width="50%">
-      <p align="center"><i>📷 Screenshots coming&nbsp;soon —<br>contributions welcome!</i></p>
-      <p align="center">
-        <a href="docs/ARCHITECTURE.md">📖 Architecture</a> ·
-        <a href="docs/EVOLUTION.md">🧬 Evolution</a>
-      </p>
-    </td>
-  </tr>
-</table>
+| 🔍 `/boot` | 🔄 `/evolve` |
+|:--:|:--:|
+| <pre>[EVOLUTION BOOT] ═══════════════════════<br>  Self-Evolving System: checking integrity...<br>  ✓ .claude/rules/<br>  ✓ .claude/agents/<br>  ✓ .claude/commands/<br>  ✓ .claude/memory/<br>  ✓ .claude/hooks/<br>  ✓ CLAUDE.md: N lines (limit 150)<br>  ✓ learned-rules.md: N lines (limit 50)<br>═══════════════════════════════════════</pre> | <pre>[EVOLUTION AUDIT] ═════════════════════<br>  Rotating: corrections.jsonl (12 kept, 5 archived)<br>  Rotating: observations.jsonl (8 kept, 3 archived)<br>  Analyzing corrections...<br>  ✓ Promoted: "use uv instead of pip" (2×)<br>  ✓ Promoted: "no console.log in prod" (3×)<br>  ✓ learned-rules.md: 6 lines (limit 50)<br>═══════════════════════════════════════</pre> |
+| 📦 `export-system.sh` | |
+| <pre>📦 Creating migration package...<br>  ✓ system files copied<br>  ✓ rotation applied<br>  ✓ install.sh generated<br>🗜️  Packaging...<br>✅ claude-evolution-20260611.tar.gz<br><br>📊 Data overview:<br>  corrections:  12 entries<br>  observations: 8 entries<br>  learned-rules: 6 lines</pre> | |
 
 ---
 
-## 🌟 项目介绍 / Introduction
+## Architecture
 
-**中文**
-
-EvoKit 是一个开源的 **自进化系统框架**，专为 AI 编程助手设计。它能让 Claude Code、Codex、OpenCode 等 AI 工具**越用越聪明**——通过跨会话持久化纠错、观察和规则，实现知识的自动积累与晋升。
-
-| 核心思想 | 说明 |
-|---------|------|
-| 🧠 **跨会话记忆** | 纠错和观察跨会话保留，永不丢失 |
-| 📈 **自动晋升** | 重复出现的模式自动晋升为永久规则 |
-| 🔌 **Hook 驱动** | 会话生命周期全自动管理 |
-| 🚚 **一键迁移** | 跨机器无缝迁移学习数据 |
-| 🔒 **隐私优先** | 所有数据本地存储，无云端、无遥测 |
-| 🤖 **多智能体** | 适配器架构，支持 Claude Code / Codex / OpenCode / Aider |
-
-**English**
-
-EvoKit is an open-source **self-evolving system framework** for AI coding assistants. It enables Claude Code, Codex, OpenCode, and other AI tools to **get smarter over time** — by persisting corrections, observations, and rules across sessions, enabling automatic knowledge accumulation and promotion.
-
----
-
-## 🏗️ 架构 / Architecture
+EvoKit uses a **4-layer architecture** that progressively refines AI behavior from general principles to specific, learned rules.
 
 ```
-┌────────────────────────────────────────────────┐
-│  L1: 认知核心 / Cognitive Core (CLAUDE.md)       │
-│  行为编程 · 思考框架 · 自进化协议                  │
-├────────────────────────────────────────────────┤
-│  L2: 路径规则 / Path Rules (.claude/rules/)      │
-│  按文件路径自动加载（安全 · 编码 · 不变量）        │
-├────────────────────────────────────────────────┤
-│  L3: 子智能体 / Sub-agents (.claude/agents/)    │
-│  architect（规划）+ reviewer（审查）               │
-├────────────────────────────────────────────────┤
-│  L4: 进化引擎 / Evolution Engine (.claude/memory/)│
-│  纠错 → 观察 → 晋升 → 审计                       │
-└────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  L1: Cognitive Core (CLAUDE.md)                  │
+│  Thinking framework · evolution protocol         │
+│  Loaded: every session · Max: 150 lines          │
+├─────────────────────────────────────────────────┤
+│  L2: Path Rules (.claude/rules/)                 │
+│  Auto-loaded by file path being edited           │
+│  Security · coding conventions · invariants       │
+├─────────────────────────────────────────────────┤
+│  L3: Sub-agents (.claude/agents/)                │
+│  Specialized agent definitions                   │
+│  architect (plan) · reviewer (review)             │
+├─────────────────────────────────────────────────┤
+│  L4: Evolution Engine (.claude/memory/)          │
+│  corrections → observations → promotion → audit  │
+│  Commands: /boot · /evolve · /review              │
+└─────────────────────────────────────────────────┘
 ```
 
-### 进化流水线 / Evolution Pipeline
+### Evolution Pipeline
 
 ```
-用户纠正 AI / User corrects AI
+User corrects AI
       ↓
-corrections.jsonl ← 记录 / Recorded
-      ↓ (同一模式出现 2+ 次 / 2+ same pattern)
-learned-rules.md ← 晋升带验证行 / Promoted with verify line
-      ↓ (10+ 会话通过验证 / 10+ sessions verified)
-CLAUDE.md / rules/ ← 毕业 / Graduated
+corrections.jsonl ← recorded (append-only, never deleted)
+      ↓ (2+ same pattern)
+learned-rules.md ← promoted with automated verify line
+      ↓ (10+ sessions verified)
+CLAUDE.md / rules/ ← graduated to permanent rules
       ↓
-被拒规则 → evolution-log.md（永不重提 / Never re-propose）
+rejected rules → evolution-log.md (never re-propose)
 ```
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [EVOLUTION.md](docs/EVOLUTION.md) for detailed documentation.
 
 ---
 
-## 🚀 快速开始 / Quick Start
+## Quick Start
 
-### 前置条件 / Prerequisites
+### Prerequisites
 
-- [Claude Code](https://claude.ai/code)（或其他支持钩子的 AI 编程助手）
-- bash 4.0+（Linux / macOS / WSL / Git Bash）
+- [Claude Code](https://claude.ai/code) (or any AI coding assistant with hook support)
+- **bash 4.0+** (Linux / macOS / WSL / Git Bash)
+- **Node.js 18+** (for npm install or CLI usage)
 
-### 安装 / Install
+### Install
+
+Choose one of the following methods:
 
 ```bash
-# npm 安装（推荐） / npm install (recommended)
+# npm install (recommended)
 npm install -g @zythegit/evokit
 evokit init
 
-# Homebrew 安装 / Homebrew install
+# Homebrew install
 brew tap zyTheGit/homebrew-evokit
 brew install evokit
 
-# 或者一行命令安装 / Or one-liner install (classic)
+# One-liner (curl | bash)
 curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
 
-# 或者从 Git 克隆安装 / Or clone from GitHub
+# Clone from GitHub
 git clone https://github.com/zyTheGit/EvoKit.git
 cd EvoKit
 bash bin/install.sh
 ```
 
-### CLI 命令参考 / CLI Command Reference
+### CLI Command Reference
 
-安装后可用 `evokit` 命令管理系统：
+After installation, use the `evokit` command to manage your system:
 
-| 命令 | 功能 |
-|------|------|
-| `evokit init` | 初始化 EvoKit（安装模板到 `~/.claude/`） |
-| `evokit evolve` | 运行进化审计（旋转归档、晋升模式、修剪规则） |
-| `evokit export` | 导出系统状态（用于跨机迁移） |
-| `evokit import <包>` | 导入迁移包 |
-| `evokit doctor` | 系统健康检查 |
+| Command | Description |
+|---------|-------------|
+| `evokit init` | Initialize EvoKit (install template to `~/.claude/`) |
+| `evokit evolve` | Run evolution audit (rotation, promotion, pruning) |
+| `evokit export` | Export system state for cross-machine migration |
+| `evokit import <package>` | Import a migration package |
+| `evokit doctor` | System health check and integrity verification |
 
 ```bash
-# 查看所有命令
+# View all commands
 evokit --help
 
-# 查看具体命令帮助
+# Command-specific help
 evokit init --help
 evokit evolve --help
 ```
 
-### 验证 / Verify
+### Verify
 
-启动 Claude Code，运行以下命令：
+Launch Claude Code and run:
 
 ```
 /boot
 ```
 
-预期输出 / Expected output:
+Expected output:
 
 ```
 [EVOLUTION BOOT] ═══════════════════════
+  Self-Evolving System: checking integrity...
   ✓ .claude/rules/
   ✓ .claude/agents/
   ✓ .claude/commands/
@@ -224,141 +180,138 @@ evokit evolve --help
 
 ---
 
-## 📖 功能详解 / Features
+## Features
 
-### 🔧 内置命令 / Built-in Commands
+### Built-in Commands
 
-| 命令 / Command | 时机 / When | 功能 / What |
-|---------------|-------------|-------------|
-| `/boot` | 每次会话启动 | 验证系统完整性 / Verify system integrity |
-| `/evolve` | 每 ~10 次会话 | 晋升模式、修剪过时规则 / Promote patterns, prune stale rules |
-| `/review` | 提交前 / Before commit | 代码审查 / Code review via reviewer agent |
+| Command | When | What |
+|---------|------|------|
+| `/boot` | Every session start | Verify system integrity |
+| `/evolve` | Every ~10 sessions | Promote patterns, prune stale rules |
+| `/review` | Before commit | Code review via reviewer agent |
 
-### 📁 核心文件 / Key Files
+### Key Files
 
-| 文件 / File | 作用 / Purpose |
-|-------------|---------------|
-| `CLAUDE.md` | 认知核心 — 思考框架、进化协议（上限 150 行） |
-| `.claude/rules/` | 路径规则（安全、编码、不变量） |
-| `.claude/agents/` | 子智能体定义（规划师、审查员） |
-| `.claude/commands/` | 斜杠命令（/boot, /evolve, /review） |
-| `.claude/memory/` | 学习数据 — 纠错、观察、已学规则、会话记录 |
-| `.claude/hooks/` | 会话生命周期钩子（启动、停止） |
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Cognitive core — thinking framework, evolution protocol (max 150 lines) |
+| `.claude/rules/` | Path-scoped rules (security, coding, invariants) |
+| `.claude/agents/` | Sub-agent definitions (architect, reviewer) |
+| `.claude/commands/` | Slash commands (/boot, /evolve, /review) |
+| `.claude/memory/` | Learning data — corrections, observations, learned rules, session logs |
+| `.claude/hooks/` | Session lifecycle hooks (start, stop, export) |
 
-### 🧪 示例 / Examples
+### Examples
 
-查看 [examples/](examples/) 目录获取完整的自定义示例：
+See the [examples/](examples/) directory for full customization samples:
 
-| 示例 | 说明 |
-|------|------|
-| [自定义规则](examples/custom-rules/) | Jest 测试规则、Docker 规范、Python 项目配置 |
-| [自定义智能体](examples/custom-agents/) | 测试生成器、数据库迁移助手 |
-| [自定义命令](examples/custom-commands/) | `/changelog` 生成、部署检查 |
+| Example | Description |
+|---------|-------------|
+| [Custom Rules](examples/custom-rules/) | Jest test rules, Docker conventions, Python project configs |
+| [Custom Agents](examples/custom-agents/) | Test generator, database migration assistant |
+| [Custom Commands](examples/custom-commands/) | `/changelog` generation, deployment checks |
 
 ---
 
-## 📦 迁移 / Migration
+## Migration
 
 ```bash
-# 1. 旧机器导出 / Export from old machine
+# 1. Export from old machine
 bash ~/.claude/hooks/export-system.sh
 
-# 2. 传输到新机器 / Transfer to new machine
+# 2. Transfer to new machine
 scp claude-evolution-*.tar.gz new-machine:~/
 
-# 3. 新机器安装 / Import on new machine
+# 3. Import on new machine
 cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 ```
 
-详见 / See: [MIGRATION.md](docs/MIGRATION.md)
+See: [MIGRATION.md](docs/MIGRATION.md)
 
 ---
 
-## 📚 文档 / Documentation
+## Documentation
 
-| 文档 | 说明 |
-|------|------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 四层架构深度解析 |
-| [EVOLUTION.md](docs/EVOLUTION.md) | 进化流水线详解 |
-| [INSTALL.md](docs/INSTALL.md) | 跨平台安装指南 |
-| [MIGRATION.md](docs/MIGRATION.md) | 跨机迁移指南 |
-| [CUSTOMIZE.md](docs/CUSTOMIZE.md) | 自定义规则/智能体/命令 |
-| [MULTI_AGENT.md](docs/MULTI_AGENT.md) | 多智能体适配器架构 |
-| [FAQ.md](docs/FAQ.md) | 常见问题 |
-
----
-
-## 🗺️ 路线图 / Roadmap
-
-### 已完成 / Completed ✅
-
-- **v0.1.0** — 核心模板 + 安装脚本 + 文档 + Git 发布
-  - ✅ 4 层自进化架构（CLAUDE.md → rules/ → agents/ → commands/ → memory/）
-  - ✅ SessionStart / Stop 钩子
-  - ✅ 进化审计（/evolve）含旋转归档和置信度衰减
-  - ✅ 一键迁移（export-system.sh）
-  - ✅ 跨平台支持（Linux / macOS / WSL / Git Bash）
-  - ✅ 隐私优先：零遥测、全本地存储
-
-### 已完成 / Completed ✅
-
-- **v0.2.0** — 独立 CLI 工具
-  - ✅ `evokit` 命令行（TypeScript/Node.js，替代 bash 脚本）
-  - ✅ `evokit init` — 初始化项目，支持 `--template`, `--branch`, `--dry-run`, `--verify`
-  - ✅ `evokit evolve` — 运行进化审计（旋转、置信度衰减、晋升、修剪）
-  - ✅ `evokit export` / `evokit import` — 跨机迁移管理
-  - ✅ `evokit doctor` — 系统完整性验证
-  - ✅ npm 包发布（`@zythegit/evokit`）+ Homebrew 支持
-  - ✅ 41 个 vitest 测试用例
-
-### 规划中 / Planned 🔜
-
-- **v0.3.0 — Codex 适配器**
-  - ☐ Codex CLI 集成适配器
-  - ☐ Codex 钩子机制映射
-  - ☐ 共享 learning data
-  - ☐ 跨助手学习数据同步
-
-- **v0.4.0 — OpenCode + Aider 适配器**
-  - ☐ OpenCode CLI 插件集成
-  - ☐ Aider convention 文件集成
-  - ☐ 统一适配器接口注册表
-
-- **v0.5.0 — 进化引擎独立化**
-  - ☐ 独立的规则晋升引擎（可脱离 Claude Code 运行）
-  - ☐ Web UI 管理面板
-  - ☐ 可视化学习数据
-
-### 未来展望 / Future 🔮
-
-- **v1.0.0 — 稳定 API + 生态系统**
-  - ☐ 稳定适配器 API
-  - ☐ GitHub Action 集成
-  - ☐ 社区插件市场
-  - ☐ 企业级权限管理
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 4-layer architecture deep dive |
+| [EVOLUTION.md](docs/EVOLUTION.md) | Evolution pipeline detailed walkthrough |
+| [INSTALL.md](docs/INSTALL.md) | Cross-platform installation guide |
+| [MIGRATION.md](docs/MIGRATION.md) | Cross-machine migration guide |
+| [CUSTOMIZE.md](docs/CUSTOMIZE.md) | Custom rules, agents, and commands |
+| [MULTI_AGENT.md](docs/MULTI_AGENT.md) | Multi-agent adapter architecture |
+| [FAQ.md](docs/FAQ.md) | Frequently asked questions |
 
 ---
 
-## 🤝 贡献 / Contributing
+## Roadmap
+
+### Completed ✅
+
+**v0.1.0** — Core template + installer + documentation + Git release
+- ✅ 4-layer self-evolving architecture (CLAUDE.md → rules/ → agents/ → commands/ → memory/)
+- ✅ SessionStart / Stop hooks
+- ✅ Evolution audit (/evolve) with rotation and confidence decay
+- ✅ One-click migration (export-system.sh)
+- ✅ Cross-platform (Linux / macOS / WSL / Git Bash)
+- ✅ Privacy-first: zero telemetry, all local storage
+
+**v0.2.0** — Standalone CLI tool
+- ✅ `evokit` CLI (TypeScript/Node.js, replaces bash scripts)
+- ✅ `evokit init` with `--template`, `--branch`, `--dry-run`, `--verify`
+- ✅ `evokit evolve` — rotation, confidence decay, promotion, pruning
+- ✅ `evokit export` / `evokit import` — cross-machine migration
+- ✅ `evokit doctor` — system integrity verification
+- ✅ npm package (`@zythegit/evokit`) + Homebrew support
+- ✅ 41 vitest test cases
+
+### Planned 🔜
+
+**v0.3.0 — Codex Adapter**
+- ☐ Codex CLI integration adapter
+- ☐ Codex hook mechanism mapping
+- ☐ Shared learning data across assistants
+
+**v0.4.0 — OpenCode + Aider Adapters**
+- ☐ OpenCode CLI plugin integration
+- ☐ Aider convention file integration
+- ☐ Unified adapter interface registry
+
+**v0.5.0 — Standalone Evolution Engine**
+- ☐ Independent rule promotion engine (runs without Claude Code)
+- ☐ Web UI management dashboard
+- ☐ Visualized learning data
+
+### Future 🔮
+
+**v1.0.0 — Stable API + Ecosystem**
+- ☐ Stable adapter API
+- ☐ GitHub Action integration
+- ☐ Community plugin marketplace
+- ☐ Enterprise-grade permission management
+
+---
+
+## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-欢迎贡献代码！请阅读[贡献指南](CONTRIBUTING.md)。
+### Ideas for Contributors
 
-### 💡 贡献方向 / Ideas for Contributors
+- Write custom rule/agent/command examples
+- Implement new adapters (Codex, OpenCode, Aider)
+- Improve documentation and screenshots
+- Report bugs or suggest features
+- Improve test coverage
 
-- 编写自定义规则/智能体/命令示例
-- 实现新适配器（Codex、OpenCode、Aider）
-- 改进文档和截图
-- 报告 bug 或提功能建议
-- 完善测试覆盖
+---
 
-## 📄 许可证 / License
+## License
 
 MIT © 2026 EvoKit Contributors
 
-## 🙏 致谢 / Acknowledgments
+## Acknowledgments
 
-灵感来源于中文开发者社区的自进化 Claude Code 系统实践。感谢所有开源贡献者。
+Inspired by the self-evolving Claude Code system practices from the Chinese developer community. Thanks to all open-source contributors.
 
 *Built with ❤️ for the open-source AI ecosystem.*
