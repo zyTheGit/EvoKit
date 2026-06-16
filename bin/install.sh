@@ -370,10 +370,14 @@ install_codex() {
 # ── Interactive adapter selection ──────────────────────────────────
 
 _interactive_adapters() {
-  local choice
-  exec 3<&0
-  if ! exec < /dev/tty 2>/dev/null; then
-    exec 0<&3 3<&-
+  local choice tty_available=false
+
+  # Check if /dev/tty is usable (real terminal attached) — use subshell
+  # so we don't mess with the calling shell's fd 0.
+  (exec < /dev/tty) 2>/dev/null && tty_available=true
+
+  # Non-interactive: neither stdin nor /dev/tty is usable
+  if ! [ -t 0 ] && ! $tty_available; then
     echo "  ℹ Non-interactive mode detected, defaulting to Claude Code"
     echo "  ℹ Use --adapter claude,codex,opencode to select specific adapters"
     ADAPTERS="claude"
@@ -397,8 +401,14 @@ _interactive_adapters() {
   echo "  └─────────────────────────────────────────────┘"
   echo ""
   echo -n "  → "
-  read -r choice
-  exec 0<&3 3<&-
+
+  # Read input from /dev/tty when stdin is piped, else directly from stdin.
+  # Never exec < /dev/tty globally — that corrupts the shell's script-reading fd.
+  if [ -t 0 ]; then
+    read -r choice
+  else
+    read -r choice < /dev/tty
+  fi
 
   # Clean input: strip \r (common in curl|bash /dev/tty), commas
   choice="${choice//$'\r'/}"
