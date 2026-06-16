@@ -2,22 +2,45 @@
 
 ## Overview
 
-The evolution pipeline transforms raw corrections into permanent behavioral rules. It is the core mechanism that makes EvoKit "self-evolving."
+The evolution pipeline transforms raw corrections into permanent behavioral rules. It is the core mechanism that makes EvoKit "self-evolving." The pipeline is driven by both user interactions and **automated hooks** that capture learning data continuously.
+
+## Hook-Driven Learning Flow
+
+```
+                    Hook Events
+                         |
+     +-------------------+--------------------+
+     |                   |                    |
+PreToolUse         PostToolUse          PreCompact
+(inject rules)    (track edits)    (snapshot state)
+     |                   |                    |
+     v                   v                    v
+learned-rules.md   observations.jsonl   .compact_state
+     |                   |
+     v                   v
+  /boot verify      /evolve promote
+```
 
 ## Pipeline Stages
 
 ### Stage 1: Capture
 
-When a user corrects the AI during conversation, the correction is recorded:
+Learning data is captured from multiple sources:
+
+**Source 1: User Corrections (manual)**
+When a user corrects the AI during conversation, Claude records it:
 
 ```json
 {"timestamp":"2026-06-11T14:30:00","pattern":"use uv instead of pip","context":"user corrected pip install to uv pip install","count":1}
 ```
 
-**Source:** Done by Claude during conversation (CLAUDE.md protocol)
-**Format:** `corrections.jsonl` (append-only, never delete)
+**Source 2: PostToolUse Hook (automatic)**
+Every file edit via the `PostToolUse` hook records an observation with the file extension, line count, and path. This builds a usage profile of which file types are most frequently edited.
 
-Observations (patterns noticed by Claude, not corrected by user) go to `observations.jsonl`.
+**Source 3: PreCompact Hook (context preservation)**
+Before context compaction, the learning state snapshot is saved (including correction/observation counts) to prevent data loss.
+
+**Format:** `corrections.jsonl` (append-only, never delete), `observations.jsonl` (append-only, auto-populated)
 
 ### Stage 2: Rotation (Auto)
 

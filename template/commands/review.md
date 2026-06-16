@@ -21,6 +21,12 @@ Run this before committing to review all current changes.
 /review --all     — Review all changes (staged + unstaged)
 ```
 
+## Learning Integration
+
+- If the review finds recurring issues (same pattern across multiple files), record an **observation** in `observations.jsonl` so future sessions can avoid them.
+- If the user corrects a review finding, record a **correction** in `corrections.jsonl` for the `/evolve` pipeline.
+- The `code-review` skill (in `.claude/skills/`) provides detailed review dimension guidance.
+
 ## Self-Check Before Running
 
 - Are all intended changes saved to disk? (`git diff` shows what you expect)
@@ -47,10 +53,9 @@ Run this before committing to review all current changes.
 
 ### Suggestions (P2-P3)
 - P2: Unused import `lodash` in utils.ts:3
-- P3: Long function `handleSubmit` in form.tsx:88-150 — consider extracting helper
 ```
 
-## Rating Guide
+## Priority Guide
 
 | Priority | Label | Meaning | Action |
 |----------|-------|---------|--------|

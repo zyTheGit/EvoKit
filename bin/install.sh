@@ -28,7 +28,7 @@ install_claude() {
 
   # 1. Create directories
   echo "📁 Creating directories..."
-  for dir in rules agents commands memory hooks; do
+  for dir in rules agents commands memory hooks skills; do
     local target="${claude_dir}/$dir"
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] mkdir -p $target"
@@ -76,7 +76,7 @@ install_claude() {
   fi
 
   # Hooks
-  for hook in session-start.sh stop.sh export-system.sh; do
+  for hook in session-start.sh stop.sh export-system.sh pre-tool-use.sh post-tool-use.sh pre-compact.sh; do
     if [ "$DRY_RUN" = true ]; then
       echo "   [DRY RUN] cp $TEMPLATE_DIR/hooks/$hook $claude_dir/hooks/"
     else
@@ -101,6 +101,31 @@ install_claude() {
       fi
     done
   done
+
+  # Skills (always copy, upgrade path)
+  if [ -d "$TEMPLATE_DIR/skills" ]; then
+    for skill_entry in "$TEMPLATE_DIR/skills/"*; do
+      if [ -d "$skill_entry" ] && [ -f "${skill_entry}/SKILL.md" ]; then
+        skill_name=$(basename "$skill_entry")
+        if [ "$DRY_RUN" = true ]; then
+          echo "   [DRY RUN] cp -r $skill_entry $claude_dir/skills/$skill_name/"
+        else
+          mkdir -p "$claude_dir/skills/$skill_name"
+          cp "${skill_entry}/SKILL.md" "$claude_dir/skills/$skill_name/"
+          echo "  ✓ skills/$skill_name/SKILL.md"
+        fi
+      fi
+    done
+    # Copy skills README
+    if [ -f "$TEMPLATE_DIR/skills/README.md" ]; then
+      if [ "$DRY_RUN" = true ]; then
+        echo "   [DRY RUN] cp $TEMPLATE_DIR/skills/README.md $claude_dir/skills/"
+      else
+        cp "$TEMPLATE_DIR/skills/README.md" "$claude_dir/skills/"
+        echo "  ✓ skills/README.md"
+      fi
+    fi
+  fi
 
   # Memory files (only if not existing — preserve existing learning data)
   for file in README.md learned-rules.md evolution-log.md corrections.jsonl observations.jsonl violations.jsonl sessions.jsonl; do

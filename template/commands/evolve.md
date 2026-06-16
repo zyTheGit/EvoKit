@@ -17,6 +17,14 @@ Run this every ~10 sessions (or when prompted by a "/boot" violation) to evolve 
 7. **Log decisions** — Write all promotion/pruning/rejection decisions to `evolution-log.md`
 8. **Prune corrections** — Remove patterns that were successfully promoted
 
+## How Hooks Support Evolution
+
+| Hook | Role in Evolution |
+|------|-------------------|
+| `PostToolUse` | Tracks file edit patterns as observations for pattern analysis |
+| `PreCompact` | Snapshots learning state before context compaction (preserves evolution progress) |
+| `Stop` | Records session duration and correction/observation counts |
+
 ## Self-Check Before Running
 
 - Have I accumulated corrections since the last evolve? Check `wc -l .claude/memory/corrections.jsonl`.
@@ -28,20 +36,6 @@ Run this every ~10 sessions (or when prompted by a "/boot" violation) to evolve 
 - Did the promotion succeed? Verify `learned-rules.md` has the new rule with its `verify` line.
 - Were any rules rejected or pruned? Confirm in `evolution-log.md` — rejected rules are never re-proposed.
 - Are file sizes under limits? Check `wc -l corrections.jsonl observations.jsonl`.
-
-## Example Evolution Session
-
-```
-corrections.jsonl has 2 entries with pattern "prefer-named-exports":
-  {"pattern":"prefer-named-exports","context":"User said use named exports","count":1}
-  {"pattern":"prefer-named-exports","context":"User corrected same issue","count":2}
-
-/evolve processing:
-  → Pattern "prefer-named-exports" (count=2) → PROMOTE to learned-rules.md
-  → Added: "- Prefer named exports over default exports\n  <!-- verify: grep -r 'export default' src/ -->"
-  → Archived both correction entries (promoted → safe to remove)
-  → Logged to evolution-log.md
-```
 
 ## Promotion Format
 

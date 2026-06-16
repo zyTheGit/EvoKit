@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.4.0 (2026-06-16)
+
+### Major
+- 🤖 **Skills System** — New `.claude/skills/` directory with reusable skill modules (code-review, debug, learning-recorder)
+- 🔔 **Semi-Automated Evolution Reminder** — Stop hook now checks `corrections.jsonl` at session end; prints a reminder when 10+ corrections accumulated, prompting the user to run `/evolve`
+- 🛡️ **Permission Hardening** — `settings.json` with explicit allow/deny permission lists, preventing dangerous commands (`rm -rf /`, `git push --force` without prompt)
+- 🧠 **Enhanced Session Recording** — Stop hook now tracks corrections count, observations count, and model info in each session record
+
+### Improvements
+- 📝 **CLAUDE.md Restructured** — Consolidated self-evolution protocol, auto-memory docs, tool priority, hooks reference, and integrity rules (still ≤150 lines)
+- 🔧 **Session-Start Hook** — Added `skills/` directory check (optional, not required); enforce that every rule in `learned-rules.md` has a `verify` line
+- 📚 **Documentation Updates**
+  - `ARCHITECTURE.md` — Fable 5-inspired restructuring with clearer layer separation
+  - `CUSTOMIZE.md` — Expanded customization guide with skills, advanced configuration
+  - `EVOLUTION.md` — Updated evolution pipeline with confidence decay examples
+- ⚡ **CI & Install Enhancements**
+  - CI workflow now validates skills directory structure
+  - `install.sh` — Updated for skills + new hook signatures
+
 ## v0.3.0 (2026-06-16)
 
 ### Major

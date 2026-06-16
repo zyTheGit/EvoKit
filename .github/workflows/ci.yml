@@ -20,6 +20,9 @@ jobs:
           test -f template/hooks/session-start.sh
           test -f template/hooks/stop.sh
           test -f template/hooks/export-system.sh
+          test -f template/hooks/pre-tool-use.sh
+          test -f template/hooks/post-tool-use.sh
+          test -f template/hooks/pre-compact.sh
           test -f template/rules/security.md
           test -f template/rules/coding.md
           test -f template/rules/core-invariants.md
@@ -29,6 +32,10 @@ jobs:
           test -f template/commands/evolve.md
           test -f template/commands/review.md
           test -f template/memory/README.md
+          test -f template/skills/README.md
+          test -f template/skills/debug/SKILL.md
+          test -f template/skills/code-review/SKILL.md
+          test -f template/skills/learning-recorder/SKILL.md
 
       - name: Check no personal paths in template
         run: |

@@ -3,6 +3,8 @@ name: architect
 description: Planning agent for complex software architecture and implementation design
 model: haiku
 tools: [Read, Write, Edit, Bash, Glob, Grep, Agent]
+disallowedTools: []
+memory: project
 maxTurns: 20
 ---
 

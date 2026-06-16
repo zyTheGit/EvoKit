@@ -3,6 +3,8 @@ name: reviewer
 description: Code review agent — checks for bugs, security issues, and quality problems
 model: haiku
 tools: [Read, Grep, Glob, Bash]
+disallowedTools: [Write, Edit]
+memory: project
 maxTurns: 15
 ---
 
