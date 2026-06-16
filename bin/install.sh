@@ -19,26 +19,30 @@ set -e
 
 # ── JSON merge helpers (Python) ─────────────────────────────────────
 # Used for merging EvoKit hooks into existing settings.json
-find_python() {
-  # Prefer uv for Python execution — handles environment and versioning
+list_python_commands() {
+  # Returns available Python runners in priority order (one per line)
   if command -v uv &>/dev/null; then
     echo "uv run --isolated python3"
-  elif command -v python3 &>/dev/null; then
+  fi
+  if command -v python3 &>/dev/null; then
     echo "python3"
-  elif command -v python &>/dev/null; then
+  fi
+  if command -v python &>/dev/null; then
     echo "python"
-  else
-    echo ""
   fi
 }
 
 merge_settings_json() {
   local settings_file="$1"
   local template_file="$2"
-  local py_cmd
-  py_cmd=$(find_python)
 
-  if [ -z "$py_cmd" ]; then
+  # Collect all available Python commands
+  local py_commands=()
+  while IFS= read -r cmd; do
+    py_commands+=("$cmd")
+  done < <(list_python_commands)
+
+  if [ ${#py_commands[@]} -eq 0 ]; then
     echo "ERROR_NO_PYTHON"
     return 0
   fi
@@ -191,36 +195,39 @@ if __name__ == '__main__':
         sys.exit(0)
 PYEOF
 
-  # Run the script — capture stdout, redirect stderr to separate temp file
-  local merge_stderr
-  merge_stderr=$(mktemp)
-  local merge_stdout
-  # $py_cmd intentionally unquoted to support multi-word commands like "uv run --isolated python3"
-  merge_stdout=$($py_cmd "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
-  local merge_exit=$?
+  # Try each available Python command in order until one succeeds
+  local merge_stdout=""
+  local merge_exit=0
+  local errors=()
+
+  for py_cmd in "${py_commands[@]}"; do
+    local merge_stderr
+    merge_stderr=$(mktemp)
+    # $py_cmd intentionally unquoted to support multi-word commands like "uv run --isolated python3"
+    merge_stdout=$($py_cmd "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
+    merge_exit=$?
+
+    if [ $merge_exit -eq 0 ]; then
+      rm -f "$merge_stderr"
+      break  # Success!
+    fi
+
+    # Capture error details for this attempt
+    local raw_stderr
+    raw_stderr=$(cat "$merge_stderr" 2>/dev/null | head -5 | tr '\n' '; ' || true)
+    rm -f "$merge_stderr"
+    errors+=("'${py_cmd}' exit=${merge_exit} stderr=[${raw_stderr}]")
+    merge_stdout=""  # Reset on failure
+  done
+
   rm -f "$py_script"
 
   if [ $merge_exit -ne 0 ]; then
-    # Extract the error message from the stderr file
-    local raw_stderr
-    raw_stderr=$(cat "$merge_stderr" 2>/dev/null || true)
-    rm -f "$merge_stderr"
-
+    # All attempts failed — report all errors
     local err_msg
-    err_msg=$(echo "$raw_stderr" | grep -o 'MERGE_ERROR:.*' | sed 's/MERGE_ERROR: //' || true)
-
-    if [ -z "$err_msg" ] && [ -n "$raw_stderr" ]; then
-      # No MERGE_ERROR tag found — show raw stderr
-      err_msg=$(echo "$raw_stderr" | head -3 | tr '\n' '; ')
-    fi
-
-    if [ -z "$err_msg" ]; then
-      err_msg="Python process exited with code ${merge_exit}"
-    fi
-
-    echo "ERROR_PYTHON_FAILED|${err_msg}"
+    err_msg=$(IFS='; '; echo "${errors[*]}")
+    echo "ERROR_PYTHON_FAILED|All Python runners failed: ${err_msg}"
   else
-    rm -f "$merge_stderr"
     echo "$merge_stdout"
   fi
 }
