@@ -44,70 +44,172 @@ merge_settings_json() {
     return 0
   fi
 
-  $py_cmd -c "
+  # Use a temp Python script instead of inline -c to avoid quoting issues
+  local py_script
+  py_script=$(mktemp)
+  cat > "$py_script" << 'PYEOF'
 import json, os, sys
 
-settings_path = sys.argv[1]
-template_path = sys.argv[2]
-home = os.environ.get('HOME', '')
+def merge_config(settings_path, template_path):
+    """Merge template hooks into settings.json. Returns (changed, error_msg)."""
+    try:
+        home = os.environ.get('HOME', '')
 
-with open(settings_path, 'r') as f:
-    settings = json.load(f)
+        # Read existing settings
+        try:
+            with open(settings_path, 'r') as f:
+                settings = json.load(f)
+        except FileNotFoundError:
+            return False, f"File not found: {settings_path}"
+        except json.JSONDecodeError as e:
+            return False, f"Invalid JSON in {settings_path}: {e}"
 
-with open(template_path, 'r') as f:
-    raw = f.read()
+        # Read and prepare template
+        try:
+            with open(template_path, 'r') as f:
+                raw = f.read()
+        except FileNotFoundError:
+            return False, f"Template not found: {template_path}"
 
-template_raw = raw.replace('__HOME__', home)
-template = json.loads(template_raw)
+        template_raw = raw.replace('__HOME__', home)
+        try:
+            template = json.loads(template_raw)
+        except json.JSONDecodeError as e:
+            return False, f"Invalid JSON in template after __HOME__ replacement: {e}"
 
-changed = False
+        changed = False
 
-# Merge hooks — add only missing hook events
-template_hooks = template.get('hooks', {})
-if template_hooks:
-    existing_hooks = settings.get('hooks')
-    if not isinstance(existing_hooks, dict):
-        existing_hooks = {}
-        changed = True
-    merged_hooks = dict(existing_hooks)
-    for event, hooks_list in template_hooks.items():
-        if event not in existing_hooks:
-            merged_hooks[event] = hooks_list
+        # Merge hooks — add only missing hook events
+        template_hooks = template.get('hooks', {})
+        if template_hooks:
+            existing_hooks = settings.get('hooks')
+            if not isinstance(existing_hooks, dict):
+                existing_hooks = {}
+                changed = True
+            merged_hooks = dict(existing_hooks)
+            for event, hooks_list in template_hooks.items():
+                if event not in existing_hooks:
+                    merged_hooks[event] = hooks_list
+                    changed = True
+            if changed:
+                settings['hooks'] = merged_hooks
+
+        # Enforce autoMemoryEnabled
+        template_auto = template.get('autoMemoryEnabled', True)
+        if settings.get('autoMemoryEnabled') != template_auto:
+            settings['autoMemoryEnabled'] = template_auto
             changed = True
-    if changed:
-        settings['hooks'] = merged_hooks
 
-# Enforce autoMemoryEnabled
-template_auto = template.get('autoMemoryEnabled', True)
-if settings.get('autoMemoryEnabled') != template_auto:
-    settings['autoMemoryEnabled'] = template_auto
-    changed = True
+        # Enforce env settings (CLAUDE_CODE_DISABLE_AUTO_MEMORY)
+        template_env = template.get('env', {})
+        current_env = settings.get('env', {})
+        if not isinstance(current_env, dict):
+            current_env = {}
+            changed = True
+        merged_env = dict(current_env)
+        for k, v in template_env.items():
+            if current_env.get(k) != v:
+                merged_env[k] = v
+                changed = True
+        settings['env'] = merged_env
 
-# Enforce env settings (CLAUDE_CODE_DISABLE_AUTO_MEMORY)
-template_env = template.get('env', {})
-current_env = settings.get('env', {})
-if not isinstance(current_env, dict):
-    current_env = {}
-    changed = True
-merged_env = dict(current_env)
-for k, v in template_env.items():
-    if current_env.get(k) != v:
-        merged_env[k] = v
-        changed = True
-settings['env'] = merged_env
+        if not changed:
+            # Clean up stale .bak.merge if any — ignore failure
+            try:
+                if os.path.exists(settings_path + '.bak.merge'):
+                    os.remove(settings_path + '.bak.merge')
+            except OSError:
+                pass
+            return False, None  # SKIPPED
 
-if changed:
-    with open(settings_path, 'w') as f:
-        json.dump(settings, f, indent=2)
-        f.write('\n')
-    if os.path.exists(settings_path + '.bak.merge'):
-        os.remove(settings_path + '.bak.merge')
-    print('MERGED')
-else:
-    if os.path.exists(settings_path + '.bak.merge'):
-        os.remove(settings_path + '.bak.merge')
-    print('SKIPPED')
-" "$settings_file" "$template_file" || echo "ERROR_PYTHON_FAILED"
+        # --- Write changes safely ---
+        # 1. Write to temp file first
+        tmp_path = settings_path + '.merge.tmp'
+        try:
+            with open(tmp_path, 'w') as f:
+                json.dump(settings, f, indent=2)
+                f.write('\n')
+        except OSError as e:
+            return False, f"Cannot write temp file {tmp_path}: {e}"
+
+        # 2. Validate the temp file is valid JSON
+        try:
+            with open(tmp_path, 'r') as f:
+                json.load(f)
+        except json.JSONDecodeError as e:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            return False, f"Write validation failed for {tmp_path}: {e}"
+
+        # 3. Backup existing file
+        backup_path = settings_path + '.bak.evokit'
+        try:
+            if os.path.exists(backup_path):
+                os.remove(backup_path)
+            os.rename(settings_path, backup_path)
+        except OSError as e:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            return False, f"Cannot backup {settings_path}: {e}"
+
+        # 4. Atomic rename
+        try:
+            os.rename(tmp_path, settings_path)
+        except OSError as e:
+            # Restore from backup
+            if os.path.exists(backup_path):
+                os.rename(backup_path, settings_path)
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            return False, f"Cannot write {settings_path}: {e}"
+
+        # Clean up stale .bak.merge — ignore failure
+        try:
+            if os.path.exists(settings_path + '.bak.merge'):
+                os.remove(settings_path + '.bak.merge')
+        except OSError:
+            pass
+
+        return True, None  # MERGED
+
+    except Exception as e:
+        return False, f"Unexpected error: {e}"
+
+
+if __name__ == '__main__':
+    settings_path = sys.argv[1]
+    template_path = sys.argv[2]
+    changed, err = merge_config(settings_path, template_path)
+    if err:
+        print('ERROR', flush=True)
+        sys.stderr.write(f'MERGE_ERROR: {err}\n')
+        sys.exit(1)
+    elif changed:
+        print('MERGED', flush=True)
+        sys.exit(0)
+    else:
+        print('SKIPPED', flush=True)
+        sys.exit(0)
+PYEOF
+
+  # Run the script — capture stdout, redirect stderr to separate temp file
+  local merge_stderr
+  merge_stderr=$(mktemp)
+  local merge_stdout
+  merge_stdout=$("$py_cmd" "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
+  local merge_exit=$?
+  rm -f "$py_script"
+
+  if [ $merge_exit -ne 0 ]; then
+    # Extract the error message from the stderr file
+    local err_msg
+    err_msg=$(grep -o 'MERGE_ERROR:.*' "$merge_stderr" 2>/dev/null | sed 's/MERGE_ERROR: //' || echo "Unknown error (exit code $merge_exit)")
+    rm -f "$merge_stderr"
+    echo "ERROR_PYTHON_FAILED|${err_msg}"
+  else
+    rm -f "$merge_stderr"
+    echo "$merge_stdout"
+  fi
 }
 
 # ── CLAUDE.md protocol check ───────────────────────────────────────
@@ -245,9 +347,11 @@ install_claude() {
           echo "  ⚠ settings.json unchanged — no Python available for JSON merge"
           echo "    Install python3 or uv, then re-run to merge hooks"
           ;;
-        ERROR_PYTHON_FAILED)
-          echo "  ⚠ settings.json unchanged — Python merge script failed"
-          echo "  The existing file was preserved, no changes made"
+        ERROR_PYTHON_FAILED*)
+          local err_detail="${merge_result#ERROR_PYTHON_FAILED|}"
+          echo "  ⚠ settings.json unchanged — could not merge hooks"
+          echo "    ${err_detail}"
+          echo "  ℹ Existing file backed up as settings.json.bak.evokit"
           ;;
       esac
     fi
@@ -430,9 +534,11 @@ install_opencode() {
           echo "  ⚠ opencode.json unchanged — no Python available for JSON merge"
           echo "    Install python3 or uv, then re-run to merge"
           ;;
-        ERROR_PYTHON_FAILED)
-          echo "  ⚠ opencode.json unchanged — Python merge script failed"
-          echo "  The existing opencode.json was preserved, no changes made"
+        ERROR_PYTHON_FAILED*)
+          local err_detail="${oc_json_result#ERROR_PYTHON_FAILED|}"
+          echo "  ⚠ opencode.json unchanged — could not merge config"
+          echo "    ${err_detail}"
+          echo "  ℹ Existing file backed up as opencode.json.bak.evokit"
           ;;
       esac
     fi
