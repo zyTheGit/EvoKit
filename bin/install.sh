@@ -20,14 +20,13 @@ set -e
 # ── JSON merge helpers (Python) ─────────────────────────────────────
 # Used for merging EvoKit hooks into existing settings.json
 find_python() {
-  # Try system Python first — faster and more reliable than uv download
-  if command -v python3 &>/dev/null; then
+  # Prefer uv for Python execution — handles environment and versioning
+  if command -v uv &>/dev/null; then
+    echo "uv run --isolated python3"
+  elif command -v python3 &>/dev/null; then
     echo "python3"
   elif command -v python &>/dev/null; then
     echo "python"
-  elif command -v uv &>/dev/null; then
-    # Only fall back to uv if no system Python is available
-    echo "uv run --isolated python3"
   else
     echo ""
   fi
@@ -196,7 +195,8 @@ PYEOF
   local merge_stderr
   merge_stderr=$(mktemp)
   local merge_stdout
-  merge_stdout=$("$py_cmd" "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
+  # $py_cmd intentionally unquoted to support multi-word commands like "uv run --isolated python3"
+  merge_stdout=$($py_cmd "$py_script" "$settings_file" "$template_file" 2>"$merge_stderr")
   local merge_exit=$?
   rm -f "$py_script"
 
