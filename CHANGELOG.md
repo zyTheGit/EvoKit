@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.1 (2026-06-16)
+
+### Fix
+- 🔧 **Installer interactive menu bug** — Fixed `\r` (carriage return) causing "Invalid choice" warning for valid input in `curl | bash` mode. The issue occurred when `read -r` from `/dev/tty` captured a trailing `\r` character, causing the case-match validation to fail even though the grep-based parsing below worked correctly.
+
+### Improvement
+- 🎨 **Beautified installer menu** — Replaced plain text menu with box-drawing characters (`┌─┐│└┘`) for a cleaner visual appearance
+- 💡 **Better UX** — Pressing Enter defaults to `[1] Claude Code`; input now accepts commas (`1,3` same as `1 3`); cleaner prompt with `→` indicator
+- 🛡️ **More robust input handling** — Strips `\r`, trims whitespace, accumulates only validated choices before parsing
+- 📝 **README updated** — Preview section shows the new interactive menu; install docs highlight `--adapter` flag for non-interactive use
+
 ## v0.3.2 (2026-06-16)
 
 ### Fix

@@ -454,47 +454,70 @@ if [ -z "$ADAPTERS" ]; then
   # This works under curl | bash where stdin is a pipe, not a terminal
   exec 3<&0
   if exec < /dev/tty 2>/dev/null; then
-    echo "Select AI assistants to configure:"
     echo ""
-    echo "  [1] Claude Code  (recommended)  — ~/.claude/"
-    echo "  [2] Codex CLI    (v0.3.0)       — ~/.codex/"
-    echo "  [3] OpenCode CLI (v0.4.0)       — .opencode/ (project)"
-    echo "  [4] All of the above"
-    echo "  [5] Codex CLI + OpenCode"
+    echo "  ┌─────────────────────────────────────────────┐"
+    echo "  │  Select AI assistants to configure:          │"
+    echo "  ├─────────────────────────────────────────────┤"
+    echo "  │                                             │"
+    echo "  │  [1] Claude Code (recommended)  ~/.claude/  │"
+    echo "  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │"
+    echo "  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │"
+    echo "  │                                             │"
+    echo "  │  [4] All of the above                       │"
+    echo "  │  [5] Codex CLI + OpenCode                   │"
+    echo "  │                                             │"
+    echo "  │  Enter numbers separated by spaces.          │"
+    echo "  │  Press ENTER for default: [1] Claude Code    │"
+    echo "  └─────────────────────────────────────────────┘"
     echo ""
-    read -p "  Choice (e.g. 1 3 for multiple): " -r choice_input
+    echo -n "  → "
+    read -r choice_input
     echo ""
     # Restore original stdin
     exec 0<&3 3<&-
 
+    # Clean input: strip \r (common in curl|bash /dev/tty mode), commas, and extra whitespace
+    # \r gets captured by read -r from /dev/tty in some terminal modes
+    choice_input="${choice_input//$'\r'/}"
+    choice_input="${choice_input//,/ }"
+    # Trim leading/trailing whitespace
+    read -r choice_input <<< "$choice_input"
+
+    # Default if empty
+    if [ -z "$choice_input" ]; then
+      choice_input="1"
+      echo "  ℹ Defaulting to Claude Code"
+      echo ""
+    fi
+
+    # Validate choices — collect only valid numbers 1-5
     ADAPTERS=""
     for c in $choice_input; do
       case "$c" in
-        1|2|3|4|5) ;;
-        *) echo "  ⚠ Invalid choice: $c (skipped)";;
+        1|2|3|4|5)
+          ADAPTERS="${ADAPTERS}${ADAPTERS:+,}${c}"
+          ;;
+        *)
+          echo "  ⚠ Invalid choice: $c (skipped)"
+          ;;
       esac
     done
 
-    # Parse choices into adapter list
-    if echo "$choice_input" | grep -q "4"; then
+    # Convert validated numbers to adapter names using ONLY the validated ADAPTERS variable
+    if echo "$ADAPTERS" | grep -q "4"; then
       ADAPTERS="claude,codex,opencode"
-    elif echo "$choice_input" | grep -q "5"; then
+    elif echo "$ADAPTERS" | grep -q "5"; then
       ADAPTERS="codex,opencode"
     else
-      if echo "$choice_input" | grep -q "1"; then
-        ADAPTERS="${ADAPTERS}claude"
-      fi
-      if echo "$choice_input" | grep -q "2"; then
-        ADAPTERS="${ADAPTERS},codex"
-      fi
-      if echo "$choice_input" | grep -q "3"; then
-        ADAPTERS="${ADAPTERS},opencode"
-      fi
+      _tmp=""
+      if echo "$ADAPTERS" | grep -q "1"; then _tmp="${_tmp}claude"; fi
+      if echo "$ADAPTERS" | grep -q "2"; then _tmp="${_tmp}${_tmp:+,}codex"; fi
+      if echo "$ADAPTERS" | grep -q "3"; then _tmp="${_tmp}${_tmp:+,}opencode"; fi
+      ADAPTERS="$_tmp"
     fi
-    ADAPTERS="${ADAPTERS#,}"
 
     if [ -z "$ADAPTERS" ]; then
-      echo "  ℹ No selection made, defaulting to Claude Code"
+      echo "  ℹ No valid selection made, defaulting to Claude Code"
       ADAPTERS="claude"
     fi
   else

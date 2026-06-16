@@ -42,6 +42,24 @@
 ╔═══════════════════════════════════════════╗
 ║   EvoKit — Self-Evolving System Install   ║
 ╚═══════════════════════════════════════════╝
+
+  ┌─────────────────────────────────────────────┐
+  │  Select AI assistants to configure:          │
+  ├─────────────────────────────────────────────┤
+  │                                             │
+  │  [1] Claude Code (recommended)  ~/.claude/  │
+  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │
+  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │
+  │                                             │
+  │  [4] All of the above                       │
+  │  [5] Codex CLI + OpenCode                   │
+  │                                             │
+  │  Enter numbers separated by spaces.          │
+  │  Press ENTER for default: [1] Claude Code    │
+  └─────────────────────────────────────────────┘
+
+  → 1
+
 📁 Creating directories...
   ✓ .claude/rules/    ✓ .claude/agents/
   ✓ .claude/commands/ ✓ .claude/memory/
@@ -125,14 +143,25 @@ evokit init
 brew tap zyTheGit/homebrew-evokit
 brew install evokit
 
-# 一行命令安装
+# 一行命令安装（交互式选择适配器）
 curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
+
+# 指定适配器（跳过交互式菜单）
+curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash -s -- --adapter claude,codex
 
 # 从 Git 克隆安装
 git clone https://github.com/zyTheGit/EvoKit.git
 cd EvoKit
 bash bin/install.sh
 ```
+
+安装过程中会显示交互式菜单，你可以选择安装到以下 AI 助手：
+- **Claude Code**（推荐）— `~/.claude/`
+- **Codex CLI** — `~/.codex/`
+- **OpenCode CLI** — `.opencode/`（项目级）
+- 也支持多选：输入 `1 3` 同时安装 Claude Code + OpenCode
+
+也可以使用 `--adapter` 参数跳过菜单直接指定（适用于 CI 自动化）：
 
 ### CLI 命令参考
 
@@ -269,7 +298,7 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ Codex CLI 集成适配器（`~/.codex/` 模板、AGENTS.md、hooks.json、config.toml）
 - ✅ Codex 钩子机制映射（SessionStart / Stop / PreToolUse）
 - ✅ 跨助手学习数据同步（共享 `~/.claude/memory/`）
-- ✅ 交互式适配器选择菜单（`evokit init` 和 `bin/install.sh`）
+- ✅ 交互式适配器选择菜单（带 box-drawing UI，支持多选和默认回车）
 - ✅ 29 个新测试（适配器 + 共享内存）
 
 ### 规划中 🔜

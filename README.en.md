@@ -42,6 +42,24 @@
 ╔═══════════════════════════════════════════╗
 ║   EvoKit — Self-Evolving System Install   ║
 ╚═══════════════════════════════════════════╝
+
+  ┌─────────────────────────────────────────────┐
+  │  Select AI assistants to configure:          │
+  ├─────────────────────────────────────────────┤
+  │                                             │
+  │  [1] Claude Code (recommended)  ~/.claude/  │
+  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │
+  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │
+  │                                             │
+  │  [4] All of the above                       │
+  │  [5] Codex CLI + OpenCode                   │
+  │                                             │
+  │  Enter numbers separated by spaces.          │
+  │  Press ENTER for default: [1] Claude Code    │
+  └─────────────────────────────────────────────┘
+
+  → 1
+
 📁 Creating directories...
   ✓ .claude/rules/    ✓ .claude/agents/
   ✓ .claude/commands/ ✓ .claude/memory/
@@ -125,14 +143,25 @@ evokit init
 brew tap zyTheGit/homebrew-evokit
 brew install evokit
 
-# One-liner (curl | bash)
+# One-liner (curl | bash with interactive adapter selection)
 curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
+
+# Pre-select adapters (skip interactive menu, useful for CI automation)
+curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash -s -- --adapter claude,codex
 
 # Clone from GitHub
 git clone https://github.com/zyTheGit/EvoKit.git
 cd EvoKit
 bash bin/install.sh
 ```
+
+The installer shows an interactive menu to choose which AI assistants to configure:
+- **Claude Code** (recommended) — `~/.claude/`
+- **Codex CLI** — `~/.codex/`
+- **OpenCode CLI** — `.opencode/` (project-level)
+- Multi-select supported: type `1 3` to install both Claude Code + OpenCode
+
+Use `--adapter` to bypass the menu for non-interactive setups (CI, cron).
 
 ### CLI Command Reference
 
@@ -269,7 +298,7 @@ See: [MIGRATION.md](docs/MIGRATION.md)
 - ✅ Codex CLI integration adapter (`~/.codex/` templates, AGENTS.md, hooks.json, config.toml)
 - ✅ Codex hook mechanism mapping (SessionStart / Stop / PreToolUse)
 - ✅ Shared learning data across assistants (shared `~/.claude/memory/`)
-- ✅ Interactive adapter selection menu (`evokit init` and `bin/install.sh`)
+- ✅ Interactive adapter selection menu (box-drawing UI, multi-select support, default-on-Enter)
 - ✅ 29 new tests (adapter + shared memory)
 
 ### Planned 🔜
