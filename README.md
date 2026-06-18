@@ -118,7 +118,7 @@ CLAUDE.md / rules/ ← 毕业为永久规则
 被拒规则 → evolution-log.md（永不重提）
 ```
 
-详见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 和 [EVOLUTION.md](docs/EVOLUTION.md)。
+详见 [ARCHITECTURE.md](docs/zh/ARCHITECTURE.md) 和 [EVOLUTION.md](docs/zh/EVOLUTION.md)。
 
 ---
 
@@ -304,7 +304,7 @@ scp claude-evolution-*.tar.gz new-machine:~/
 cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 ```
 
-详见: [MIGRATION.md](docs/MIGRATION.md)
+详见: [MIGRATION.md](docs/zh/MIGRATION.md)
 
 ---
 
@@ -312,13 +312,13 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 
 | 文档 | 说明 |
 |------|------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 四层架构深度解析 |
-| [EVOLUTION.md](docs/EVOLUTION.md) | 进化流水线详解 |
-| [INSTALL.md](docs/INSTALL.md) | 跨平台安装指南 |
-| [MIGRATION.md](docs/MIGRATION.md) | 跨机迁移指南 |
-| [CUSTOMIZE.md](docs/CUSTOMIZE.md) | 自定义规则、智能体、命令 |
-| [MULTI_AGENT.md](docs/MULTI_AGENT.md) | 多智能体适配器架构 |
-| [FAQ.md](docs/FAQ.md) | 常见问题 |
+| [ARCHITECTURE.md](docs/zh/ARCHITECTURE.md) | 四层架构深度解析 |
+| [EVOLUTION.md](docs/zh/EVOLUTION.md) | 进化流水线详解 |
+| [INSTALL.md](docs/zh/INSTALL.md) | 跨平台安装指南 |
+| [MIGRATION.md](docs/zh/MIGRATION.md) | 跨机迁移指南 |
+| [CUSTOMIZE.md](docs/zh/CUSTOMIZE.md) | 自定义规则、智能体、命令 |
+| [MULTI_AGENT.md](docs/zh/MULTI_AGENT.md) | 多智能体适配器架构 |
+| [FAQ.md](docs/zh/FAQ.md) | 常见问题 |
 
 ---
 

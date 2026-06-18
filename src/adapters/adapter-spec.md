@@ -15,7 +15,7 @@ EvoKit adapters allow the self-evolving system to work with different AI coding 
 
 ## Interface
 
-See [MULTI_AGENT.md](../../docs/MULTI_AGENT.md) for the full `AgentAdapter` interface specification.
+See [MULTI_AGENT.md](../../docs/en/MULTI_AGENT.md) for the full `AgentAdapter` interface specification.
 
 ## Adding a New Adapter
 

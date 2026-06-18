@@ -32,42 +32,42 @@ OpenCode has no SessionStart/Stop/PreToolUse hooks. This means:
 
 ## Memory Architecture Decision
 
-### 原则：每个适配器的 memory 放在自己的目录下
+### Principle: Each Adapter's Memory Goes in Its Own Directory
 
 ```
-~/.claude/memory/              ← Claude Code 的 memory
-.opencode/memory/              ← OpenCode 的 memory（项目根目录 .opencode/ 下）
-~/.codex/memory/               ← Codex CLI 的 memory
+~/.claude/memory/              ← Claude Code's memory
+.opencode/memory/              ← OpenCode's memory (under project root .opencode/)
+~/.codex/memory/               ← Codex CLI's memory
 ```
 
-### 修改范围
+### Scope of Changes
 
-需要修改已有的 **Claude Code** 和 **Codex CLI** 适配器：
+Existing **Claude Code** and **Codex CLI** adapters need modification:
 
-#### Claude Code (当前状态)
-当前 memory 在 `~/.claude/memory/` —— 本来就属于 Claude Code，**无需改动**，这是它的"自留地"。
+#### Claude Code (Current State)
+Current memory is at `~/.claude/memory/` — this already belongs to Claude Code, **no change needed**, it's its own "territory."
 
 #### Codex CLI
-当前 `template/codex/AGENTS.md` 和 `codex-adapter.ts` 中指向 `~/.claude/memory/` 作为共享 memory。需要改为 `~/.codex/memory/`。
-- 修改 `template/codex/AGENTS.md` 中的 `__HOME__/.claude/memory/` → `__HOME__/.codex/memory/`
-- 修改 `src/adapters/codex-adapter.ts` 中的 `SHARED_MEMORY_DIR`
-- 修改 `src/adapters/codex-installer.ts` 中的 memory 目录创建
+Currently `template/codex/AGENTS.md` and `codex-adapter.ts` point to `~/.claude/memory/` as shared memory. This should be changed to `~/.codex/memory/`.
+- Modify `template/codex/AGENTS.md`: `__HOME__/.claude/memory/` → `__HOME__/.codex/memory/`
+- Modify `src/adapters/codex-adapter.ts`: `SHARED_MEMORY_DIR`
+- Modify `src/adapters/codex-installer.ts`: memory directory creation
 
-#### OpenCode (新建)
-memory 放在 `.opencode/memory/`（项目级），全局回退到 `~/.config/opencode/memory/`。
-- `template/opencode/AGENTS.md` 引用 `.opencode/memory/`
-- Custom tool 读写 `.opencode/memory/`
+#### OpenCode (New)
+Memory goes in `.opencode/memory/` (project-level), with a global fallback to `~/.config/opencode/memory/`.
+- `template/opencode/AGENTS.md` references `.opencode/memory/`
+- Custom tool reads/writes `.opencode/memory/`
 
-### 为什么这样设计
+### Design Rationale
 
-| 维度 | 共享式（旧方案） | 分目录式（新方案） |
-|------|----------------|------------------|
-| **心智模型** | "我的数据放在别人家" | "各管各的" |
-| **卸载清理** | 卸载 OpenCode 不敢删 `.claude/` | 删 `.opencode/` 就行 |
-| **依赖关系** | OpenCode 依赖 `.claude/` 存在 | **无外部依赖** |
-| **权限隔离** | 需要处理文件权限 600 | 天然隔离 |
-| **异步写入冲突** | 两个 agent 可能同时写同一文件 | 完全独立 |
-| **跨 agent 融合价值** | 目前 EvoKit 无融合逻辑，收益为 0 | 不损失，未来可通过 `evokit sync` 实现 |
+| Dimension | Shared (Old) | Per-Directory (New) |
+|-----------|-------------|---------------------|
+| **Mental model** | "My data lives in someone else's house" | "Each manages its own" |
+| **Clean uninstall** | Uninstalling OpenCode can't delete `.claude/` | Just delete `.opencode/` |
+| **Dependency** | OpenCode depends on `.claude/` existence | **No external dependency** |
+| **Permission isolation** | Need to handle file permission 600 | Naturally isolated |
+| **Async write conflicts** | Two agents may write the same file simultaneously | Completely independent |
+| **Cross-agent fusion value** | EvoKit has no fusion logic — benefit = 0 | No loss; future `evokit sync` can merge |
 
 ---
 
@@ -75,7 +75,7 @@ memory 放在 `.opencode/memory/`（项目级），全局回退到 `~/.config/op
 
 ### Phase 0: Background Study ✅ (Complete)
 - [x] Read OpenCode Chinese documentation (agents, rules, tools, MCP)
-- [x] Study EvoKit adapter interface (`docs/MULTI_AGENT.md`)
+- [x] Study EvoKit adapter interface (`MULTI_AGENT.md`)
 - [x] Analyze existing adapters (Claude Code, Codex CLI)
 - [x] Identify missing hooks → custom tools replacement strategy
 - [x] Memory-per-adapter architecture decision
@@ -268,7 +268,7 @@ Create `tests/opencode-adapter/`:
 
 ### Phase 7: Documentation (2 files)
 
-#### 7.1 Update `docs/MULTI_AGENT.md`
+#### 7.1 Update `MULTI_AGENT.md`
 
 Add OpenCode row with accurate info:
 

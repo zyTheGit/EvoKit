@@ -10,7 +10,7 @@ This repository is the **meta-project** (the framework itself), not the user's i
 
 ## Architecture (4-Layer)
 
-See `docs/ARCHITECTURE.md` for full detail.
+See `docs/en/ARCHITECTURE.md` for full detail.
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
@@ -29,7 +29,7 @@ See `docs/ARCHITECTURE.md` for full detail.
   - `template/memory/` — Learning data files (seeded empty for users)
 - **`bin/`** — `install.sh` (one-click installer, supports `--dry-run` and `--template`)
 - **`src/adapters/`** — Multi-agent adapter TypeScript sources (Claude Code: done; Codex/OpenCode/Aider: planned)
-- **`docs/`** — Architecture, evolution pipeline, migration, multi-agent, customization, FAQ
+- **`docs/`** — Bilingual documentation (`en/` for English, `zh/` for Chinese): architecture, evolution pipeline, migration, multi-agent, customization, FAQ
 - **`examples/`** — Example custom rules, agents, and commands for users
 
 ## Evolution Pipeline
@@ -39,7 +39,7 @@ correction → corrections.jsonl → (2+ same pattern) → learned-rules.md → 
 rejected rules → evolution-log.md (never re-propose)
 ```
 
-See `docs/EVOLUTION.md` for the full pipeline with rotation, confidence decay, and graduation config.
+See `docs/en/EVOLUTION.md` for the full pipeline with rotation, confidence decay, and graduation config.
 
 ## Commands
 

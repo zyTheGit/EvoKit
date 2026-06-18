@@ -111,7 +111,7 @@
 ### Internal
 - 🔧 TypeScript rewrite of install.sh, export-system.sh, evolve.md, boot.md
 - 🧪 41 vitest tests covering core modules
-- 📚 docs/HOMEBREW.md — Homebrew tap instructions
+- 📚 docs/en/HOMEBREW.md — Homebrew tap instructions
 - 🔗 GitHub Actions: npm publish workflow
 
 ## v0.1.0 (2026-06-11)

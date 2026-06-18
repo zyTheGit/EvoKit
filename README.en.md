@@ -118,7 +118,7 @@ CLAUDE.md / rules/ ← graduated to permanent rules
 rejected rules → evolution-log.md (never re-propose)
 ```
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [EVOLUTION.md](docs/EVOLUTION.md) for detailed documentation.
+See [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) and [EVOLUTION.md](docs/en/EVOLUTION.md) for detailed documentation.
 
 ---
 
@@ -304,7 +304,7 @@ scp claude-evolution-*.tar.gz new-machine:~/
 cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 ```
 
-See: [MIGRATION.md](docs/MIGRATION.md)
+See: [MIGRATION.md](docs/en/MIGRATION.md)
 
 ---
 
@@ -312,13 +312,13 @@ See: [MIGRATION.md](docs/MIGRATION.md)
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 4-layer architecture deep dive |
-| [EVOLUTION.md](docs/EVOLUTION.md) | Evolution pipeline detailed walkthrough |
-| [INSTALL.md](docs/INSTALL.md) | Cross-platform installation guide |
-| [MIGRATION.md](docs/MIGRATION.md) | Cross-machine migration guide |
-| [CUSTOMIZE.md](docs/CUSTOMIZE.md) | Custom rules, agents, and commands |
-| [MULTI_AGENT.md](docs/MULTI_AGENT.md) | Multi-agent adapter architecture |
-| [FAQ.md](docs/FAQ.md) | Frequently asked questions |
+| [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) | 4-layer architecture deep dive |
+| [EVOLUTION.md](docs/en/EVOLUTION.md) | Evolution pipeline detailed walkthrough |
+| [INSTALL.md](docs/en/INSTALL.md) | Cross-platform installation guide |
+| [MIGRATION.md](docs/en/MIGRATION.md) | Cross-machine migration guide |
+| [CUSTOMIZE.md](docs/en/CUSTOMIZE.md) | Custom rules, agents, and commands |
+| [MULTI_AGENT.md](docs/en/MULTI_AGENT.md) | Multi-agent adapter architecture |
+| [FAQ.md](docs/en/FAQ.md) | Frequently asked questions |
 
 ---
 

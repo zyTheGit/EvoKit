@@ -21,4 +21,4 @@ To add custom skills:
 .claude/skills/<skill-name>/SKILL.md
 ```
 
-See `docs/CUSTOMIZE.md` or the official Claude Code docs for more.
+See `docs/en/CUSTOMIZE.md` or the official Claude Code docs for more.

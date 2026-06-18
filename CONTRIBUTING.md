@@ -100,7 +100,7 @@ EvoKit/
 
 ## Adding a New Adapter
 
-1. Read [MULTI_AGENT.md](docs/MULTI_AGENT.md) for the adapter specification
+1. Read [MULTI_AGENT.md](docs/en/MULTI_AGENT.md) for the adapter specification
 2. Create the adapter under `src/adapters/`
 3. Implement the `AgentAdapter` interface
 4. Add tests
@@ -108,4 +108,4 @@ EvoKit/
 
 ## Questions?
 
-Open a [Discussion](https://github.com/your-username/EvoKit/discussions) or check [FAQ.md](docs/FAQ.md).
+Open a [Discussion](https://github.com/your-username/EvoKit/discussions) or check [FAQ.md](docs/en/FAQ.md).
