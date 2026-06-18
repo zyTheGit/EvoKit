@@ -30,7 +30,7 @@ const program = new Command();
 program
   .name('evokit')
   .description('EvoKit — Self-Evolving System Framework for AI Coding Assistants')
-  .version('0.4.6');
+  .version('0.4.7');
 
 program.addCommand(installCommand);
 program.addCommand(initCommand);
