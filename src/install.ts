@@ -14,7 +14,7 @@
 
 import { Command } from 'commander';
 import fs from 'node:fs';
-import { isatty, ReadStream } from 'node:tty';
+import { ReadStream } from 'node:tty';
 import {
   getInstaller,
   listAdapters,
@@ -27,24 +27,21 @@ import type { AdapterInstallResult, AdapterVerifyCheck } from './adapters/types.
 /**
  * Try to make stdin interactive when running in a piped context (e.g. curl | bash).
  *
- * When stdin is not a TTY but stdout is, we reopen from /dev/tty so that
- * @clack/prompts can show interactive selection menus.  Falls back silently
- * when no TTY is available (CI, Docker, etc.).
+ * On Unix, /dev/tty is the controlling terminal — if it exists, we can
+ * reopen stdin from it regardless of how the individual fds are redirected.
+ * Falls back silently when no TTY is available (CI, Docker, etc.).
  *
  * @returns true if stdin is now interactive, false otherwise.
  */
 function ensureInteractive(): boolean {
   if (process.stdin.isTTY) return true;
 
-  // stdin is piped (e.g. curl | bash) — check if there's a real terminal
-  // @clack/prompts writes interactive UI to stderr, so check both stdout
-  // and stderr (npx may redirect stdout but leave stderr as the terminal).
+  // stdin is piped (e.g. curl | bash) — try /dev/tty directly.
+  // This works even when npx/npm redirects stdout/stderr.
   try {
-    if (isatty(process.stdout.fd) || isatty(process.stderr.fd)) {
-      const fd = fs.openSync('/dev/tty', 'r');
-      process.stdin = new ReadStream(fd) as typeof process.stdin;
-      return true;
-    }
+    const fd = fs.openSync('/dev/tty', 'r');
+    process.stdin = new ReadStream(fd) as typeof process.stdin;
+    return true;
   } catch {
     // No TTY available (CI, Docker, etc.)
   }
