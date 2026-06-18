@@ -8,6 +8,7 @@
 # or to dynamically compute env vars that --dotenv cannot express.
 
 # Read the hook event info from stdin (JSON) — includes current env snapshot
+# shellcheck disable=SC2034
 INPUT=$(cat)
 
 # ═══════════════════════════════════════
