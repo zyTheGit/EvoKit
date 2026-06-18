@@ -65,6 +65,15 @@ jobs:
         run: |
           shellcheck template/claude/hooks/*.sh
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build CLI
+        run: npm run build
       - name: Test dry-run install
         run: |
           bash bin/install.sh --dry-run
