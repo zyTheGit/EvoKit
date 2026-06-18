@@ -31,14 +31,6 @@ if [ "$NODE_MAJOR" -lt 18 ] 2>/dev/null; then
   exit 1
 fi
 
-# ── Ensure interactive stdin ──────────────────────────────
-# When piped (e.g. curl | bash), stdin is the pipe from curl.
-# Reopen from /dev/tty so that npx/node child processes can
-# read from the terminal for interactive selection prompts.
-if [ ! -t 0 ]; then
-  exec </dev/tty 2>/dev/null || true
-fi
-
 # ── Launch CLI ───────────────────────────────────────────────
 echo "🚀 Launching EvoKit installer..."
 echo ""
