@@ -36,9 +36,11 @@ import type { AdapterInstallResult, AdapterVerifyCheck } from './adapters/types.
 function ensureInteractive(): boolean {
   if (process.stdin.isTTY) return true;
 
-  // stdin is piped — check if there's a real terminal we can read from
+  // stdin is piped (e.g. curl | bash) — check if there's a real terminal
+  // @clack/prompts writes interactive UI to stderr, so check both stdout
+  // and stderr (npx may redirect stdout but leave stderr as the terminal).
   try {
-    if (isatty(process.stdout.fd)) {
+    if (isatty(process.stdout.fd) || isatty(process.stderr.fd)) {
       const fd = fs.openSync('/dev/tty', 'r');
       process.stdin = new ReadStream(fd) as typeof process.stdin;
       return true;
