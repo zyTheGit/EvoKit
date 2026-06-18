@@ -53,14 +53,14 @@ bash bin/install.sh --dry-run
 HOME=/tmp/evokit-test-home bash bin/install.sh --template template
 
 # Shellcheck all shell scripts
-shellcheck bin/*.sh template/hooks/*.sh
+shellcheck bin/*.sh template/claude/hooks/*.sh
 
 # CI-equivalent validation (template structure + no personal paths + shellcheck + dry-run)
 bash .github/workflows/ci.yml-equivalent  # or run the individual steps from ci.yml
 
 # Template structure test
-test -f template/CLAUDE.md && test -f template/settings.json && test -f template/MEMORY.md
-test -f template/hooks/session-start.sh && test -f template/hooks/stop.sh && test -f template/hooks/export-system.sh
+test -f template/claude/CLAUDE.md && test -f template/claude/settings.json && test -f template/claude/MEMORY.md
+test -f template/claude/hooks/session-start.sh && test -f template/claude/hooks/stop.sh && test -f template/claude/hooks/export-system.sh
 ```
 
 ## Important Design Rules

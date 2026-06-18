@@ -14,28 +14,30 @@ jobs:
 
       - name: Test template structure
         run: |
-          test -f template/CLAUDE.md
-          test -f template/settings.json
-          test -f template/MEMORY.md
-          test -f template/hooks/session-start.sh
-          test -f template/hooks/stop.sh
-          test -f template/hooks/export-system.sh
-          test -f template/hooks/pre-tool-use.sh
-          test -f template/hooks/post-tool-use.sh
-          test -f template/hooks/pre-compact.sh
-          test -f template/rules/security.md
-          test -f template/rules/coding.md
-          test -f template/rules/core-invariants.md
-          test -f template/agents/architect.md
-          test -f template/agents/reviewer.md
-          test -f template/commands/boot.md
-          test -f template/commands/evolve.md
-          test -f template/commands/review.md
-          test -f template/memory/README.md
-          test -f template/skills/README.md
-          test -f template/skills/debug/SKILL.md
-          test -f template/skills/code-review/SKILL.md
-          test -f template/skills/learning-recorder/SKILL.md
+          # Claude Code template
+          test -f template/claude/CLAUDE.md
+          test -f template/claude/settings.json
+          test -f template/claude/MEMORY.md
+          test -f template/claude/hooks/session-start.sh
+          test -f template/claude/hooks/stop.sh
+          test -f template/claude/hooks/export-system.sh
+          test -f template/claude/hooks/pre-tool-use.sh
+          test -f template/claude/hooks/post-tool-use.sh
+          test -f template/claude/hooks/pre-compact.sh
+          test -f template/claude/hooks/dotenv-append.sh
+          test -f template/claude/rules/security.md
+          test -f template/claude/rules/coding.md
+          test -f template/claude/rules/core-invariants.md
+          test -f template/claude/agents/architect.md
+          test -f template/claude/agents/reviewer.md
+          test -f template/claude/commands/boot.md
+          test -f template/claude/commands/evolve.md
+          test -f template/claude/commands/review.md
+          test -f template/claude/memory/README.md
+          test -f template/claude/skills/README.md
+          test -f template/claude/skills/debug/SKILL.md
+          test -f template/claude/skills/code-review/SKILL.md
+          test -f template/claude/skills/learning-recorder/SKILL.md
 
           # Codex CLI template
           test -f template/codex/AGENTS.md
@@ -57,11 +59,11 @@ jobs:
       - name: Check no personal paths in template
         run: |
           ! grep -r "hpee2" template/ 2>/dev/null || false
-          ! grep -r "/home/" template/settings.json 2>/dev/null || false
+          ! grep -r "/home/" template/claude/settings.json 2>/dev/null || false
 
       - name: Shellcheck hooks
         run: |
-          shellcheck template/hooks/*.sh
+          shellcheck template/claude/hooks/*.sh
 
       - name: Test dry-run install
         run: |
@@ -74,7 +76,8 @@ jobs:
       - name: Shellcheck all scripts
         run: |
           shellcheck bin/*.sh
-          shellcheck template/hooks/*.sh
+          shellcheck template/claude/hooks/*.sh
+          shellcheck template/codex/hooks-scripts/*.sh
 
   docs:
     runs-on: ubuntu-latest
