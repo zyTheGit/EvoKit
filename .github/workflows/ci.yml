@@ -98,13 +98,24 @@ jobs:
           test -f LICENSE
           test -f CONTRIBUTING.md
           test -f CHANGELOG.md
-          test -f docs/ARCHITECTURE.md
-          test -f docs/EVOLUTION.md
-          test -f docs/INSTALL.md
-          test -f docs/MIGRATION.md
-          test -f docs/CUSTOMIZE.md
-          test -f docs/FAQ.md
-          test -f docs/MULTI_AGENT.md
+          # English docs
+          test -f docs/en/ARCHITECTURE.md
+          test -f docs/en/EVOLUTION.md
+          test -f docs/en/INSTALL.md
+          test -f docs/en/MIGRATION.md
+          test -f docs/en/CUSTOMIZE.md
+          test -f docs/en/FAQ.md
+          test -f docs/en/MULTI_AGENT.md
+          test -f docs/en/HOMEBREW.md
+          # Chinese docs
+          test -f docs/zh/ARCHITECTURE.md
+          test -f docs/zh/EVOLUTION.md
+          test -f docs/zh/INSTALL.md
+          test -f docs/zh/MIGRATION.md
+          test -f docs/zh/CUSTOMIZE.md
+          test -f docs/zh/FAQ.md
+          test -f docs/zh/MULTI_AGENT.md
+          test -f docs/zh/HOMEBREW.md
 
   cli:
     runs-on: ubuntu-latest
