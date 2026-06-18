@@ -23,7 +23,7 @@
   },
   "type": "module",
   "bin": {
-    "evokit": "./bin/evokit.cjs"
+    "evokit": "bin/evokit.cjs"
   },
   "files": [
     "bin/",
