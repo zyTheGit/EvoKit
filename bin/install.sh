@@ -23,8 +23,9 @@ NODE_VERSION=$(node --version 2>/dev/null || echo "not found")
 
 check_node() {
   local required_major=20 required_minor=12
-  local major=$(node -e "console.log(process.version.slice(1).split('.')[0])" 2>/dev/null || echo "0")
-  local minor=$(node -e "console.log(process.version.slice(1).split('.')[1])" 2>/dev/null || echo "0")
+  local major minor
+  major=$(node -e "console.log(process.version.slice(1).split('.')[0])" 2>/dev/null || echo "0")
+  minor=$(node -e "console.log(process.version.slice(1).split('.')[1])" 2>/dev/null || echo "0")
 
   if [ "$major" -lt $required_major ] 2>/dev/null; then
     return 1
