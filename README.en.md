@@ -128,7 +128,7 @@ See [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) and [EVOLUTION.md](docs/en/EVOLUT
 
 - [Claude Code](https://claude.ai/code) ≥ v0.1.0 (or any AI coding assistant with hook/tool support)
 - **bash 4.0+** (Linux / macOS / WSL / Git Bash) — required for hook scripts
-- **Node.js ≥ 18.0.0** (for npm install or CLI usage)
+- **Node.js ≥ 20.12.0** (for npm install or CLI usage)
 
 ### Install
 
@@ -263,7 +263,7 @@ EvoKit supports multiple AI coding assistants through a unified adapter interfac
 
 | Dependency | Category | Minimum Version | Purpose |
 |------------|----------|----------------|---------|
-| [Node.js](https://nodejs.org/) | Runtime | ≥ 18.0.0 | CLI tool, npm package execution |
+| [Node.js](https://nodejs.org/) | Runtime | ≥ 20.12.0 | CLI tool, npm package execution |
 | [bash](https://www.gnu.org/software/bash/) | Runtime | ≥ 4.0 | Hook script execution |
 | [Git](https://git-scm.com/) | Runtime | ≥ 2.0 | Template download, version management |
 

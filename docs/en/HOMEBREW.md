@@ -69,5 +69,5 @@ Or manually:
 
 ## Requirements
 
-- **Node.js 18+** is required. Homebrew will install it automatically if not present.
+- **Node.js 20.12+** is required. Homebrew will install it automatically if not present.
 - Works on macOS and Linux (including WSL).

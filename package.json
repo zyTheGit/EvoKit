@@ -1,6 +1,6 @@
 {
   "name": "@zythegit/evokit",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "EvoKit — Self-Evolving System Framework for AI Coding Assistants",
   "keywords": [
     "claude",
@@ -42,7 +42,7 @@
     "postinstall": "node bin/postinstall-check.cjs"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.12.0"
   },
   "dependencies": {
     "@clack/prompts": "^1.5.1",

@@ -69,5 +69,5 @@ bash scripts/update-homebrew.sh 0.4.1
 
 ## 系统要求
 
-- **需要 Node.js 18+**。如果系统中未安装，Homebrew 将自动安装。
+- **需要 Node.js 20.12+**。如果系统中未安装，Homebrew 将自动安装。
 - 支持 macOS 和 Linux（包括 WSL）。

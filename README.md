@@ -128,7 +128,7 @@ CLAUDE.md / rules/ ← 毕业为永久规则
 
 - [Claude Code](https://claude.ai/code) ≥ v0.1.0（或其他支持钩子/工具的 AI 编程助手）
 - **bash 4.0+**（Linux / macOS / WSL / Git Bash）— 钩子脚本必需
-- **Node.js ≥ 18.0.0**（用于 npm 安装或 CLI 使用）
+- **Node.js ≥ 20.12.0**（用于 npm 安装或 CLI 使用）
 
 ### 安装
 
@@ -263,7 +263,7 @@ EvoKit 通过统一的适配器接口支持多种 AI 编程助手。每个适配
 
 | 依赖 | 类别 | 最低版本 | 用途 |
 |------|------|---------|------|
-| [Node.js](https://nodejs.org/) | 运行时 | ≥ 18.0.0 | CLI 工具、npm 包运行 |
+| [Node.js](https://nodejs.org/) | 运行时 | ≥ 20.12.0 | CLI 工具、npm 包运行 |
 | [bash](https://www.gnu.org/software/bash/) | 运行时 | ≥ 4.0 | 钩子脚本执行 |
 | [Git](https://git-scm.com/) | 运行时 | ≥ 2.0 | 模板下载、版本管理 |
 

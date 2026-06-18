@@ -12,7 +12,7 @@
 
 ## 快速安装（推荐）
 
-### npm（Node.js 18+）
+### npm（Node.js 20.12+）
 
 ```bash
 # 通过 npm 全局安装

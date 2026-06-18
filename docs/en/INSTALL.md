@@ -12,7 +12,7 @@
 
 ## Quick Install (Recommended)
 
-### npm (Node.js 18+)
+### npm (Node.js 20.12+)
 
 ```bash
 # Install globally via npm
