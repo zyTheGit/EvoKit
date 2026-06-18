@@ -15,7 +15,7 @@ brew install evokit
 ## Verify
 
 ```bash
-evokit --version  # → 0.2.0
+evokit --version  # → 0.4.1
 evokit doctor
 ```
 
@@ -32,12 +32,12 @@ class Evokit < Formula
   depends_on "node"
 
   on_macos do
-    url "https://registry.npmjs.org/@zythegit/evokit/-/evokit-0.2.0.tgz"
+    url "https://registry.npmjs.org/@zythegit/evokit/-/evokit-0.4.1.tgz"
     sha256 "<npm-package-sha>"
   end
 
   on_linux do
-    url "https://registry.npmjs.org/@zythegit/evokit/-/evokit-0.2.0.tgz"
+    url "https://registry.npmjs.org/@zythegit/evokit/-/evokit-0.4.1.tgz"
     sha256 "<npm-package-sha>"
   end
 
@@ -57,7 +57,7 @@ end
 When a new version is released, use the update script:
 
 ```bash
-bash scripts/update-homebrew.sh 0.2.1
+bash scripts/update-homebrew.sh 0.4.1
 ```
 
 Or manually:

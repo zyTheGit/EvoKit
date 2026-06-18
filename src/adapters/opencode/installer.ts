@@ -12,20 +12,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
-import type { InstallSummary, OpenCodeInstallConfig } from '../core/types.js';
+import { installOrMergeAgents } from '../../core/merge-agents.js';
+import type { InstallSummary, OpenCodeInstallConfig } from '../../core/types.js';
+import { resolveOpenCodeProjectDir } from './adapter.js';
 
 const OPENCODE_SUBDIRS = ['tools', 'agents', 'memory'] as const;
 const TOOL_FILES = ['evokit-boot.ts', 'evokit-evolve.ts', 'evokit-memory.ts', 'evokit-session.ts'] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
 const MEMORY_SEED_FILES = ['README.md'] as const;
-
-/**
- * Resolve OpenCode project config directory.
- * Defaults to .opencode/ in the project root.
- */
-export function resolveOpenCodeProjectDir(projectDir: string): string {
-  return path.join(projectDir, '.opencode');
-}
 
 /**
  * Resolve OpenCode global config directory.
@@ -37,6 +31,15 @@ export function resolveOpenCodeConfigHome(homeDir: string): string {
     return path.join(xdgConfig, 'opencode');
   }
   return path.join(homeDir, '.config', 'opencode');
+}
+
+/**
+ * Install or merge agent files (uses TS helper, no more child_process / .cjs).
+ */
+function installOpenCodeAgents(srcDir: string, dstDir: string, dryRun: boolean): number {
+  if (!fse.existsSync(srcDir)) return 0;
+  const results = installOrMergeAgents(srcDir, dstDir, dryRun);
+  return results.filter(r => r.status === 'COPY' || r.status === 'MERGED').length;
 }
 
 /**
@@ -123,25 +126,10 @@ export function installOpenCodeTemplate(config: OpenCodeInstallConfig): InstallS
     }
   }
 
-  // ── 5. Agents (always copy — upgrade path) ───────────────────
+  // ── 5. Agents (merge frontmatter if exists, otherwise fresh copy) ──
   const agentsSrcDir = path.join(opencodeTemplateDir, 'agents');
   const agentsDstDir = path.join(opencodeDir, 'agents');
-  if (fse.existsSync(agentsSrcDir)) {
-    if (!dryRun) {
-      fse.ensureDirSync(agentsDstDir);
-    }
-    for (const agentFile of AGENT_FILES) {
-      const src = path.join(agentsSrcDir, agentFile);
-      if (fse.existsSync(src)) {
-        const dst = path.join(agentsDstDir, agentFile);
-        if (!dryRun) {
-          fse.copySync(src, dst);
-        }
-        summary.filesCreated++;
-        summary.agentsInstalled++;
-      }
-    }
-  }
+  summary.agentsInstalled += installOpenCodeAgents(agentsSrcDir, agentsDstDir, !!dryRun);
 
   // ── 6. Memory seed files (only if not exists) ────────────────
   const memSrcDir = path.join(opencodeTemplateDir, 'memory');

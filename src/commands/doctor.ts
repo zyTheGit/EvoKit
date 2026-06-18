@@ -4,8 +4,8 @@ import fse from 'fs-extra';
 import path from 'node:path';
 import { verifyInstallation } from '../core/template.js';
 import { getFileLineCount } from '../core/memory.js';
-import { getCodexStatus, verifyCodexSetup } from '../adapters/codex-adapter.js';
-import { getOpenCodeStatus } from '../adapters/opencode-adapter.js';
+import { getCodexStatus, verifyCodexSetup } from '../adapters/codex/adapter.js';
+import { getOpenCodeStatus } from '../adapters/opencode/adapter.js';
 
 export const doctorCommand = new Command('doctor')
   .description('Verify EvoKit system integrity')

@@ -1,6 +1,26 @@
 # Changelog
 
-## v0.4.1 (2026-06-16)
+## v0.4.2 (2026-06-18)
+
+### Major
+- 🧩 **适配器接口统一重构** — 抽取 `AdapterInstaller` 接口 + 注册表，三端适配器（Claude / Codex / OpenCode）共享同一安装/验证契约
+- 🏗️ **适配器模块化迁移** — 旧单文件适配器（`src/adapters/*-adapter.ts`）全部删除，替换为按助手分目录（`src/adapters/{claude,codex,opencode}/`）的模块化结构
+- 🎯 **Aider 适配器存根** — `src/adapters/aider/adapter.ts` 已创建，待后续实现完整集成
+
+### Documentation
+- 📋 **README 重构** — 新增「适配器版本」和「依赖」章节，详细记录：
+  - 各适配器版本号（Claude v0.2.0 / Codex v0.3.0 / OpenCode v0.4.0）、状态及助手兼容范围
+  - 运行时依赖（Node.js ≥ 18.0.0 / bash ≥ 4.0 / Git）
+  - npm 运行时依赖（@clack/prompts、commander、conf、fs-extra、picocolors）
+  - 开发依赖（TypeScript、tsx、vitest、类型定义）
+- 🌍 英文 README（README.en.md）同步更新
+- 🗺️ 路线图更新 — v0.4.x 阶段反映实际适配器改造进度
+
+### Internal
+- 🔧 删除旧的单文件适配器（aider-adapter.ts, claude-adapter.ts, codex-adapter.ts, codex-hooks.ts, codex-installer.ts, opencode-adapter.ts, opencode-hooks.ts, opencode-installer.ts）
+- 📦 新增模块化适配器文件（`src/adapters/{claude,codex,opencode,aider}/` + `index.ts` + `registry.ts` + `types.ts`）
+- 🔌 新增核心模块（`src/core/download.ts`, `interactive.ts`, `merge-agents.ts`, `merge-settings.ts`, `permissions.ts`）
+- 🚚 模板目录重组织（`template/` → `template/{claude,codex,opencode}/`）
 
 ### Fix
 - 🔧 **Installer interactive menu bug** — Fixed `\r` (carriage return) causing "Invalid choice" warning for valid input in `curl | bash` mode. The issue occurred when `read -r` from `/dev/tty` captured a trailing `\r` character, causing the case-match validation to fail even though the grep-based parsing below worked correctly.

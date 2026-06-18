@@ -4,17 +4,21 @@ import fs from 'node:fs';
 import os from 'node:os';
 import {
   installCodexTemplate,
-  resolveCodexHome,
   verifyCodexInstallation,
-} from '../../src/adapters/codex-installer.js';
-import { CodexHooksBuilder, hooksToToml, mergeHooksConfigs } from '../../src/adapters/codex-hooks.js';
+} from '../../src/adapters/codex/installer.js';
+import { resolveCodexHome } from '../../src/adapters/codex/adapter.js';
+import { CodexHooksBuilder, hooksToToml, mergeHooksConfigs } from '../../src/adapters/codex/hooks.js';
 import {
   injectCodexMemory,
   exportCodexMemory,
   recordCodexSession,
   getCodexStatus,
-} from '../../src/adapters/codex-adapter.js';
+} from '../../src/adapters/codex/adapter.js';
 import { CodexHooksJson, SessionEntry } from '../../src/core/types.js';
+
+beforeEach(() => {
+  delete process.env.CODEX_HOME;
+});
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'evokit-codex-'));

@@ -126,9 +126,9 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [EVOLUTION.md](docs/EVOLUTION.md
 
 ### Prerequisites
 
-- [Claude Code](https://claude.ai/code) (or any AI coding assistant with hook support)
-- **bash 4.0+** (Linux / macOS / WSL / Git Bash)
-- **Node.js 18+** (for npm install or CLI usage)
+- [Claude Code](https://claude.ai/code) ≥ v0.1.0 (or any AI coding assistant with hook/tool support)
+- **bash 4.0+** (Linux / macOS / WSL / Git Bash) — required for hook scripts
+- **Node.js ≥ 18.0.0** (for npm install or CLI usage)
 
 ### Install
 
@@ -242,6 +242,55 @@ See the [examples/](examples/) directory for full customization samples:
 
 ---
 
+## Adapter Versions
+
+EvoKit supports multiple AI coding assistants through a unified adapter interface. Each adapter is versioned independently, matching the supported assistant's milestone.
+
+| Adapter | Version | Status | Install Target | Assistant Compatibility |
+|---------|---------|--------|---------------|----------------------|
+| **Claude Code** | v0.2.0 | ✅ **Full support** | `~/.claude/` | Claude Code ≥ v0.1.0 (CLI) |
+| **Codex CLI** | v0.3.0 | ✅ **Full support** | `~/.codex/` | Codex CLI ≥ v0.3.0 (OpenAI) |
+| **OpenCode CLI** | v0.4.0 | ✅ **Full support** | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0 |
+| **Aider** | — | 🚧 **Stub / Planned** | — | Aider (planned) |
+
+> **Adapter versioning**: Each adapter's `version` field is defined in its source (`src/adapters/*/adapter.ts`) and corresponds to the EvoKit milestone where that assistant first received full support. Subsequent iterations ship with the main EvoKit release cycle.
+
+---
+
+## Dependencies
+
+### Runtime Requirements
+
+| Dependency | Category | Minimum Version | Purpose |
+|------------|----------|----------------|---------|
+| [Node.js](https://nodejs.org/) | Runtime | ≥ 18.0.0 | CLI tool, npm package execution |
+| [bash](https://www.gnu.org/software/bash/) | Runtime | ≥ 4.0 | Hook script execution |
+| [Git](https://git-scm.com/) | Runtime | ≥ 2.0 | Template download, version management |
+
+### NPM Dependencies
+
+The EvoKit CLI tool depends on the following npm packages (auto-installed):
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [`@clack/prompts`](https://github.com/natemoo-re/clack) | ^1.5.1 | Interactive CLI prompts (menus, input, selection) |
+| [`commander`](https://github.com/tj/commander.js) | ^12.1.0 | CLI command framework (argument parsing, help) |
+| [`conf`](https://github.com/sindresorhus/conf) | ^12.0.0 | JSON config persistence |
+| [`fs-extra`](https://github.com/jprichardson/node-fs-extra) | ^11.3.0 | Enhanced filesystem operations (copy, remove, ensure dir) |
+| [`picocolors`](https://github.com/alexeyraspopov/picocolors) | ^1.1.1 | Terminal color output |
+
+### Dev Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [TypeScript](https://www.typescriptlang.org/) | ^5.6.0 | Type checking and compilation |
+| [tsx](https://github.com/privatenumber/tsx) | ^4.19.0 | Direct TypeScript execution (dev mode) |
+| [vitest](https://vitest.dev/) | ^2.1.0 | Unit testing & coverage |
+| [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^18.19.0 | Node.js type definitions |
+| [`@types/fs-extra`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^11.0.4 | fs-extra type definitions |
+
+---
+
 ## Migration
 
 ```bash
@@ -303,10 +352,15 @@ See: [MIGRATION.md](docs/MIGRATION.md)
 
 ### Planned 🔜
 
-**v0.4.0 — OpenCode + Aider Adapters**
-- ☐ OpenCode CLI plugin integration
-- ☐ Aider convention file integration
-- ☐ Unified adapter interface registry
+**v0.4.0 ~ v0.4.2 — Adapter Interface Refactor + Multi-assistant Support**
+- ✅ **Unified adapter interface** — Extracted `AdapterInstaller` interface (`src/adapters/types.ts`) + registry (`registry.ts`), shared contract across all assistants
+- ✅ **Claude Code Adapter v0.2.0** — Modular refactor, pluggable installation pipeline
+- ✅ **Codex CLI Adapter v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark rules
+- ✅ **OpenCode CLI Adapter v0.4.0** — AGENTS.md / opencode.json / custom tools / project-level install
+- ✅ **Aider Adapter** — Stub created (`src/adapters/aider/adapter.ts`), pending implementation
+- ✅ **Smart config merge** — Won't overwrite existing settings / AGENTS.md / opencode.json
+- ✅ **Interactive adapter selection** — box-drawing UI, multi-select, default-on-Enter
+- 🚧 Self-healing CI pipeline
 
 **v0.5.0 — Standalone Evolution Engine**
 - ☐ Independent rule promotion engine (runs without Claude Code)

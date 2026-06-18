@@ -32,7 +32,7 @@ describe('template', () => {
       expect(settings).toContain(homeDir);
 
       // Summary should have reasonable counts
-      expect(summary.hooksInstalled).toBe(3);
+      expect(summary.hooksInstalled).toBe(7);
       expect(summary.rulesInstalled).toBe(3);
       expect(summary.agentsInstalled).toBe(2);
       expect(summary.commandsInstalled).toBe(3);
@@ -58,7 +58,7 @@ describe('template', () => {
       // Nothing should be created in dry-run
       expect(fs.existsSync(path.join(homeDir, '.claude', 'rules'))).toBe(false);
       // But summary should still report what WOULD happen
-      expect(summary.hooksInstalled).toBe(3);
+      expect(summary.hooksInstalled).toBe(7);
     });
   });
 

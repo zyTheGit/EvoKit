@@ -126,9 +126,9 @@ CLAUDE.md / rules/ ← 毕业为永久规则
 
 ### 前置条件
 
-- [Claude Code](https://claude.ai/code)（或其他支持钩子的 AI 编程助手）
-- **bash 4.0+**（Linux / macOS / WSL / Git Bash）
-- **Node.js 18+**（用于 npm 安装或 CLI 使用）
+- [Claude Code](https://claude.ai/code) ≥ v0.1.0（或其他支持钩子/工具的 AI 编程助手）
+- **bash 4.0+**（Linux / macOS / WSL / Git Bash）— 钩子脚本必需
+- **Node.js ≥ 18.0.0**（用于 npm 安装或 CLI 使用）
 
 ### 安装
 
@@ -242,6 +242,55 @@ evokit evolve --help
 
 ---
 
+## 适配器版本
+
+EvoKit 通过统一的适配器接口支持多种 AI 编程助手。每个适配器独立迭代，版本号与当前支持的助手版本对应。
+
+| 适配器 | 版本 | 状态 | 安装目录 | 助手版本兼容 |
+|--------|------|------|---------|-------------|
+| **Claude Code** | v0.2.0 | ✅ **完整支持** | `~/.claude/` | Claude Code ≥ v0.1.0（CLI） |
+| **Codex CLI** | v0.3.0 | ✅ **完整支持** | `~/.codex/` | Codex CLI ≥ v0.3.0（OpenAI） |
+| **OpenCode CLI** | v0.4.0 | ✅ **完整支持** | `.opencode/`（项目级） | OpenCode CLI ≥ v0.4.0 |
+| **Aider** | — | 🚧 **存根/待实现** | — | Aider（规划中） |
+
+> **适配器版本说明**：每个适配器的 `version` 字段在其源码中定义（`src/adapters/*/adapter.ts`），匹配该助手首次获得完整支持的 EvoKit 里程碑版本。插件的后续迭代随 EvoKit 主版本同步发布。
+
+---
+
+## 依赖
+
+### 运行时依赖
+
+| 依赖 | 类别 | 最低版本 | 用途 |
+|------|------|---------|------|
+| [Node.js](https://nodejs.org/) | 运行时 | ≥ 18.0.0 | CLI 工具、npm 包运行 |
+| [bash](https://www.gnu.org/software/bash/) | 运行时 | ≥ 4.0 | 钩子脚本执行 |
+| [Git](https://git-scm.com/) | 运行时 | ≥ 2.0 | 模板下载、版本管理 |
+
+### NPM 依赖
+
+EvoKit 的 CLI 工具依赖以下 npm 包（安装时自动下载）：
+
+| 包名 | 版本 | 用途 |
+|------|------|------|
+| [`@clack/prompts`](https://github.com/natemoo-re/clack) | ^1.5.1 | 交互式 CLI 提示（菜单、输入、选择） |
+| [`commander`](https://github.com/tj/commander.js) | ^12.1.0 | CLI 命令框架（参数解析、帮助生成） |
+| [`conf`](https://github.com/sindresorhus/conf) | ^12.0.0 | JSON 配置持久化存储 |
+| [`fs-extra`](https://github.com/jprichardson/node-fs-extra) | ^11.3.0 | 增强文件系统操作（复制、删除、确保目录） |
+| [`picocolors`](https://github.com/alexeyraspopov/picocolors) | ^1.1.1 | 终端彩色输出 |
+
+### 开发依赖
+
+| 包名 | 版本 | 用途 |
+|------|------|------|
+| [TypeScript](https://www.typescriptlang.org/) | ^5.6.0 | 类型检查与编译 |
+| [tsx](https://github.com/privatenumber/tsx) | ^4.19.0 | TypeScript 直接执行（开发模式） |
+| [vitest](https://vitest.dev/) | ^2.1.0 | 单元测试与覆盖率 |
+| [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^18.19.0 | Node.js 类型定义 |
+| [`@types/fs-extra`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^11.0.4 | fs-extra 类型定义 |
+
+---
+
 ## 迁移
 
 ```bash
@@ -303,12 +352,14 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 
 ### 开发中 🚧
 
-**v0.4.0 — OpenCode + Aider 适配器**
-- ✅ OpenCode CLI 插件集成（AGENTS.md / opencode.json / 项目级安装）
-- 🚧 OpenCode 钩子机制映射（SessionStart / Stop / PreToolUse）
-- 🚧 Aider convention 文件集成（存根待实现）
-- ☐ 统一适配器接口注册表
-- 🚧 配置文件智能合并（不覆盖已有 settings / AGENTS.md / opencode.json）
+**v0.4.0 ~ v0.4.2 — 适配器接口重构 + 多助手支持**
+- ✅ **适配器接口统一** — 抽取 `AdapterInstaller` 接口（`src/adapters/types.ts`） + 注册表（`registry.ts`），三端适配器共享同一契约
+- ✅ **Claude Code 适配器 v0.2.0** — 模块化重构，插件化安装管线
+- ✅ **Codex CLI 适配器 v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark 规则
+- ✅ **OpenCode CLI 适配器 v0.4.0** — AGENTS.md / opencode.json / 自定义工具 / 项目级安装
+- ✅ **Aider 适配器** — 存根代码已创建（`src/adapters/aider/adapter.ts`），待实现
+- ✅ **配置文件智能合并** — 不覆盖已有 settings / AGENTS.md / opencode.json
+- ✅ **交互式适配器选择** — 带 box-drawing UI，支持多选和默认回车
 - 🚧 自修复 CI 流水线
 
 > **版本说明**：v0.4.x 系列持续开发中，所有中间修复和迭代均为修订号更新（v0.4.1 / v0.4.2 / ...），次版本号仅在有完整功能里程碑时递增。

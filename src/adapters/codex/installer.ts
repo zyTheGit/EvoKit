@@ -12,19 +12,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
-import { InstallSummary, CodexInstallConfig } from '../core/types.js';
+import { InstallSummary, CodexInstallConfig } from '../../core/types.js';
+import { resolveCodexHome } from './adapter.js';
 
 const CODEX_SUBDIRS = ['rules', 'hooks-scripts', 'memory'] as const;
 const HOOK_SCRIPTS = ['session-start.sh', 'stop.sh', 'pre-tool-use.sh'] as const;
 const MEMORY_SEED_FILES = ['README.md'] as const;
-
-/**
- * Resolve Codex home directory.
- * Defaults to ~/.codex, respects CODEX_HOME env var.
- */
-export function resolveCodexHome(homeDir: string): string {
-  return process.env.CODEX_HOME || path.join(homeDir, '.codex');
-}
 
 /**
  * Install the Codex CLI template to ~/.codex/.

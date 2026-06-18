@@ -262,6 +262,22 @@ The command path should look like `/home/user/.claude/hooks/session-start.sh`, n
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
+### `evokit: command not found` after npm install
+**Problem:** The `evokit` binary is installed but not on your system PATH.
+
+**Fix:** Check your install type:
+
+```bash
+# Scenario 1: Local install (without -g) — use npx
+npx evokit init
+
+# Scenario 2: Global install but PATH missing
+# Find your npm global bin directory and add it to PATH
+npm root -g
+# Then add to ~/.bashrc or ~/.zshrc:
+export PATH="$(npm root -g)/../bin:$PATH"
+```
+
 ## Upgrading
 
 To upgrade an existing installation, simply re-run the installer — it will:
