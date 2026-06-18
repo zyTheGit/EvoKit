@@ -41,12 +41,12 @@ A task is "done" ONLY when ALL conditions are met:
 
 | File | Purpose | Auto-managed |
 |------|---------|--------------|
-| `.opencode/memory/corrections.jsonl` | User corrections (pattern, context, count) | Yes — via `evokit-memory` tool |
-| `.opencode/memory/observations.jsonl` | Code pattern observations | Yes — via `evokit-memory` tool |
-| `.opencode/memory/learned-rules.md` | Promoted permanent rules (max 50 lines) | Yes — via `evokit-evolve` tool |
-| `.opencode/memory/evolution-log.md` | Audit trail of evolution decisions | Yes — via `evokit-evolve` tool |
-| `.opencode/memory/violations.jsonl` | Rules violated during boot verification | Yes — via `evokit-boot` tool |
-| `.opencode/memory/sessions.jsonl` | Session scorecards | Yes — via `evokit-session` tool |
+| `~/.config/opencode/memory/corrections.jsonl` | User corrections (pattern, context, count) | Yes — via `evokit-memory` tool |
+| `~/.config/opencode/memory/observations.jsonl` | Code pattern observations | Yes — via `evokit-memory` tool |
+| `~/.config/opencode/memory/learned-rules.md` | Promoted permanent rules (max 50 lines) | Yes — via `evokit-evolve` tool |
+| `~/.config/opencode/memory/evolution-log.md` | Audit trail of evolution decisions | Yes — via `evokit-evolve` tool |
+| `~/.config/opencode/memory/violations.jsonl` | Rules violated during boot verification | Yes — via `evokit-boot` tool |
+| `~/.config/opencode/memory/sessions.jsonl` | Session scorecards | Yes — via `evokit-session` tool |
 
 ### Promotion Ladder
 ```
@@ -100,14 +100,14 @@ evokit-evolve:
 | `architect` | Complex multi-step work needing design plan first | Simple edits, single-file fixes, rote mechanical changes |
 | `reviewer` | Before committing, after large changes, or before PR | Trivial one-line changes, generated/boilerplate code |
 
-Sub-agents are defined in `.opencode/agents/`. Access them via `@architect` or `@reviewer`.
+Sub-agents are defined in `~/.config/opencode/agent/`. Access them via `@architect` or `@reviewer`.
 
 ## 6. Integrity Rules
 
 ### Invariants
 - `corrections.jsonl` and `observations.jsonl` are **append-only** — never delete entries.
 - **Never modify files outside the project** without explicit permission.
-- `.opencode/memory/` files have **600 permissions** — personal data.
+- `~/.config/opencode/memory/` files have **600 permissions** — personal data.
 
 ### Error Reporting
 - If a command fails: explain what went wrong and suggest a fix — don't silently retry.

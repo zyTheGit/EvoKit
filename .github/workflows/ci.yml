@@ -53,8 +53,8 @@ jobs:
           test -f template/opencode/tools/evokit-evolve.ts
           test -f template/opencode/tools/evokit-memory.ts
           test -f template/opencode/tools/evokit-session.ts
-          test -f template/opencode/agents/architect.md
-          test -f template/opencode/agents/reviewer.md
+          test -f template/opencode/agent/architect.md
+          test -f template/opencode/agent/reviewer.md
 
       - name: Check no personal paths in template
         run: |

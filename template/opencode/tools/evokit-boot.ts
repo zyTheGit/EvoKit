@@ -1,6 +1,8 @@
 import { tool } from "@opencode-ai/plugin";
-import { readFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { readFileSync, existsSync, mkdirSync, appendFileSync } from "fs";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 /**
  * EvoKit boot verification tool.
@@ -10,33 +12,38 @@ export default tool({
   description: "Run EvoKit boot verification — check system integrity and learned rules",
   args: {},
   async execute(_args, context) {
-    const opencodeDir = join(context.directory, ".opencode");
-    const memoryDir = join(opencodeDir, "memory");
+    mkdirSync(MEMORY_DIR, { recursive: true });
     const results: string[] = [];
     let passed = 0;
     let failed = 0;
 
     results.push("# 🔍 EvoKit Boot Verification\n");
 
-    // ── 1. Core files ──
+    // ── 1. Core files (global + project) ──
     results.push("## Core Files\n");
+    const globalDir = join(homedir(), ".config", "opencode");
     for (const file of ["AGENTS.md", "opencode.json"]) {
-      const ok = existsSync(join(context.directory, file));
-      results.push(`${ok ? "✅" : "❌"} ${file}`);
-      if (ok) passed++;
+      const globalOk = existsSync(join(globalDir, file));
+      results.push(`${globalOk ? "✅" : "❌"} ~/.config/opencode/${file} (global)`);
+      if (globalOk) passed++;
+      else failed++;
+
+      const projectOk = existsSync(join(context.directory, file));
+      results.push(`${projectOk ? "✅" : "❌"} ${file} (project)`);
+      if (projectOk) passed++;
       else failed++;
     }
 
-    // ── 2. Memory files ──
+    // ── 2. Memory files (global) ──
     results.push("\n## Memory Files\n");
     for (const file of ["corrections.jsonl", "observations.jsonl", "learned-rules.md", "evolution-log.md"]) {
-      const ok = existsSync(join(memoryDir, file));
-      results.push(`${ok ? "✅" : "⚠️"} .opencode/memory/${file}`);
+      const ok = existsSync(join(MEMORY_DIR, file));
+      results.push(`${ok ? "✅" : "⚠️"} memory/${file}`);
       if (ok) passed++;
       else failed++;
     }
 
-    // ── 3. Rules check (AGENTS.md line count) ──
+    // ── 3. AGENTS.md constraints ──
     results.push("\n## Constraints\n");
     const agentsPath = join(context.directory, "AGENTS.md");
     if (existsSync(agentsPath)) {
@@ -47,8 +54,8 @@ export default tool({
       else failed++;
     }
 
-    // ── 4. learned-rules.md line limit check ──
-    const rulesPath = join(memoryDir, "learned-rules.md");
+    // ── 4. learned-rules.md line limit ──
+    const rulesPath = join(MEMORY_DIR, "learned-rules.md");
     if (existsSync(rulesPath)) {
       const rulesLines = readFileSync(rulesPath, "utf-8").split("\n").length;
       const ok = rulesLines <= 50;
@@ -87,19 +94,12 @@ export default tool({
 
     // Record violations
     if (failed > 0) {
-      mkdirSync(memoryDir, { recursive: true });
-      const violationsPath = join(memoryDir, "violations.jsonl");
       const entry = JSON.stringify({
         timestamp: new Date().toISOString(),
         bootFailed: failed,
         bootPassed: passed,
       });
-      try {
-        const { appendFileSync } = await import("fs" as string);
-        appendFileSync(violationsPath, entry + "\n", "utf-8");
-      } catch {
-        // Non-critical
-      }
+      appendFileSync(join(MEMORY_DIR, "violations.jsonl"), entry + "\n", "utf-8");
     }
 
     return results.join("\n");

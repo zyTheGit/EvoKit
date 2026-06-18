@@ -1,6 +1,8 @@
 import { tool } from "@opencode-ai/plugin";
 import { appendFileSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 /**
  * EvoKit session recording tool.
@@ -36,17 +38,16 @@ export default tool({
       .optional()
       .describe("Number of observations recorded this session"),
   },
-  async execute(args, context) {
-    const memoryDir = join(context.directory, ".opencode", "memory");
-    mkdirSync(memoryDir, { recursive: true });
+  async execute(args, _context) {
+    mkdirSync(MEMORY_DIR, { recursive: true });
 
-    const sessionsPath = join(memoryDir, "sessions.jsonl");
+    const sessionsPath = join(MEMORY_DIR, "sessions.jsonl");
 
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
       assistant: "opencode",
-      session_id: context.sessionID || context.messageID || "unknown",
-      model: args.model || context.agent || "unknown",
+      session_id: _context.sessionID || _context.messageID || "unknown",
+      model: args.model || _context.agent || "unknown",
       action: args.action,
       duration_seconds: args.duration || 0,
       corrections: args.corrections || 0,

@@ -3,11 +3,13 @@
  *
  * Implements the AgentAdapter interface for OpenCode CLI.
  * OpenCode uses:
- * - AGENTS.md for the L1 cognitive core
- * - opencode.json for configuration
- * - .opencode/tools/ for custom tools (replaces hooks)
- * - .opencode/agents/ for sub-agent definitions
- * - .opencode/memory/ for learning data
+ * - AGENTS.md for the L1 cognitive core (global + project)
+ * - ~/.config/opencode/opencode.json for global configuration
+ * - ~/.config/opencode/agent/ for global sub-agent definitions
+ * - ~/.config/opencode/memory/ for global learning data
+ * - ~/.config/opencode/skills/ for global skills
+ * - .opencode/tools/ for custom tools
+ * - .opencode/agent/ for project-level agent overrides
  *
  * @packageDocumentation
  */
@@ -28,11 +30,16 @@ import type {
   SessionEntry,
 } from '../../core/types.js';
 import { installOrMergeAgents } from '../../core/merge-agents.js';
-import { installOpenCodeTemplate, verifyOpenCodeInstallation } from './installer.js';
+import {
+  installOpenCodeTemplate,
+  verifyOpenCodeInstallation,
+  resolveOpenCodeConfigHome,
+} from './installer.js';
 
-export const OPENCODE_ADAPTER_VERSION = '0.4.0';
+export const OPENCODE_ADAPTER_VERSION = '0.5.0';
 
-const OPENCODE_SUBDIRS = ['tools', 'agents', 'memory'] as const;
+const GLOBAL_DIRS = ['agent', 'memory', 'skills'] as const;
+const PROJECT_SUBDIRS = ['tools', 'agent', 'memory'] as const;
 const TOOL_FILES = ['evokit-boot.ts', 'evokit-evolve.ts', 'evokit-memory.ts', 'evokit-session.ts'] as const;
 const MEMORY_SEED_FILES = ['README.md'] as const;
 
@@ -45,184 +52,57 @@ export function resolveOpenCodeProjectDir(projectDir: string): string {
 export class OpenCodeAdapter implements AdapterInstaller {
   readonly id = 'opencode';
   readonly label = 'OpenCode CLI';
-  readonly description = '.opencode/ (project)';
+  readonly description = '~/.config/opencode/ + .opencode/';
   readonly version = OPENCODE_ADAPTER_VERSION;
 
   install(config: AdapterInstallConfig): AdapterInstallResult {
     const homeDir = config.homeDir;
     const projectDir = config.projectDir || process.cwd();
     const templateDir = config.templateDir;
-    const opencodeDir = resolveOpenCodeProjectDir(projectDir);
-    const opencodeTemplateDir = path.join(templateDir, 'opencode');
     const dryRun = config.dryRun ?? false;
 
-    const result: AdapterInstallResult = {
-      filesCreated: 0,
-      filesSkipped: 0,
-      hooksInstalled: 0,
-      commandsInstalled: 0,
-      rulesInstalled: 0,
-      agentsInstalled: 0,
-      adapterHome: opencodeDir,
+    const result = installOpenCodeTemplate({
+      homeDir,
+      projectDir,
+      templateDir,
+      dryRun,
+    });
+
+    return {
+      filesCreated: result.filesCreated,
+      filesSkipped: result.filesSkipped,
+      hooksInstalled: result.hooksInstalled,
+      commandsInstalled: result.commandsInstalled,
+      rulesInstalled: result.rulesInstalled,
+      agentsInstalled: result.agentsInstalled,
+      adapterHome: resolveOpenCodeConfigHome(homeDir),
     };
-
-    if (!fse.existsSync(path.join(opencodeTemplateDir, 'AGENTS.md'))) {
-      throw new Error(
-        `OpenCode template not found at: ${opencodeTemplateDir}\n` +
-          '  Ensure the template directory contains an opencode/ subdirectory with AGENTS.md.',
-      );
-    }
-
-    // 1. Create directories
-    if (!dryRun) {
-      fse.ensureDirSync(opencodeDir);
-      for (const subdir of OPENCODE_SUBDIRS) {
-        fse.ensureDirSync(path.join(opencodeDir, subdir));
-      }
-    }
-
-    // 2. AGENTS.md (project root, only if not exists)
-    const agentsTarget = path.join(projectDir, 'AGENTS.md');
-    if (!fse.existsSync(agentsTarget)) {
-      const src = path.join(opencodeTemplateDir, 'AGENTS.md');
-      if (fse.existsSync(src)) {
-        if (!dryRun) {
-          let content = fs.readFileSync(src, 'utf-8');
-          content = content.replace(/__HOME__/g, homeDir);
-          fs.writeFileSync(agentsTarget, content, 'utf-8');
-        }
-        result.filesCreated++;
-      }
-    } else {
-      result.filesSkipped++;
-    }
-
-    // 3. opencode.json (project root, only if not exists)
-    const configTarget = path.join(projectDir, 'opencode.json');
-    if (!fse.existsSync(configTarget)) {
-      const configSrc = path.join(opencodeTemplateDir, 'opencode.json');
-      if (fse.existsSync(configSrc)) {
-        if (!dryRun) fs.copyFileSync(configSrc, configTarget);
-        result.filesCreated++;
-      }
-    } else {
-      result.filesSkipped++;
-    }
-
-    // 4. Tools (always copy, with __HOME__)
-    const toolsSrcDir = path.join(opencodeTemplateDir, 'tools');
-    const toolsDstDir = path.join(opencodeDir, 'tools');
-    if (fse.existsSync(toolsSrcDir)) {
-      if (!dryRun) fse.ensureDirSync(toolsDstDir);
-      for (const toolFile of TOOL_FILES) {
-        const src = path.join(toolsSrcDir, toolFile);
-        if (fse.existsSync(src)) {
-          if (!dryRun) {
-            let content = fs.readFileSync(src, 'utf-8');
-            content = content.replace(/__HOME__/g, homeDir);
-            fs.writeFileSync(path.join(toolsDstDir, toolFile), content, 'utf-8');
-          }
-          result.filesCreated++;
-        }
-      }
-    }
-
-    // 5. Agents (frontmatter merge)
-    const agentsSrcDir = path.join(opencodeTemplateDir, 'agents');
-    const agentsDstDir = path.join(opencodeDir, 'agents');
-    if (fse.existsSync(agentsSrcDir)) {
-      if (dryRun) {
-        const files = fs.readdirSync(agentsSrcDir).filter((f) => f.endsWith('.md'));
-        result.agentsInstalled += files.length;
-      } else {
-        const agentResults = installOrMergeAgents(agentsSrcDir, agentsDstDir);
-        result.agentsInstalled += agentResults.filter(
-          (r) => r.status === 'COPY' || r.status === 'MERGED',
-        ).length;
-      }
-    }
-
-    // 6. Memory seed
-    const memSrcDir = path.join(opencodeTemplateDir, 'memory');
-    const memDstDir = path.join(opencodeDir, 'memory');
-    if (fse.existsSync(memSrcDir)) {
-      if (!dryRun) fse.ensureDirSync(memDstDir);
-      for (const file of MEMORY_SEED_FILES) {
-        const target = path.join(memDstDir, file);
-        if (!fse.existsSync(target)) {
-          const src = path.join(memSrcDir, file);
-          if (fse.existsSync(src)) {
-            if (!dryRun) fse.copySync(src, target);
-            result.filesCreated++;
-          }
-        } else {
-          result.filesSkipped++;
-        }
-      }
-    }
-
-    // 7. Permissions
-    if (!dryRun && fse.existsSync(toolsDstDir)) {
-      for (const toolFile of TOOL_FILES) {
-        const tp = path.join(toolsDstDir, toolFile);
-        if (fse.existsSync(tp)) fs.chmodSync(tp, 0o644);
-      }
-    }
-
-    return result;
   }
 
   verify(config: AdapterInstallConfig): AdapterVerifyCheck[] {
     const projectDir = config.projectDir || process.cwd();
-    return this._verifyOpenCodeInstallation(projectDir);
+    const homeDir = config.homeDir;
+    return verifyOpenCodeInstallation(projectDir, homeDir).map((c) => ({
+      name: c.name,
+      pass: c.pass,
+      detail: c.detail,
+    }));
   }
 
   status(config: AdapterInstallConfig): Record<string, unknown> {
     const projectDir = config.projectDir || process.cwd();
-    const checks = this._verifyOpenCodeInstallation(projectDir);
+    const homeDir = config.homeDir;
+    const checks = verifyOpenCodeInstallation(projectDir, homeDir).map((c) => ({
+      name: c.name,
+      pass: c.pass,
+      detail: c.detail,
+    }));
     return {
       installed: checks.every((c) => c.pass),
-      adapterHome: resolveOpenCodeProjectDir(projectDir),
+      adapterHome: resolveOpenCodeConfigHome(homeDir),
       projectDir,
       checks,
     };
-  }
-
-  private _verifyOpenCodeInstallation(projectDir: string): AdapterVerifyCheck[] {
-    const opencodeDir = resolveOpenCodeProjectDir(projectDir);
-    const checks: AdapterVerifyCheck[] = [];
-
-    for (const file of ['AGENTS.md', 'opencode.json']) {
-      const exists = fse.existsSync(path.join(projectDir, file));
-      checks.push({
-        name: `${file} (project root)`,
-        pass: exists,
-        detail: exists ? undefined : 'Missing file',
-      });
-    }
-
-    for (const subdir of OPENCODE_SUBDIRS) {
-      const exists = fse.existsSync(path.join(opencodeDir, subdir));
-      checks.push({
-        name: `.opencode/${subdir}/`,
-        pass: exists,
-        detail: exists ? undefined : 'Missing directory',
-      });
-    }
-
-    const toolsDir = path.join(opencodeDir, 'tools');
-    if (fse.existsSync(toolsDir)) {
-      for (const toolFile of TOOL_FILES) {
-        const exists = fse.existsSync(path.join(toolsDir, toolFile));
-        checks.push({
-          name: `.opencode/tools/${toolFile}`,
-          pass: exists,
-          detail: exists ? undefined : 'Missing tool',
-        });
-      }
-    }
-
-    return checks;
   }
 }
 
@@ -230,7 +110,6 @@ export class OpenCodeAdapter implements AdapterInstaller {
 
 /**
  * Install EvoKit for OpenCode CLI.
- * Copies templates to project root and sets up .opencode/ structure.
  */
 export async function installOpenCode(
   config: OpenCodeInstallConfig,
@@ -252,8 +131,25 @@ export function setupOpenCodeTools(
 }
 
 /**
+ * Resolve the memory directory for OpenCode.
+ * Uses global ~/.config/opencode/memory/ by default.
+ */
+export function resolveMemoryDir(
+  projectDir: string,
+  options: OpenCodeAdapterOptions = {},
+): string {
+  // If a custom opencodeDir is provided (legacy), use it
+  if (options.opencodeDir) {
+    return path.join(path.resolve(options.opencodeDir), 'memory');
+  }
+  // Otherwise use the OpenCode config home convention
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  return path.join(resolveOpenCodeConfigHome(homeDir), 'memory');
+}
+
+/**
  * Inject learning data into OpenCode-accessible memory.
- * Writes corrections and observations to .opencode/memory/.
+ * Writes corrections and observations to ~/.config/opencode/memory/.
  */
 export function injectOpenCodeMemory(
   projectDir: string,
@@ -264,11 +160,7 @@ export function injectOpenCodeMemory(
   },
   options: OpenCodeAdapterOptions = {},
 ): number {
-  const opencodeDir = options.opencodeDir
-    ? path.resolve(options.opencodeDir)
-    : resolveOpenCodeProjectDir(projectDir);
-  const memoryDir = path.join(opencodeDir, 'memory');
-
+  const memoryDir = resolveMemoryDir(projectDir, options);
   fse.ensureDirSync(memoryDir);
   let filesWritten = 0;
 
@@ -319,10 +211,7 @@ export function exportOpenCodeMemory(
   learnedRules: string;
   sessions: unknown[];
 } {
-  const opencodeDir = options.opencodeDir
-    ? path.resolve(options.opencodeDir)
-    : resolveOpenCodeProjectDir(projectDir);
-  const memoryDir = path.join(opencodeDir, 'memory');
+  const memoryDir = resolveMemoryDir(projectDir, options);
 
   const result = {
     corrections: [] as unknown[],
@@ -385,14 +274,10 @@ export function recordOpenCodeSession(
   session: Omit<SessionEntry, 'timestamp' | 'assistant'>,
   options: OpenCodeAdapterOptions = {},
 ): void {
-  const opencodeDir = options.opencodeDir
-    ? path.resolve(options.opencodeDir)
-    : resolveOpenCodeProjectDir(projectDir);
-  const memoryDir = path.join(opencodeDir, 'memory');
-
+  const memoryDir = resolveMemoryDir(projectDir, options);
   fse.ensureDirSync(memoryDir);
-  const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
 
+  const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
   const entry: SessionEntry = {
     timestamp: new Date().toISOString(),
     assistant: 'opencode',
@@ -419,6 +304,9 @@ export function getOpenCodeStatus(
   error?: string;
 } {
   const opencodeDir = resolveOpenCodeProjectDir(projectDir);
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  const globalDir = resolveOpenCodeConfigHome(homeDir);
+
   const result = {
     installed: false,
     projectDir,
@@ -430,20 +318,24 @@ export function getOpenCodeStatus(
   };
 
   try {
-    result.agentsPresent = fse.existsSync(path.join(projectDir, 'AGENTS.md'));
-    result.configPresent = fse.existsSync(path.join(projectDir, 'opencode.json'));
+    // Check global config
+    result.agentsPresent = fse.existsSync(path.join(globalDir, 'AGENTS.md'));
+    result.configPresent = fse.existsSync(path.join(globalDir, 'opencode.json'));
 
+    // Check project-level tools
     const toolsDir = path.join(opencodeDir, 'tools');
     if (fse.existsSync(toolsDir)) {
       result.toolsPresent = fs.readdirSync(toolsDir).filter((f) => f.endsWith('.ts')).length > 0;
     }
 
-    const agentsDir = path.join(opencodeDir, 'agents');
-    if (fse.existsSync(agentsDir)) {
-      result.agentCount = fs.readdirSync(agentsDir).filter((f) => f.endsWith('.md')).length;
+    // Check global agents
+    const globalAgentDir = path.join(globalDir, 'agent');
+    if (fse.existsSync(globalAgentDir)) {
+      result.agentCount = fs.readdirSync(globalAgentDir).filter((f) => f.endsWith('.md')).length;
     }
 
-    result.memoryPresent = fse.existsSync(path.join(opencodeDir, 'memory'));
+    // Check global memory
+    result.memoryPresent = fse.existsSync(path.join(globalDir, 'memory'));
 
     result.installed =
       result.agentsPresent || result.configPresent || result.toolsPresent;

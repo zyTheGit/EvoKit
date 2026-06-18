@@ -4,8 +4,7 @@ This directory stores learning data for your OpenCode EvoKit integration.
 
 ## Data Location
 
-All evolution data lives at: **`.opencode/memory/`** (project-level)
-Global fallback: **`~/.config/opencode/memory/`**
+All evolution data lives at: **`~/.config/opencode/memory/`** (global)
 
 | File | Purpose |
 |------|---------|
@@ -16,4 +15,4 @@ Global fallback: **`~/.config/opencode/memory/`**
 | `sessions.jsonl` | Session scorecards |
 | `violations.jsonl` | Boot verification violations |
 
-This memory directory is local to OpenCode and not shared with other assistants by default.
+This memory directory is global to OpenCode and shared across all projects.

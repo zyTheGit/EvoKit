@@ -14,7 +14,7 @@ export type { MenuAdapter };
 const DEFAULT_ADAPTERS: MenuAdapter[] = [
   { key: 'claude', label: 'Claude Code (recommended)', description: '~/.claude/' },
   { key: 'codex', label: 'Codex CLI (v0.3.0)', description: '~/.codex/' },
-  { key: 'opencode', label: 'OpenCode CLI (v0.4.0)', description: '.opencode/' },
+  { key: 'opencode', label: 'OpenCode CLI (v0.5.0)', description: '~/.config/opencode/' },
 ];
 
 /**

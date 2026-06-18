@@ -129,10 +129,10 @@ async function checkOpenCode(): Promise<boolean> {
   let pass = true;
 
   const checks = [
-    { name: 'AGENTS.md (project root)',   pass: status.agentsPresent },
-    { name: 'opencode.json (project root)', pass: status.configPresent },
-    { name: '.opencode/tools/',             pass: status.toolsPresent },
-    { name: '.opencode/memory/',            pass: status.memoryPresent },
+    { name: '~/.config/opencode/AGENTS.md',   pass: status.agentsPresent },
+    { name: '~/.config/opencode/opencode.json', pass: status.configPresent },
+    { name: '.opencode/tools/',                 pass: status.toolsPresent },
+    { name: '~/.config/opencode/memory/',       pass: status.memoryPresent },
   ];
 
   for (const check of checks) {

@@ -5,6 +5,7 @@
  * as custom tools using the @opencode-ai/plugin SDK.
  *
  * This module generates the TypeScript source code for each tool.
+ * Tools read/write global memory at ~/.config/opencode/memory/.
  *
  * @packageDocumentation
  */
@@ -15,39 +16,48 @@
  */
 export function generateBootToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
-import { readFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { readFileSync, existsSync, mkdirSync, appendFileSync } from "fs";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
   description: "Run EvoKit boot verification — check system integrity and learned rules",
   args: {},
   async execute(_args, context) {
-    const opencodeDir = join(context.directory, ".opencode");
-    const memoryDir = join(opencodeDir, "memory");
+    mkdirSync(MEMORY_DIR, { recursive: true });
     const results: string[] = [];
     let passed = 0, failed = 0;
 
     results.push("# EvoKit Boot Verification\\n");
 
-    // 1. Check core files
+    // 1. Check global config files
+    const globalDir = join(homedir(), ".config", "opencode");
+    for (const file of ["AGENTS.md", "opencode.json"]) {
+      const ok = existsSync(join(globalDir, file));
+      results.push(\`\${ok ? "✅" : "❌"} ~/.config/opencode/\${file}\`);
+      ok ? passed++ : failed++;
+    }
+
+    // 2. Check project-level files
     for (const file of ["AGENTS.md", "opencode.json"]) {
       const ok = existsSync(join(context.directory, file));
-      results.push(\`\${ok ? "✅" : "❌"} \${file}\`);
+      results.push(\`\${ok ? "✅" : "❌"} \${file} (project root)\`);
       ok ? passed++ : failed++;
     }
 
-    // 2. Check memory files
-    for (const file of ["corrections.jsonl", "learned-rules.md"]) {
-      const ok = existsSync(join(memoryDir, file));
-      results.push(\`\${ok ? "✅" : "⚠️"} .opencode/memory/\${file}\`);
+    // 3. Check memory files
+    for (const file of ["corrections.jsonl", "learned-rules.md", "observations.jsonl"]) {
+      const ok = existsSync(join(MEMORY_DIR, file));
+      results.push(\`\${ok ? "✅" : "⚠️"} memory/\${file}\`);
       ok ? passed++ : failed++;
     }
 
-    // 3. Run learned rules verify commands
-    const rulesPath = join(memoryDir, "learned-rules.md");
+    // 4. Run learned rules verify commands
+    const rulesPath = join(MEMORY_DIR, "learned-rules.md");
     if (existsSync(rulesPath)) {
       const rules = readFileSync(rulesPath, "utf-8");
-      const verifyLines = rules.matchAll(/verify:\s*(.+)$/gm);
+      const verifyLines = rules.matchAll(/verify:\\s*(.+)$/gm);
       for (const match of verifyLines) {
         try {
           const { execSync } = await import("child_process");
@@ -65,9 +75,12 @@ export default tool({
 
     // Record violation if any failures
     if (failed > 0) {
-      mkdirSync(memoryDir, { recursive: true });
-      const violations = readFileSync(join(memoryDir, "violations.jsonl"), "utf-8");
-      // Append (simplified — real impl would use appendFileSync)
+      const violation = JSON.stringify({
+        timestamp: new Date().toISOString(),
+        failures: failed,
+        details: results.join("; "),
+      });
+      appendFileSync(join(MEMORY_DIR, "violations.jsonl"), violation + "\\n", "utf-8");
     }
 
     return results.join("\\n");
@@ -82,19 +95,19 @@ export default tool({
 export function generateEvolveToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
   description: "Run EvoKit evolution audit — promote corrections to learned rules",
   args: {
     dryRun: tool.schema.boolean().optional().describe("Preview changes without applying"),
   },
-  async execute(args, context) {
-    const opencodeDir = join(context.directory, ".opencode");
-    const memoryDir = join(opencodeDir, "memory");
-    mkdirSync(memoryDir, { recursive: true });
+  async execute(args, _context) {
+    mkdirSync(MEMORY_DIR, { recursive: true });
 
-    const correctionsPath = join(memoryDir, "corrections.jsonl");
+    const correctionsPath = join(MEMORY_DIR, "corrections.jsonl");
     if (!existsSync(correctionsPath)) {
       return "No corrections found — nothing to evolve.\\n";
     }
@@ -118,7 +131,7 @@ export default tool({
     let promoted = 0;
 
     // Read existing learned rules
-    const rulesPath = join(memoryDir, "learned-rules.md");
+    const rulesPath = join(MEMORY_DIR, "learned-rules.md");
     let existingRules = existsSync(rulesPath) ? readFileSync(rulesPath, "utf-8") : "";
 
     for (const [pattern, group] of grouped) {
@@ -140,7 +153,7 @@ export default tool({
     }
 
     // Log evolution decision
-    const logPath = join(memoryDir, "evolution-log.md");
+    const logPath = join(MEMORY_DIR, "evolution-log.md");
     if (!args.dryRun) {
       const logEntry = \`## \${new Date().toISOString().split("T")[0]} — Promoted \${promoted} rules\\n\`;
       appendFileSync(logPath, logEntry, "utf-8");
@@ -159,7 +172,9 @@ export default tool({
 export function generateMemoryToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
 import { readFileSync, appendFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
   description: "Manage EvoKit learning data — record corrections, observations, and inject context",
@@ -172,9 +187,8 @@ export default tool({
     confidence: tool.schema.number().optional().describe("Confidence score (0.0-1.0)"),
     source: tool.schema.string().optional().describe("Source of the observation"),
   },
-  async execute(args, context) {
-    const memoryDir = join(context.directory, ".opencode", "memory");
-    mkdirSync(memoryDir, { recursive: true });
+  async execute(args, _context) {
+    mkdirSync(MEMORY_DIR, { recursive: true });
 
     switch (args.action) {
       case "record-correction": {
@@ -185,7 +199,7 @@ export default tool({
           context: args.context || "",
           count: 1,
         });
-        appendFileSync(join(memoryDir, "corrections.jsonl"), entry + "\\n", "utf-8");
+        appendFileSync(join(MEMORY_DIR, "corrections.jsonl"), entry + "\\n", "utf-8");
         return \`✅ Correction recorded: "\${args.pattern}"\\n\`;
       }
 
@@ -197,14 +211,14 @@ export default tool({
           confidence: args.confidence ?? 0.5,
           source: args.source || "auto",
         });
-        appendFileSync(join(memoryDir, "observations.jsonl"), entry + "\\n", "utf-8");
+        appendFileSync(join(MEMORY_DIR, "observations.jsonl"), entry + "\\n", "utf-8");
         return \`✅ Observation recorded: "\${args.pattern}"\\n\`;
       }
 
       case "export": {
         const output = ["# EvoKit Memory Export\\n"];
         for (const file of ["corrections.jsonl", "observations.jsonl", "learned-rules.md", "sessions.jsonl"]) {
-          const filePath = join(memoryDir, file);
+          const filePath = join(MEMORY_DIR, file);
           if (existsSync(filePath)) {
             output.push(\`## \${file}\\n\`);
             output.push(readFileSync(filePath, "utf-8"));
@@ -215,7 +229,7 @@ export default tool({
       }
 
       case "inject": {
-        const rulesPath = join(memoryDir, "learned-rules.md");
+        const rulesPath = join(MEMORY_DIR, "learned-rules.md");
         if (existsSync(rulesPath)) {
           const rules = readFileSync(rulesPath, "utf-8");
           return \`EvoKit learned rules for this session:\\n\${rules}\\n\`;
@@ -237,7 +251,9 @@ export default tool({
 export function generateSessionToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
 import { readFileSync, appendFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
   description: "Record EvoKit session lifecycle — call with action: end before finishing",
@@ -249,16 +265,15 @@ export default tool({
     corrections: tool.schema.number().optional().describe("Number of corrections recorded"),
     observations: tool.schema.number().optional().describe("Number of observations recorded"),
   },
-  async execute(args, context) {
-    const memoryDir = join(context.directory, ".opencode", "memory");
-    mkdirSync(memoryDir, { recursive: true });
+  async execute(args, _context) {
+    mkdirSync(MEMORY_DIR, { recursive: true });
 
-    const sessionsPath = join(memoryDir, "sessions.jsonl");
+    const sessionsPath = join(MEMORY_DIR, "sessions.jsonl");
 
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
       assistant: "opencode",
-      session_id: context.sessionID || "unknown",
+      session_id: _context.sessionID || "unknown",
       model: args.model || "unknown",
       action: args.action,
       duration_seconds: args.duration || 0,

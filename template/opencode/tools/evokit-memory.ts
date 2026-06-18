@@ -1,6 +1,8 @@
 import { tool } from "@opencode-ai/plugin";
 import { readFileSync, appendFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 /**
  * EvoKit memory management tool.
@@ -30,9 +32,8 @@ export default tool({
       .optional()
       .describe("Source of the observation"),
   },
-  async execute(args, context) {
-    const memoryDir = join(context.directory, ".opencode", "memory");
-    mkdirSync(memoryDir, { recursive: true });
+  async execute(args, _context) {
+    mkdirSync(MEMORY_DIR, { recursive: true });
 
     switch (args.action) {
       case "record-correction": {
@@ -45,7 +46,7 @@ export default tool({
           context: args.context || "",
           count: 1,
         });
-        appendFileSync(join(memoryDir, "corrections.jsonl"), entry + "\n", "utf-8");
+        appendFileSync(join(MEMORY_DIR, "corrections.jsonl"), entry + "\n", "utf-8");
         return `✅ Correction recorded: "${args.pattern}"\n`;
       }
 
@@ -59,7 +60,7 @@ export default tool({
           confidence: args.confidence ?? 0.5,
           source: args.source || "auto",
         });
-        appendFileSync(join(memoryDir, "observations.jsonl"), entry + "\n", "utf-8");
+        appendFileSync(join(MEMORY_DIR, "observations.jsonl"), entry + "\n", "utf-8");
         return `✅ Observation recorded: "${args.pattern}"\n`;
       }
 
@@ -72,7 +73,7 @@ export default tool({
           "evolution-log.md",
           "sessions.jsonl",
         ]) {
-          const filePath = join(memoryDir, file);
+          const filePath = join(MEMORY_DIR, file);
           if (existsSync(filePath)) {
             output.push(`## ${file}\n`);
             output.push("```\n");
@@ -84,7 +85,7 @@ export default tool({
       }
 
       case "inject": {
-        const rulesPath = join(memoryDir, "learned-rules.md");
+        const rulesPath = join(MEMORY_DIR, "learned-rules.md");
         if (existsSync(rulesPath)) {
           const rules = readFileSync(rulesPath, "utf-8");
           return `EvoKit learned rules for this session:\n${rules}\n`;

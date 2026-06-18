@@ -1,6 +1,8 @@
 import { tool } from "@opencode-ai/plugin";
-import { readFileSync, existsSync, mkdirSync, appendFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, appendFileSync, existsSync, mkdirSync } from "fs";
+import { join, homedir } from "path";
+
+const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 /**
  * EvoKit evolution audit tool.
@@ -15,11 +17,10 @@ export default tool({
       .optional()
       .describe("Preview changes without applying"),
   },
-  async execute(args, context) {
-    const memoryDir = join(context.directory, ".opencode", "memory");
-    mkdirSync(memoryDir, { recursive: true });
+  async execute(args, _context) {
+    mkdirSync(MEMORY_DIR, { recursive: true });
 
-    const correctionsPath = join(memoryDir, "corrections.jsonl");
+    const correctionsPath = join(MEMORY_DIR, "corrections.jsonl");
     if (!existsSync(correctionsPath)) {
       return "# 🔄 EvoKit Evolution Audit\n\nNo corrections found — nothing to evolve.\n";
     }
@@ -48,7 +49,7 @@ export default tool({
     let promoted = 0;
     const logEntries: string[] = [];
 
-    const rulesPath = join(memoryDir, "learned-rules.md");
+    const rulesPath = join(MEMORY_DIR, "learned-rules.md");
     const existingRules = existsSync(rulesPath) ? readFileSync(rulesPath, "utf-8") : "";
 
     for (const [pattern, group] of grouped) {
@@ -79,7 +80,7 @@ export default tool({
 
     // Log to evolution-log.md
     if (!args.dryRun && logEntries.length > 0) {
-      const logPath = join(memoryDir, "evolution-log.md");
+      const logPath = join(MEMORY_DIR, "evolution-log.md");
       const logEntry = [
         `## ${today} — Evolution Audit`,
         `- Promoted: ${promoted} rule(s)`,
