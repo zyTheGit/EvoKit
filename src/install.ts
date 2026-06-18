@@ -13,6 +13,8 @@
  */
 
 import { Command } from 'commander';
+import fs from 'node:fs';
+import { isatty, ReadStream } from 'node:tty';
 import {
   getInstaller,
   listAdapters,
@@ -21,6 +23,32 @@ import { resolveTemplateDir } from './core/download.js';
 import { selectAdapters } from './core/interactive.js';
 import { spinner, intro, outro, note, log } from '@clack/prompts';
 import type { AdapterInstallResult, AdapterVerifyCheck } from './adapters/types.js';
+
+/**
+ * Try to make stdin interactive when running in a piped context (e.g. curl | bash).
+ *
+ * When stdin is not a TTY but stdout is, we reopen from /dev/tty so that
+ * @clack/prompts can show interactive selection menus.  Falls back silently
+ * when no TTY is available (CI, Docker, etc.).
+ *
+ * @returns true if stdin is now interactive, false otherwise.
+ */
+function ensureInteractive(): boolean {
+  if (process.stdin.isTTY) return true;
+
+  // stdin is piped — check if there's a real terminal we can read from
+  try {
+    if (isatty(process.stdout.fd)) {
+      const fd = fs.openSync('/dev/tty', 'r');
+      process.stdin = new ReadStream(fd) as typeof process.stdin;
+      return true;
+    }
+  } catch {
+    // No TTY available (CI, Docker, etc.)
+  }
+
+  return false;
+}
 
 export const installCommand = new Command('install')
   .description('Install EvoKit for one or more AI coding assistants')
@@ -49,7 +77,7 @@ export const installCommand = new Command('install')
         .split(',')
         .map((a: string) => a.trim().toLowerCase())
         .filter(Boolean);
-    } else if (process.stdin.isTTY) {
+    } else if (ensureInteractive()) {
       adapterIds = await selectAdapters(
         listAdapters().map((a) => ({
           key: a.id,
@@ -57,8 +85,9 @@ export const installCommand = new Command('install')
           description: a.description,
         })),
       );
-      // selectAdapters now returns string[] directly
     } else {
+      log.info('Non-interactive terminal detected — defaulting to Claude Code.');
+      log.info('Use --adapter to specify assistants: --adapter claude,codex,opencode');
       adapterIds = ['claude'];
     }
 
