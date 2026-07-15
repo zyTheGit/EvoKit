@@ -55,6 +55,20 @@ HOME=/tmp/evokit-test-home bash bin/install.sh --template template
 # Shellcheck all shell scripts
 shellcheck bin/*.sh template/claude/hooks/*.sh
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as markdown files under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles, all using default label strings. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
 # CI-equivalent validation (template structure + no personal paths + shellcheck + dry-run)
 bash .github/workflows/ci.yml-equivalent  # or run the individual steps from ci.yml
 
