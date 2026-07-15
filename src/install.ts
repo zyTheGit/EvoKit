@@ -15,10 +15,7 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import { ReadStream } from 'node:tty';
-import {
-  getInstaller,
-  listAdapters,
-} from './adapters/index.js';
+import { getInstaller, listAdapters } from './adapters/index.js';
 import { resolveTemplateDir } from './core/download.js';
 import { selectAdapters } from './core/interactive.js';
 import { spinner, intro, outro, note, log } from '@clack/prompts';
@@ -113,7 +110,11 @@ export const installCommand = new Command('install')
         installer = getInstaller(id);
       } catch {
         log.error(`Unknown adapter: "${id}"`);
-        log.error(`Available: ${listAdapters().map((a) => a.id).join(', ')}`);
+        log.error(
+          `Available: ${listAdapters()
+            .map((a) => a.id)
+            .join(', ')}`,
+        );
         allPass = false;
         continue;
       }
@@ -166,30 +167,20 @@ export const installCommand = new Command('install')
 
 // ─── Display helpers ─────────────────────────────────────────
 
-function printResult(
-  installer: { label: string },
-  result: AdapterInstallResult,
-): void {
+function printResult(installer: { label: string }, result: AdapterInstallResult): void {
   const lines = [
     `Target: ${result.adapterHome}`,
     `Created: ${result.filesCreated} file(s), skipped ${result.filesSkipped}`,
   ];
-  if (result.hooksInstalled > 0)
-    lines.push(`Hooks: ${result.hooksInstalled} installed`);
-  if (result.rulesInstalled > 0)
-    lines.push(`Rules: ${result.rulesInstalled} installed`);
-  if (result.agentsInstalled > 0)
-    lines.push(`Agents: ${result.agentsInstalled} installed`);
-  if (result.commandsInstalled > 0)
-    lines.push(`Commands: ${result.commandsInstalled} installed`);
+  if (result.hooksInstalled > 0) lines.push(`Hooks: ${result.hooksInstalled} installed`);
+  if (result.rulesInstalled > 0) lines.push(`Rules: ${result.rulesInstalled} installed`);
+  if (result.agentsInstalled > 0) lines.push(`Agents: ${result.agentsInstalled} installed`);
+  if (result.commandsInstalled > 0) lines.push(`Commands: ${result.commandsInstalled} installed`);
 
   note(lines.join('\n'), `EvoKit — Install for ${installer.label}`);
 }
 
-function printVerification(
-  installer: { label: string },
-  checks: AdapterVerifyCheck[],
-): void {
+function printVerification(installer: { label: string }, checks: AdapterVerifyCheck[]): void {
   log.step(`Verifying ${installer.label}...`);
   for (const check of checks) {
     if (check.pass) {
@@ -206,24 +197,20 @@ function printNextSteps(adapterIds: string[]): void {
   for (const id of adapterIds) {
     switch (id) {
       case 'claude':
-        steps.push(
-          '📖 Claude Code:\n' +
-          '  1. Start Claude Code\n' +
-          '  2. Run /boot to verify',
-        );
+        steps.push('📖 Claude Code:\n' + '  1. Start Claude Code\n' + '  2. Run /boot to verify');
         break;
       case 'codex':
         steps.push(
           '📖 Codex CLI:\n' +
-          '  1. Start Codex (hooks run automatically)\n' +
-          '  2. Run: evokit doctor --adapter codex',
+            '  1. Start Codex (hooks run automatically)\n' +
+            '  2. Run: evokit doctor --adapter codex',
         );
         break;
       case 'opencode':
         steps.push(
           '📖 OpenCode CLI:\n' +
-          '  1. cd to project and start OpenCode\n' +
-          '  2. Run evokit-boot tool to verify',
+            '  1. cd to project and start OpenCode\n' +
+            '  2. Run evokit-boot tool to verify',
         );
         break;
       default:

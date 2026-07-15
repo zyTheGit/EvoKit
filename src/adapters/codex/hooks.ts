@@ -26,11 +26,7 @@ export class CodexHooksBuilder {
   /**
    * Add a hook handler for a specific event.
    */
-  addHook(
-    event: CodexHookEventName,
-    matcher: string,
-    handler: CodexHookHandler,
-  ): this {
+  addHook(event: CodexHookEventName, matcher: string, handler: CodexHookHandler): this {
     if (!this.hooks[event]) {
       this.hooks[event] = [];
     }
@@ -65,10 +61,7 @@ export class CodexHooksBuilder {
   /**
    * Add a Stop hook for session recording.
    */
-  addStopHook(
-    scriptPath: string,
-    timeout = 15,
-  ): this {
+  addStopHook(scriptPath: string, timeout = 15): this {
     return this.addHook('Stop', '.*', {
       type: 'command',
       command: scriptPath,
@@ -80,10 +73,7 @@ export class CodexHooksBuilder {
   /**
    * Add a PreToolUse hook for policy enforcement.
    */
-  addPreToolUseHook(
-    scriptPath: string,
-    timeout = 10,
-  ): this {
+  addPreToolUseHook(scriptPath: string, timeout = 10): this {
     return this.addHook('PreToolUse', '.*', {
       type: 'command',
       command: scriptPath,
@@ -95,11 +85,7 @@ export class CodexHooksBuilder {
   /**
    * Add a custom PreToolUse hook that denies a specific tool.
    */
-  addToolGuard(
-    toolMatcher: string,
-    scriptPath: string,
-    timeout = 10,
-  ): this {
+  addToolGuard(toolMatcher: string, scriptPath: string, timeout = 10): this {
     return this.addHook('PreToolUse', toolMatcher, {
       type: 'command',
       command: scriptPath,
@@ -111,11 +97,7 @@ export class CodexHooksBuilder {
   /**
    * Add a PermissionRequest hook for auto-approval rules.
    */
-  addPermissionHook(
-    toolMatcher: string,
-    scriptPath: string,
-    timeout = 10,
-  ): this {
+  addPermissionHook(toolMatcher: string, scriptPath: string, timeout = 10): this {
     return this.addHook('PermissionRequest', toolMatcher, {
       type: 'command',
       command: scriptPath,

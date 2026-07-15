@@ -1,4 +1,6 @@
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * EvoKit — Interactive Adapter Selection
  *
  * Replaces raw TTY / readline menus with @clack/prompts multiselect.
@@ -18,6 +20,8 @@ const DEFAULT_ADAPTERS: MenuAdapter[] = [
 ];
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Show an interactive adapter selector using Clack's multiselect.
  *
  * Supports ↑↓ navigation, Space to toggle, Enter to confirm, ESC to cancel.

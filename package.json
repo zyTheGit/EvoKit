@@ -22,6 +22,13 @@
     "url": "git+https://github.com/zyTheGit/EvoKit.git"
   },
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/adapters/types.d.ts",
+      "import": "./dist/adapters/index.js"
+    }
+  },
+  "types": "dist/adapters/types.d.ts",
   "bin": {
     "evokit": "bin/evokit.cjs"
   },
@@ -38,6 +45,11 @@
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/ --fix",
+    "format": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\"",
+    "format:fix": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\"",
     "prepublishOnly": "npm run build && npm test",
     "postinstall": "node bin/postinstall-check.cjs"
   },
@@ -52,10 +64,16 @@
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^18.19.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.5",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
+    "typescript-eslint": "^8.64.0",
     "vitest": "^2.1.0"
   }
 }

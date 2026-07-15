@@ -8,7 +8,7 @@
 
 **Evolution Kit for AI Coding Agents**
 
-*Make AI coding assistants learn and evolve across sessions*
+_Make AI coding assistants learn and evolve across sessions_
 
 [![Version](https://img.shields.io/github/v/release/zyTheGit/EvoKit?include_prereleases&style=flat-square&label=version)](CHANGELOG.md)
 [![License](https://img.shields.io/github/license/zyTheGit/EvoKit?style=flat-square)](LICENSE)
@@ -16,21 +16,21 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zyTheGit/EvoKit/ci.yml?branch=main&style=flat-square)](https://github.com/zyTheGit/EvoKit/actions)
 [![GitHub issues](https://img.shields.io/github/issues/zyTheGit/EvoKit?style=flat-square)](https://github.com/zyTheGit/EvoKit/issues)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-blue?style=flat-square)]()
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-blue?style=flat-square)](<>)
 [![npm](https://img.shields.io/npm/v/%40zythegit%2Fevokit?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@zythegit/evokit)
 
 ---
 
 **EvoKit** is an open-source **self-evolving system framework** for AI coding assistants. It enables Claude Code, Codex, OpenCode, and other AI tools to **get smarter over time** — by persisting corrections, observations, and rules across sessions, enabling automatic knowledge accumulation and promotion.
 
-| Core Concept | Description |
-|-------------|-------------|
-| 🧠 **Cross-session Memory** | Corrections and observations persist across sessions, never lost |
-| 📈 **Auto-promotion** | Repeated patterns automatically graduate to permanent rules |
-| 🔌 **Hook-driven** | Fully automated session lifecycle management |
-| 🚚 **One-click Migration** | Seamless transfer of learning data between machines |
-| 🔒 **Privacy-first** | All data stored locally — no cloud, no telemetry |
-| 🤖 **Multi-agent** | Adapter architecture supporting Claude Code / Codex / OpenCode / Aider |
+| Core Concept                | Description                                                            |
+| --------------------------- | ---------------------------------------------------------------------- |
+| 🧠 **Cross-session Memory** | Corrections and observations persist across sessions, never lost       |
+| 📈 **Auto-promotion**       | Repeated patterns automatically graduate to permanent rules            |
+| 🔌 **Hook-driven**          | Fully automated session lifecycle management                           |
+| 🚚 **One-click Migration**  | Seamless transfer of learning data between machines                    |
+| 🔒 **Privacy-first**        | All data stored locally — no cloud, no telemetry                       |
+| 🤖 **Multi-agent**          | Adapter architecture supporting Claude Code / Codex / OpenCode / Aider |
 
 </div>
 
@@ -72,11 +72,11 @@
 ✅ EvoKit installed successfully!
 ```
 
-| 🔍 `/boot` | 🔄 `/evolve` |
-|:--:|:--:|
-| <pre>[EVOLUTION BOOT] ═══════════════════════<br>  Self-Evolving System: checking integrity...<br>  ✓ .claude/rules/<br>  ✓ .claude/agents/<br>  ✓ .claude/commands/<br>  ✓ .claude/memory/<br>  ✓ .claude/hooks/<br>  ✓ CLAUDE.md: N lines (limit 150)<br>  ✓ learned-rules.md: N lines (limit 50)<br>═══════════════════════════════════════</pre> | <pre>[EVOLUTION AUDIT] ═════════════════════<br>  Rotating: corrections.jsonl (12 kept, 5 archived)<br>  Rotating: observations.jsonl (8 kept, 3 archived)<br>  Analyzing corrections...<br>  ✓ Promoted: "use uv instead of pip" (2×)<br>  ✓ Promoted: "no console.log in prod" (3×)<br>  ✓ learned-rules.md: 6 lines (limit 50)<br>═══════════════════════════════════════</pre> |
-| 📦 `export-system.sh` | |
-| <pre>📦 Creating migration package...<br>  ✓ system files copied<br>  ✓ rotation applied<br>  ✓ install.sh generated<br>🗜️  Packaging...<br>✅ claude-evolution-20260611.tar.gz<br><br>📊 Data overview:<br>  corrections:  12 entries<br>  observations: 8 entries<br>  learned-rules: 6 lines</pre> | |
+|                                                                                                                                                                  🔍 `/boot`                                                                                                                                                                  |                                                                                                                                                                                 🔄 `/evolve`                                                                                                                                                                                 |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| <pre>[EVOLUTION BOOT] ═══════════════════════<br> Self-Evolving System: checking integrity...<br> ✓ .claude/rules/<br> ✓ .claude/agents/<br> ✓ .claude/commands/<br> ✓ .claude/memory/<br> ✓ .claude/hooks/<br> ✓ CLAUDE.md: N lines (limit 150)<br> ✓ learned-rules.md: N lines (limit 50)<br>═══════════════════════════════════════</pre> | <pre>[EVOLUTION AUDIT] ═════════════════════<br> Rotating: corrections.jsonl (12 kept, 5 archived)<br> Rotating: observations.jsonl (8 kept, 3 archived)<br> Analyzing corrections...<br> ✓ Promoted: "use uv instead of pip" (2×)<br> ✓ Promoted: "no console.log in prod" (3×)<br> ✓ learned-rules.md: 6 lines (limit 50)<br>═══════════════════════════════════════</pre> |
+|                                                                                                                                                            📦 `export-system.sh`                                                                                                                                                             |                                                                                                                                                                                                                                                                                                                                                                              |
+|                        <pre>📦 Creating migration package...<br> ✓ system files copied<br> ✓ rotation applied<br> ✓ install.sh generated<br>🗜️ Packaging...<br>✅ claude-evolution-20260611.tar.gz<br><br>📊 Data overview:<br> corrections: 12 entries<br> observations: 8 entries<br> learned-rules: 6 lines</pre>                         |                                                                                                                                                                                                                                                                                                                                                                              |
 
 ---
 
@@ -156,6 +156,7 @@ bash bin/install.sh
 ```
 
 The installer shows an interactive menu to choose which AI assistants to configure:
+
 - **Claude Code** (recommended) — `~/.claude/`
 - **Codex CLI** — `~/.codex/`
 - **OpenCode CLI** — `.opencode/` (project-level)
@@ -167,13 +168,13 @@ Use `--adapter` to bypass the menu for non-interactive setups (CI, cron).
 
 After installation, use the `evokit` command to manage your system:
 
-| Command | Description |
-|---------|-------------|
-| `evokit init` | Initialize EvoKit (install template to `~/.claude/`) |
-| `evokit evolve` | Run evolution audit (rotation, promotion, pruning) |
-| `evokit export` | Export system state for cross-machine migration |
-| `evokit import <package>` | Import a migration package |
-| `evokit doctor` | System health check and integrity verification |
+| Command                   | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `evokit init`             | Initialize EvoKit (install template to `~/.claude/`) |
+| `evokit evolve`           | Run evolution audit (rotation, promotion, pruning)   |
+| `evokit export`           | Export system state for cross-machine migration      |
+| `evokit import <package>` | Import a migration package                           |
+| `evokit doctor`           | System health check and integrity verification       |
 
 ```bash
 # View all commands
@@ -213,32 +214,32 @@ Expected output:
 
 ### Built-in Commands
 
-| Command | When | What |
-|---------|------|------|
-| `/boot` | Every session start | Verify system integrity |
-| `/evolve` | Every ~10 sessions | Promote patterns, prune stale rules |
-| `/review` | Before commit | Code review via reviewer agent |
+| Command   | When                | What                                |
+| --------- | ------------------- | ----------------------------------- |
+| `/boot`   | Every session start | Verify system integrity             |
+| `/evolve` | Every ~10 sessions  | Promote patterns, prune stale rules |
+| `/review` | Before commit       | Code review via reviewer agent      |
 
 ### Key Files
 
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Cognitive core — thinking framework, evolution protocol (max 150 lines) |
-| `.claude/rules/` | Path-scoped rules (security, coding, invariants) |
-| `.claude/agents/` | Sub-agent definitions (architect, reviewer) |
-| `.claude/commands/` | Slash commands (/boot, /evolve, /review) |
-| `.claude/memory/` | Learning data — corrections, observations, learned rules, session logs |
-| `.claude/hooks/` | Session lifecycle hooks (start, stop, export) |
+| File                | Purpose                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `CLAUDE.md`         | Cognitive core — thinking framework, evolution protocol (max 150 lines) |
+| `.claude/rules/`    | Path-scoped rules (security, coding, invariants)                        |
+| `.claude/agents/`   | Sub-agent definitions (architect, reviewer)                             |
+| `.claude/commands/` | Slash commands (/boot, /evolve, /review)                                |
+| `.claude/memory/`   | Learning data — corrections, observations, learned rules, session logs  |
+| `.claude/hooks/`    | Session lifecycle hooks (start, stop, export)                           |
 
 ### Examples
 
 See the [examples/](examples/) directory for full customization samples:
 
-| Example | Description |
-|---------|-------------|
-| [Custom Rules](examples/custom-rules/) | Jest test rules, Docker conventions, Python project configs |
-| [Custom Agents](examples/custom-agents/) | Test generator, database migration assistant |
-| [Custom Commands](examples/custom-commands/) | `/changelog` generation, deployment checks |
+| Example                                      | Description                                                 |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| [Custom Rules](examples/custom-rules/)       | Jest test rules, Docker conventions, Python project configs |
+| [Custom Agents](examples/custom-agents/)     | Test generator, database migration assistant                |
+| [Custom Commands](examples/custom-commands/) | `/changelog` generation, deployment checks                  |
 
 ---
 
@@ -246,12 +247,12 @@ See the [examples/](examples/) directory for full customization samples:
 
 EvoKit supports multiple AI coding assistants through a unified adapter interface. Each adapter is versioned independently, matching the supported assistant's milestone.
 
-| Adapter | Version | Status | Install Target | Assistant Compatibility |
-|---------|---------|--------|---------------|----------------------|
-| **Claude Code** | v0.2.0 | ✅ **Full support** | `~/.claude/` | Claude Code ≥ v0.1.0 (CLI) |
-| **Codex CLI** | v0.3.0 | ✅ **Full support** | `~/.codex/` | Codex CLI ≥ v0.3.0 (OpenAI) |
-| **OpenCode CLI** | v0.4.0 | ✅ **Full support** | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0 |
-| **Aider** | — | 🚧 **Stub / Planned** | — | Aider (planned) |
+| Adapter          | Version | Status                | Install Target               | Assistant Compatibility     |
+| ---------------- | ------- | --------------------- | ---------------------------- | --------------------------- |
+| **Claude Code**  | v0.2.0  | ✅ **Full support**   | `~/.claude/`                 | Claude Code ≥ v0.1.0 (CLI)  |
+| **Codex CLI**    | v0.3.0  | ✅ **Full support**   | `~/.codex/`                  | Codex CLI ≥ v0.3.0 (OpenAI) |
+| **OpenCode CLI** | v0.4.0  | ✅ **Full support**   | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0       |
+| **Aider**        | —       | 🚧 **Stub / Planned** | —                            | Aider (planned)             |
 
 > **Adapter versioning**: Each adapter's `version` field is defined in its source (`src/adapters/*/adapter.ts`) and corresponds to the EvoKit milestone where that assistant first received full support. Subsequent iterations ship with the main EvoKit release cycle.
 
@@ -261,33 +262,33 @@ EvoKit supports multiple AI coding assistants through a unified adapter interfac
 
 ### Runtime Requirements
 
-| Dependency | Category | Minimum Version | Purpose |
-|------------|----------|----------------|---------|
-| [Node.js](https://nodejs.org/) | Runtime | ≥ 20.12.0 | CLI tool, npm package execution |
-| [bash](https://www.gnu.org/software/bash/) | Runtime | ≥ 4.0 | Hook script execution |
-| [Git](https://git-scm.com/) | Runtime | ≥ 2.0 | Template download, version management |
+| Dependency                                 | Category | Minimum Version | Purpose                               |
+| ------------------------------------------ | -------- | --------------- | ------------------------------------- |
+| [Node.js](https://nodejs.org/)             | Runtime  | ≥ 20.12.0       | CLI tool, npm package execution       |
+| [bash](https://www.gnu.org/software/bash/) | Runtime  | ≥ 4.0           | Hook script execution                 |
+| [Git](https://git-scm.com/)                | Runtime  | ≥ 2.0           | Template download, version management |
 
 ### NPM Dependencies
 
 The EvoKit CLI tool depends on the following npm packages (auto-installed):
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| [`@clack/prompts`](https://github.com/natemoo-re/clack) | ^1.5.1 | Interactive CLI prompts (menus, input, selection) |
-| [`commander`](https://github.com/tj/commander.js) | ^12.1.0 | CLI command framework (argument parsing, help) |
-| [`conf`](https://github.com/sindresorhus/conf) | ^12.0.0 | JSON config persistence |
-| [`fs-extra`](https://github.com/jprichardson/node-fs-extra) | ^11.3.0 | Enhanced filesystem operations (copy, remove, ensure dir) |
-| [`picocolors`](https://github.com/alexeyraspopov/picocolors) | ^1.1.1 | Terminal color output |
+| Package                                                      | Version | Purpose                                                   |
+| ------------------------------------------------------------ | ------- | --------------------------------------------------------- |
+| [`@clack/prompts`](https://github.com/natemoo-re/clack)      | ^1.5.1  | Interactive CLI prompts (menus, input, selection)         |
+| [`commander`](https://github.com/tj/commander.js)            | ^12.1.0 | CLI command framework (argument parsing, help)            |
+| [`conf`](https://github.com/sindresorhus/conf)               | ^12.0.0 | JSON config persistence                                   |
+| [`fs-extra`](https://github.com/jprichardson/node-fs-extra)  | ^11.3.0 | Enhanced filesystem operations (copy, remove, ensure dir) |
+| [`picocolors`](https://github.com/alexeyraspopov/picocolors) | ^1.1.1  | Terminal color output                                     |
 
 ### Dev Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| [TypeScript](https://www.typescriptlang.org/) | ^5.6.0 | Type checking and compilation |
-| [tsx](https://github.com/privatenumber/tsx) | ^4.19.0 | Direct TypeScript execution (dev mode) |
-| [vitest](https://vitest.dev/) | ^2.1.0 | Unit testing & coverage |
-| [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^18.19.0 | Node.js type definitions |
-| [`@types/fs-extra`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^11.0.4 | fs-extra type definitions |
+| Package                                                                 | Version  | Purpose                                |
+| ----------------------------------------------------------------------- | -------- | -------------------------------------- |
+| [TypeScript](https://www.typescriptlang.org/)                           | ^5.6.0   | Type checking and compilation          |
+| [tsx](https://github.com/privatenumber/tsx)                             | ^4.19.0  | Direct TypeScript execution (dev mode) |
+| [vitest](https://vitest.dev/)                                           | ^2.1.0   | Unit testing & coverage                |
+| [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped)     | ^18.19.0 | Node.js type definitions               |
+| [`@types/fs-extra`](https://github.com/DefinitelyTyped/DefinitelyTyped) | ^11.0.4  | fs-extra type definitions              |
 
 ---
 
@@ -310,15 +311,15 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) | 4-layer architecture deep dive |
-| [EVOLUTION.md](docs/en/EVOLUTION.md) | Evolution pipeline detailed walkthrough |
-| [INSTALL.md](docs/en/INSTALL.md) | Cross-platform installation guide |
-| [MIGRATION.md](docs/en/MIGRATION.md) | Cross-machine migration guide |
-| [CUSTOMIZE.md](docs/en/CUSTOMIZE.md) | Custom rules, agents, and commands |
-| [MULTI_AGENT.md](docs/en/MULTI_AGENT.md) | Multi-agent adapter architecture |
-| [FAQ.md](docs/en/FAQ.md) | Frequently asked questions |
+| Document                                   | Description                             |
+| ------------------------------------------ | --------------------------------------- |
+| [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) | 4-layer architecture deep dive          |
+| [EVOLUTION.md](docs/en/EVOLUTION.md)       | Evolution pipeline detailed walkthrough |
+| [INSTALL.md](docs/en/INSTALL.md)           | Cross-platform installation guide       |
+| [MIGRATION.md](docs/en/MIGRATION.md)       | Cross-machine migration guide           |
+| [CUSTOMIZE.md](docs/en/CUSTOMIZE.md)       | Custom rules, agents, and commands      |
+| [MULTI_AGENT.md](docs/en/MULTI_AGENT.md)   | Multi-agent adapter architecture        |
+| [FAQ.md](docs/en/FAQ.md)                   | Frequently asked questions              |
 
 ---
 
@@ -327,6 +328,7 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 ### Completed ✅
 
 **v0.1.0** — Core template + installer + documentation + Git release
+
 - ✅ 4-layer self-evolving architecture (CLAUDE.md → rules/ → agents/ → commands/ → memory/)
 - ✅ SessionStart / Stop hooks
 - ✅ Evolution audit (/evolve) with rotation and confidence decay
@@ -335,6 +337,7 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ Privacy-first: zero telemetry, all local storage
 
 **v0.2.0** — Standalone CLI tool
+
 - ✅ `evokit` CLI (TypeScript/Node.js, replaces bash scripts)
 - ✅ `evokit init` with `--template`, `--branch`, `--dry-run`, `--verify`
 - ✅ `evokit evolve` — rotation, confidence decay, promotion, pruning
@@ -344,15 +347,17 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ 41 vitest test cases
 
 **v0.3.0 — Codex Adapter** 🆕
+
 - ✅ Codex CLI integration adapter (`~/.codex/` templates, AGENTS.md, hooks.json, config.toml)
 - ✅ Codex hook mechanism mapping (SessionStart / Stop / PreToolUse)
 - ✅ Shared learning data across assistants (shared `~/.claude/memory/`)
 - ✅ Interactive adapter selection menu (box-drawing UI, multi-select support, default-on-Enter)
 - ✅ 29 new tests (adapter + shared memory)
 
-### Planned 🔜
+### In Development 🚧
 
 **v0.4.0 ~ v0.4.2 — Adapter Interface Refactor + Multi-assistant Support**
+
 - ✅ **Unified adapter interface** — Extracted `AdapterInstaller` interface (`src/adapters/types.ts`) + registry (`registry.ts`), shared contract across all assistants
 - ✅ **Claude Code Adapter v0.2.0** — Modular refactor, pluggable installation pipeline
 - ✅ **Codex CLI Adapter v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark rules
@@ -362,7 +367,12 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ **Interactive adapter selection** — box-drawing UI, multi-select, default-on-Enter
 - 🚧 Self-healing CI pipeline
 
+> **Version note**: v0.4.x is in active development; all intermediate fixes and iterations are patch bumps (v0.4.1 / v0.4.2 / ...). Minor version bumps only happen at feature milestones.
+
+### Planned 🔜
+
 **v0.5.0 — Standalone Evolution Engine**
+
 - ☐ Independent rule promotion engine (runs without Claude Code)
 - ☐ Web UI management dashboard
 - ☐ Visualized learning data
@@ -370,6 +380,7 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 ### Future 🔮
 
 **v1.0.0 — Stable API + Ecosystem**
+
 - ☐ Stable adapter API
 - ☐ GitHub Action integration
 - ☐ Community plugin marketplace
@@ -399,4 +410,4 @@ MIT © 2026 EvoKit Contributors
 
 Inspired by the self-evolving Claude Code system practices from the Chinese developer community. Thanks to all open-source contributors.
 
-*Built with ❤️ for the open-source AI ecosystem.*
+_Built with ❤️ for the open-source AI ecosystem._

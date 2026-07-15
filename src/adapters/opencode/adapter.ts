@@ -1,6 +1,8 @@
 /**
  * EvoKit — OpenCode CLI Adapter
  *
+ * @internal — Adapter implementation for OpenCode CLI. The OpenCodeAdapter class implements the public AdapterInstaller interface.
+ *
  * Implements the AgentAdapter interface for OpenCode CLI.
  * OpenCode uses:
  * - AGENTS.md for the L1 cognitive core (global + project)
@@ -40,7 +42,12 @@ export const OPENCODE_ADAPTER_VERSION = '0.5.0';
 
 const GLOBAL_DIRS = ['agent', 'memory', 'skills'] as const;
 const PROJECT_SUBDIRS = ['tools', 'agent', 'memory'] as const;
-const TOOL_FILES = ['evokit-boot.ts', 'evokit-evolve.ts', 'evokit-memory.ts', 'evokit-session.ts'] as const;
+const TOOL_FILES = [
+  'evokit-boot.ts',
+  'evokit-evolve.ts',
+  'evokit-memory.ts',
+  'evokit-session.ts',
+] as const;
 const MEMORY_SEED_FILES = ['README.md'] as const;
 
 export function resolveOpenCodeProjectDir(projectDir: string): string {
@@ -111,9 +118,7 @@ export class OpenCodeAdapter implements AdapterInstaller {
 /**
  * Install EvoKit for OpenCode CLI.
  */
-export async function installOpenCode(
-  config: OpenCodeInstallConfig,
-): Promise<InstallSummary> {
+export async function installOpenCode(config: OpenCodeInstallConfig): Promise<InstallSummary> {
   return installOpenCodeTemplate(config);
 }
 
@@ -134,10 +139,7 @@ export function setupOpenCodeTools(
  * Resolve the memory directory for OpenCode.
  * Uses global ~/.config/opencode/memory/ by default.
  */
-export function resolveMemoryDir(
-  projectDir: string,
-  options: OpenCodeAdapterOptions = {},
-): string {
+export function resolveMemoryDir(projectDir: string, options: OpenCodeAdapterOptions = {}): string {
   // If a custom opencodeDir is provided (legacy), use it
   if (options.opencodeDir) {
     return path.join(path.resolve(options.opencodeDir), 'memory');
@@ -291,9 +293,7 @@ export function recordOpenCodeSession(
 /**
  * Get the status summary of an OpenCode EvoKit installation.
  */
-export function getOpenCodeStatus(
-  projectDir: string,
-): {
+export function getOpenCodeStatus(projectDir: string): {
   installed: boolean;
   projectDir: string;
   agentsPresent: boolean;
@@ -337,8 +337,7 @@ export function getOpenCodeStatus(
     // Check global memory
     result.memoryPresent = fse.existsSync(path.join(globalDir, 'memory'));
 
-    result.installed =
-      result.agentsPresent || result.configPresent || result.toolsPresent;
+    result.installed = result.agentsPresent || result.configPresent || result.toolsPresent;
   } catch (e) {
     return { ...result, error: (e as Error).message };
   }

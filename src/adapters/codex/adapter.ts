@@ -1,6 +1,8 @@
 /**
  * EvoKit — Codex CLI Adapter
  *
+ * @internal — Adapter implementation for Codex CLI. The CodexAdapter class implements the public AdapterInstaller interface.
+ *
  * Implements the AgentAdapter interface for OpenAI Codex CLI.
  * Codex CLI uses ~/.codex/ with:
  * - AGENTS.md for cognitive core (analogous to CLAUDE.md)
@@ -235,8 +237,8 @@ export class CodexAdapter implements AdapterInstaller {
           const stats = fs.statSync(sp);
           checks.push({
             name: `.codex/hooks-scripts/${script}`,
-            pass: !!(stats.mode & 0o111),
-            detail: !!(stats.mode & 0o111) ? undefined : 'Not executable',
+            pass: (stats.mode & 0o111) !== 0,
+            detail: (stats.mode & 0o111) !== 0 ? undefined : 'Not executable',
           });
         } else {
           checks.push({
@@ -258,9 +260,7 @@ export class CodexAdapter implements AdapterInstaller {
  * Install EvoKit for Codex CLI.
  * Copies templates to ~/.codex/ and sets up hooks.
  */
-export async function installCodex(
-  config: CodexInstallConfig,
-): Promise<InstallSummary> {
+export async function installCodex(config: CodexInstallConfig): Promise<InstallSummary> {
   return installCodexTemplate(config);
 }
 
@@ -268,10 +268,7 @@ export async function installCodex(
  * Set up lifecycle hooks for Codex CLI.
  * Generates hooks.json with SessionStart, Stop, and PreToolUse handlers.
  */
-export function setupCodexHooks(
-  codexHome: string,
-  options: CodexAdapterOptions = {},
-): void {
+export function setupCodexHooks(codexHome: string, options: CodexAdapterOptions = {}): void {
   const scriptsDir = options.codexHome
     ? path.resolve(options.codexHome, 'hooks-scripts')
     : path.resolve(codexHome, 'hooks-scripts');
@@ -499,9 +496,7 @@ export function verifyCodexSetup(
 /**
  * Get the status summary of a Codex CLI EvoKit installation.
  */
-export function getCodexStatus(
-  homeDir: string,
-): {
+export function getCodexStatus(homeDir: string): {
   installed: boolean;
   codexHome: string;
   agentsPresent: boolean;
@@ -535,8 +530,7 @@ export function getCodexStatus(
     const memDir = path.join(homeDir, '.codex', 'memory');
     result.sharedMemoryPresent = fse.existsSync(memDir);
 
-    result.installed =
-      result.agentsPresent || result.hooksPresent || result.configPresent;
+    result.installed = result.agentsPresent || result.hooksPresent || result.configPresent;
   } catch (e) {
     return { ...result, error: (e as Error).message };
   }

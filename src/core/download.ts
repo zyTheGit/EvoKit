@@ -1,4 +1,6 @@
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * EvoKit — Template Download Utility
  *
  * Resolves the template directory from multiple sources:
@@ -28,6 +30,8 @@ export interface TemplateResolution {
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Resolve the template directory.
  *
  * Priority:
@@ -43,8 +47,7 @@ export async function resolveTemplateDir(
   if (templatePath) {
     if (!fse.existsSync(path.join(templatePath, 'claude', 'CLAUDE.md'))) {
       throw new Error(
-        `Template not found at: ${templatePath}\n` +
-          '  Specify the correct path with --template',
+        `Template not found at: ${templatePath}\n` + '  Specify the correct path with --template',
       );
     }
     return { templateDir: templatePath, cleanup: null };
@@ -85,11 +88,11 @@ export async function resolveTemplateDir(
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Download the EvoKit repo from GitHub and return the template/ path.
  */
-async function downloadFromGitHub(
-  branch: string,
-): Promise<TemplateResolution> {
+async function downloadFromGitHub(branch: string): Promise<TemplateResolution> {
   const tmpDir = fs.mkdtempSync('evokit-');
   const tarballPath = path.join(tmpDir, 'evokit.tar.gz');
 
@@ -128,22 +131,16 @@ async function downloadFromGitHub(
 
           const entries = fs.readdirSync(tmpDir);
           const extracted = entries.find(
-            (e) =>
-              e !== 'evokit.tar.gz' &&
-              fs.statSync(path.join(tmpDir, e)).isDirectory(),
+            (e) => e !== 'evokit.tar.gz' && fs.statSync(path.join(tmpDir, e)).isDirectory(),
           );
           if (!extracted) {
-            reject(
-              new Error('Failed to find extracted directory in archive.'),
-            );
+            reject(new Error('Failed to find extracted directory in archive.'));
             return;
           }
 
           const templateDir = path.join(tmpDir, extracted, 'template');
           if (!fse.existsSync(templateDir)) {
-            reject(
-              new Error('GitHub archive does not contain a template/ directory.'),
-            );
+            reject(new Error('GitHub archive does not contain a template/ directory.'));
             return;
           }
 

@@ -18,7 +18,12 @@ import type { InstallSummary, OpenCodeInstallConfig } from '../../core/types.js'
 
 const PROJECT_SUBDIRS = ['tools', 'agent', 'memory'] as const;
 const GLOBAL_DIRS = ['agent', 'memory', 'skills'] as const;
-const TOOL_FILES = ['evokit-boot.ts', 'evokit-evolve.ts', 'evokit-memory.ts', 'evokit-session.ts'] as const;
+const TOOL_FILES = [
+  'evokit-boot.ts',
+  'evokit-evolve.ts',
+  'evokit-memory.ts',
+  'evokit-session.ts',
+] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
 const MEMORY_SEED_FILES = ['README.md'] as const;
 
@@ -40,7 +45,7 @@ export function resolveOpenCodeConfigHome(homeDir: string): string {
 function installAgents(srcDir: string, dstDir: string, dryRun: boolean): number {
   if (!fse.existsSync(srcDir)) return 0;
   const results = installOrMergeAgents(srcDir, dstDir, dryRun);
-  return results.filter(r => r.status === 'COPY' || r.status === 'MERGED').length;
+  return results.filter((r) => r.status === 'COPY' || r.status === 'MERGED').length;
 }
 
 /**
@@ -333,7 +338,9 @@ export function verifyOpenCodeInstallation(
   checks.push({
     name: `~/.config/opencode/memory/`,
     pass: true,
-    detail: fse.existsSync(globalMemDir) ? undefined : 'Not yet created (auto-created on first memory write)',
+    detail: fse.existsSync(globalMemDir)
+      ? undefined
+      : 'Not yet created (auto-created on first memory write)',
   });
 
   return checks;

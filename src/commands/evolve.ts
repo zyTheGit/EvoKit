@@ -4,7 +4,13 @@ import path from 'node:path';
 import fse from 'fs-extra';
 import { buildConfig } from '../core/config.js';
 import { rotateJsonlFile, applyConfidenceDecay } from '../core/rotate.js';
-import { analyzeCorrections, promotePatterns, pruneStaleRules, logDecisions, prunePromotedCorrections } from '../core/promote.js';
+import {
+  analyzeCorrections,
+  promotePatterns,
+  pruneStaleRules,
+  logDecisions,
+  prunePromotedCorrections,
+} from '../core/promote.js';
 import { readJsonlFile, getFileLineCount, getMemoryDir } from '../core/memory.js';
 import { SessionEntry } from '../core/types.js';
 
@@ -44,14 +50,18 @@ export const evolveCommand = new Command('evolve')
       const details = [];
       if (result.archived > 0) details.push(`archived ${result.archived}`);
       if (result.gzipped) details.push('gzipped');
-      console.log(`  ${pc.green('✓')} ${file}: ${result.kept} kept${details.length ? pc.yellow(' (' + details.join(', ') + ')') : ' (no rotation needed)'}`);
+      console.log(
+        `  ${pc.green('✓')} ${file}: ${result.kept} kept${details.length ? pc.yellow(' (' + details.join(', ') + ')') : ' (no rotation needed)'}`,
+      );
     }
 
     // Step 2: Confidence decay
     console.log(pc.cyan('\n📉 Applying confidence decay...'));
     const decayResult = applyConfidenceDecay(config, 'observations.jsonl');
     if (decayResult.archived > 0) {
-      console.log(`  ${pc.green('✓')} observations: ${decayResult.kept} kept, ${pc.yellow(`${decayResult.archived} archived (confidence < 0.3)`)}`);
+      console.log(
+        `  ${pc.green('✓')} observations: ${decayResult.kept} kept, ${pc.yellow(`${decayResult.archived} archived (confidence < 0.3)`)}`,
+      );
     } else {
       console.log(`  ${pc.green('✓')} observations: ${decayResult.kept} entries (no decay needed)`);
     }
@@ -59,16 +69,20 @@ export const evolveCommand = new Command('evolve')
     // Step 3: Analyze corrections
     console.log(pc.cyan('\n🔍 Analyzing corrections...'));
     const groups = analyzeCorrections(config);
-    console.log(`  Found ${groups.length} unique pattern(s) across ${groups.reduce((s, g) => s + g.count, 0)} total corrections`);
+    console.log(
+      `  Found ${groups.length} unique pattern(s) across ${groups.reduce((s, g) => s + g.count, 0)} total corrections`,
+    );
 
     // Step 4: Promote patterns
     console.log(pc.cyan('\n⬆️  Promoting patterns...'));
     const promoteResults = promotePatterns(config, groups);
     for (const r of promoteResults) {
       const icon =
-        r.decision === 'promoted' ? pc.green('⬆️') :
-        r.decision === 'rejected' ? pc.yellow('⏭️') :
-        pc.dim('⏸️');
+        r.decision === 'promoted'
+          ? pc.green('⬆️')
+          : r.decision === 'rejected'
+            ? pc.yellow('⏭️')
+            : pc.dim('⏸️');
       console.log(`  ${icon} "${r.pattern}" — ${r.reason}`);
     }
 
@@ -103,7 +117,9 @@ export const evolveCommand = new Command('evolve')
     const rulesLines = getFileLineCount(rulesPath);
     const learnedRulesMax = config.learnedRulesMax ?? 50;
     if (rulesLines > learnedRulesMax) {
-      console.log(`  ${pc.yellow('⚠️')} learned-rules.md: ${rulesLines} lines (limit: ${learnedRulesMax}) — run --dry-run with --max-lines to prune`);
+      console.log(
+        `  ${pc.yellow('⚠️')} learned-rules.md: ${rulesLines} lines (limit: ${learnedRulesMax}) — run --dry-run with --max-lines to prune`,
+      );
     } else {
       console.log(`  ${pc.green('✓')} learned-rules.md: ${rulesLines}/${learnedRulesMax} lines`);
     }
@@ -124,4 +140,3 @@ export const evolveCommand = new Command('evolve')
     }
     console.log('');
   });
-

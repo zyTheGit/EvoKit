@@ -1,7 +1,18 @@
+/**
+ * @internal — JSONL rotation and confidence decay for the evolution pipeline.
+ * Not part of the public adapter API.
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { EvoConfig, RotationResult, DecayResult, CorrectionEntry, ObservationEntry } from './types.js';
+import {
+  EvoConfig,
+  RotationResult,
+  DecayResult,
+  CorrectionEntry,
+  ObservationEntry,
+} from './types.js';
 import { readJsonlFile, writeJsonlFile, getArchiveDir, isOlderThanDays } from './memory.js';
 
 /**
@@ -9,10 +20,7 @@ import { readJsonlFile, writeJsonlFile, getArchiveDir, isOlderThanDays } from '.
  * If the active file exceeds maxLines, old entries are moved to archive.
  * If the archive exceeds maxLinesArchive, it is gzip-compressed.
  */
-export function rotateJsonlFile(
-  config: EvoConfig,
-  filename: string,
-): RotationResult {
+export function rotateJsonlFile(config: EvoConfig, filename: string): RotationResult {
   const memoryDir = path.join(config.homeDir, '.claude', 'memory');
   const filePath = path.join(memoryDir, filename);
   const maxLines = config.maxLines ?? 500;
@@ -90,10 +98,7 @@ export function rotateJsonlFile(
  * Entries older than confidenceDecayDays have confidence halved.
  * Entries below confidenceThreshold are archived.
  */
-export function applyConfidenceDecay(
-  config: EvoConfig,
-  filename: string,
-): DecayResult {
+export function applyConfidenceDecay(config: EvoConfig, filename: string): DecayResult {
   const memoryDir = path.join(config.homeDir, '.claude', 'memory');
   const filePath = path.join(memoryDir, filename);
   const decayDays = config.confidenceDecayDays ?? 60;

@@ -12,12 +12,12 @@ This repository is the **meta-project** (the framework itself), not the user's i
 
 See `docs/en/ARCHITECTURE.md` for full detail.
 
-| Layer | Location | Purpose |
-|-------|----------|---------|
-| L1: Cognitive Core | `template/CLAUDE.md` | Thinking framework, evolution protocol (≤150 lines) |
-| L2: Path Rules | `template/rules/` | Auto-loaded rules scoped by file path |
-| L3: Sub-agents | `template/agents/` | Specialized agent defs (architect, reviewer) |
-| L4: Evolution Engine | `template/memory/` + `template/commands/` | corrections → observations → promotion → audit |
+| Layer                | Location                                  | Purpose                                             |
+| -------------------- | ----------------------------------------- | --------------------------------------------------- |
+| L1: Cognitive Core   | `template/CLAUDE.md`                      | Thinking framework, evolution protocol (≤150 lines) |
+| L2: Path Rules       | `template/rules/`                         | Auto-loaded rules scoped by file path               |
+| L3: Sub-agents       | `template/agents/`                        | Specialized agent defs (architect, reviewer)        |
+| L4: Evolution Engine | `template/memory/` + `template/commands/` | corrections → observations → promotion → audit      |
 
 ## Key Directories
 

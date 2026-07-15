@@ -1,4 +1,5 @@
 /**
+ * @internal — Internal helper, not part of the public adapter API.
  * EvoKit — Agent File Merge Utility
  *
  * For each .md file in source_dir:
@@ -25,6 +26,7 @@ const KEY_ORDER = [
 ];
 
 /**
+ * @internal — Internal helper, not part of the public adapter API.
  * Parse YAML frontmatter from markdown content.
  * Returns frontmatter as a flat Record<string, string> plus the body text.
  */
@@ -79,6 +81,7 @@ function serializeFrontmatter(fm: Record<string, string>): string {
 }
 
 /**
+ * @internal — Internal helper, not part of the public adapter API.
  * Merge template frontmatter into target frontmatter.
  * Only adds fields absent from target; never overwrites.
  */
@@ -119,6 +122,7 @@ export interface AgentFileResult {
 }
 
 /**
+ * @internal — Internal helper, not part of the public adapter API.
  * Install or merge agent .md files from source into target directory.
  *
  * Returns an array of { name, status } results for each file processed.
@@ -180,10 +184,7 @@ export function installOrMergeAgents(
       if (!dstParsed.hasFrontmatter) {
         // Target has no frontmatter — prepend template's
         const newContent =
-          '---\n' +
-          serializeFrontmatter(srcParsed.frontmatter) +
-          '\n---\n' +
-          dstParsed.body;
+          '---\n' + serializeFrontmatter(srcParsed.frontmatter) + '\n---\n' + dstParsed.body;
         if (!writeAtomic(dstPath, newContent)) {
           results.push({ name: file, status: 'ERROR:write failed' });
           continue;
@@ -193,20 +194,13 @@ export function installOrMergeAgents(
       }
 
       // Merge: only add missing fields
-      const [changed, merged] = mergeFrontmatter(
-        dstParsed.frontmatter,
-        srcParsed.frontmatter,
-      );
+      const [changed, merged] = mergeFrontmatter(dstParsed.frontmatter, srcParsed.frontmatter);
       if (!changed) {
         results.push({ name: file, status: 'SKIPPED' });
         continue;
       }
 
-      const newContent =
-        '---\n' +
-        serializeFrontmatter(merged) +
-        '\n---\n' +
-        dstParsed.body;
+      const newContent = '---\n' + serializeFrontmatter(merged) + '\n---\n' + dstParsed.body;
       if (!writeAtomic(dstPath, newContent)) {
         results.push({ name: file, status: 'ERROR:write failed' });
         continue;

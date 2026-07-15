@@ -1,4 +1,6 @@
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * EvoKit — settings.json Merge Utility
  *
  * Deep-merges hook configurations from a template settings.json into an
@@ -19,6 +21,8 @@ export interface SettingsMergeResult {
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Deep-merge template settings into an existing settings.json.
  *
  * Strategy:

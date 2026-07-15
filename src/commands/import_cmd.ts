@@ -60,10 +60,14 @@ export const importCommand = new Command('import')
 
       // Detect export structure
       const stagingContents = fs.readdirSync(stagingDir);
-      const exportDir = stagingContents.find((d) => d === 'claude-evolution' && fs.statSync(path.join(stagingDir, d)).isDirectory());
+      const exportDir = stagingContents.find(
+        (d) => d === 'claude-evolution' && fs.statSync(path.join(stagingDir, d)).isDirectory(),
+      );
 
       if (!exportDir) {
-        console.error(pc.red('Error: Invalid export package — missing claude-evolution/ directory'));
+        console.error(
+          pc.red('Error: Invalid export package — missing claude-evolution/ directory'),
+        );
         process.exit(1);
       }
 
@@ -95,7 +99,10 @@ export const importCommand = new Command('import')
       if (options.backup !== false && fse.existsSync(claudeDir)) {
         const backupDir = path.join(claudeDir, 'backups');
         fse.ensureDirSync(backupDir);
-        backupPath = path.join(backupDir, `import-pre-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`);
+        backupPath = path.join(
+          backupDir,
+          `import-pre-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`,
+        );
         console.log(pc.cyan('\n📦 Backing up existing configuration...'));
         fse.copySync(claudeDir, backupPath);
         console.log(`  ${pc.green('✓')} Backed up to ${backupPath}`);
@@ -148,7 +155,9 @@ export const importCommand = new Command('import')
             fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
             console.log(`  ${pc.green('✓')} settings.json normalized`);
           }
-        } catch { /* skip if invalid JSON */ }
+        } catch {
+          /* skip if invalid JSON */
+        }
       }
 
       // Set permissions
@@ -195,7 +204,9 @@ function detectOldHomeFromExport(exportPath: string): string | null {
       const content = fs.readFileSync(fp, 'utf-8');
       const match = content.match(/OLD_HOME="([^"]+)"/);
       if (match) return match[1];
-    } catch { /* continue */ }
+    } catch {
+      /* continue */
+    }
   }
   return null;
 }
@@ -215,8 +226,12 @@ function fixPathsInDir(dir: string, oldPath: string, newPath: string): void {
             const updated = content.replaceAll(oldPath, newPath);
             fs.writeFileSync(fullPath, updated, 'utf-8');
           }
-        } catch { /* skip unreadable files */ }
+        } catch {
+          /* skip unreadable files */
+        }
       }
     }
-  } catch { /* skip unreadable dirs */ }
+  } catch {
+    /* skip unreadable dirs */
+  }
 }

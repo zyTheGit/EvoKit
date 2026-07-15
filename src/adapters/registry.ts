@@ -1,6 +1,8 @@
 /**
  * EvoKit — Adapter Registry
  *
+ * @public — Part of the public adapter API.
+ *
  * Central registry for all adapter installers.  New adapters register
  * here and are automatically available to `evokit install` without
  * modifying any other file.
@@ -35,9 +37,7 @@ export function getInstaller(id: string): AdapterInstaller {
   const installer = registry.get(id);
   if (!installer) {
     const known = Array.from(registry.keys()).join(', ');
-    throw new Error(
-      `Unknown adapter: "${id}". Available: ${known || '(none registered)'}`,
-    );
+    throw new Error(`Unknown adapter: "${id}". Available: ${known || '(none registered)'}`);
   }
   return installer;
 }

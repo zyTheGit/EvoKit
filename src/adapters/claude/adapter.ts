@@ -1,6 +1,8 @@
 /**
  * EvoKit — Claude Code Adapter Installer
  *
+ * @internal — Adapter implementation for Claude Code. The ClaudeAdapter class implements the public AdapterInstaller interface.
+ *
  * Installs EvoKit template files into ~/.claude/ with full pipeline:
  * CLAUDE.md, settings.json merge, hooks, rules, commands, agents,
  * skills, and memory seeding.

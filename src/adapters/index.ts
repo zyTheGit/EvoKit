@@ -18,7 +18,12 @@ registerAdapter(new CodexAdapter());
 registerAdapter(new OpenCodeAdapter());
 
 export { registerAdapter, getInstaller, listAdapters, hasAdapter } from './registry.js';
-export type { AdapterInstaller, AdapterInstallConfig, AdapterInstallResult, AdapterVerifyCheck } from './types.js';
+export type {
+  AdapterInstaller,
+  AdapterInstallConfig,
+  AdapterInstallResult,
+  AdapterVerifyCheck,
+} from './types.js';
 export { ClaudeAdapter } from './claude/adapter.js';
 export { CodexAdapter, resolveCodexHome } from './codex/adapter.js';
 export { OpenCodeAdapter, resolveOpenCodeProjectDir } from './opencode/adapter.js';

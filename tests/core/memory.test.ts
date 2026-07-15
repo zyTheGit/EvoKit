@@ -101,16 +101,20 @@ describe('memory', () => {
     it('parses rules from markdown', () => {
       const dir = tmpDir();
       const fp = path.join(dir, 'rules.md');
-      fs.writeFileSync(fp, [
-        '# Learned Rules',
-        '',
-        '- **Use uv instead of pip**',
-        '  <!-- verify: grep -r "pip install" ~/ -->',
-        '  <!-- promoted: 2026-06-01 -->',
-        '',
-        '- **No console.log in production**',
-        '',
-      ].join('\n'), 'utf-8');
+      fs.writeFileSync(
+        fp,
+        [
+          '# Learned Rules',
+          '',
+          '- **Use uv instead of pip**',
+          '  <!-- verify: grep -r "pip install" ~/ -->',
+          '  <!-- promoted: 2026-06-01 -->',
+          '',
+          '- **No console.log in production**',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
 
       const rules = readLearnedRules(fp);
       expect(rules).toHaveLength(2);

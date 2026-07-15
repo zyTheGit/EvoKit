@@ -7,7 +7,11 @@ import {
   verifyCodexInstallation,
 } from '../../src/adapters/codex/installer.js';
 import { resolveCodexHome } from '../../src/adapters/codex/adapter.js';
-import { CodexHooksBuilder, hooksToToml, mergeHooksConfigs } from '../../src/adapters/codex/hooks.js';
+import {
+  CodexHooksBuilder,
+  hooksToToml,
+  mergeHooksConfigs,
+} from '../../src/adapters/codex/hooks.js';
 import {
   injectCodexMemory,
   exportCodexMemory,
@@ -152,9 +156,7 @@ describe('codex-hooks', () => {
     });
 
     it('supports tool guard hooks', () => {
-      const builder = new CodexHooksBuilder()
-        .addToolGuard('^Bash$', '/path/to/guard.sh')
-        .build();
+      const builder = new CodexHooksBuilder().addToolGuard('^Bash$', '/path/to/guard.sh').build();
 
       expect(builder.hooks!.PreToolUse![0].matcher).toBe('^Bash$');
     });
@@ -190,10 +192,14 @@ describe('codex-hooks', () => {
   describe('mergeHooksConfigs', () => {
     it('merges multiple configs, later wins for same matcher', () => {
       const a: CodexHooksJson = {
-        hooks: { SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: '/a.sh' }] }] },
+        hooks: {
+          SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: '/a.sh' }] }],
+        },
       };
       const b: CodexHooksJson = {
-        hooks: { SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: '/b.sh' }] }] },
+        hooks: {
+          SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: '/b.sh' }] }],
+        },
       };
 
       const merged = mergeHooksConfigs(a, b);
@@ -202,7 +208,9 @@ describe('codex-hooks', () => {
 
     it('combines events from different configs', () => {
       const a: CodexHooksJson = {
-        hooks: { SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: '/a.sh' }] }] },
+        hooks: {
+          SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: '/a.sh' }] }],
+        },
       };
       const b: CodexHooksJson = {
         hooks: { Stop: [{ matcher: '.*', hooks: [{ type: 'command', command: '/b.sh' }] }] },

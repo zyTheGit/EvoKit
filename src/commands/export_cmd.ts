@@ -46,7 +46,16 @@ export const exportCommand = new Command('export')
     try {
       // 1. Copy system files
       console.log(pc.cyan('📁 Copying system files...'));
-      const itemsToCopy = ['rules', 'agents', 'commands', 'memory', 'hooks', 'settings.json', 'settings.local.json', 'MEMORY.md'];
+      const itemsToCopy = [
+        'rules',
+        'agents',
+        'commands',
+        'memory',
+        'hooks',
+        'settings.json',
+        'settings.local.json',
+        'MEMORY.md',
+      ];
       for (const item of itemsToCopy) {
         const src = path.join(claudeDir, item);
         const dst = path.join(exportDir, item);
@@ -71,7 +80,12 @@ export const exportCommand = new Command('export')
       // 2. Data summary
       console.log(pc.cyan('\n📊 Data summary...'));
       const memDir = path.join(claudeDir, 'memory');
-      const jsonlFiles = ['corrections.jsonl', 'observations.jsonl', 'sessions.jsonl', 'violations.jsonl'];
+      const jsonlFiles = [
+        'corrections.jsonl',
+        'observations.jsonl',
+        'sessions.jsonl',
+        'violations.jsonl',
+      ];
       for (const file of jsonlFiles) {
         const fp = path.join(memDir, file);
         if (fse.existsSync(fp)) {
@@ -104,10 +118,14 @@ export const exportCommand = new Command('export')
                   try {
                     const entry = JSON.parse(l);
                     return !entry.timestamp || new Date(entry.timestamp).getTime() >= cutoff;
-                  } catch { return true; }
+                  } catch {
+                    return true;
+                  }
                 });
                 fs.writeFileSync(srcFile, recent.join('\n') + '\n', 'utf-8');
-                console.log(`  ${pc.green('✓')} Rotated ${file}: ${lines.length} → ${recent.length} entries`);
+                console.log(
+                  `  ${pc.green('✓')} Rotated ${file}: ${lines.length} → ${recent.length} entries`,
+                );
               }
             }
           }
@@ -131,13 +149,11 @@ export const exportCommand = new Command('export')
       console.log(pc.cyan('\n📦 Packaging tarball...'));
       if (!config.dryRun) {
         fse.ensureDirSync(outDir);
-        const tarResult = spawnSync('tar', [
-          'czf', tarballPath,
-          '-C', stagingDir,
-          'claude-evolution',
-          'install.sh',
-          'install.bat',
-        ], { stdio: 'pipe' });
+        const tarResult = spawnSync(
+          'tar',
+          ['czf', tarballPath, '-C', stagingDir, 'claude-evolution', 'install.sh', 'install.bat'],
+          { stdio: 'pipe' },
+        );
 
         if (tarResult.status !== 0) {
           console.error(pc.red(`Error creating tarball: ${tarResult.stderr.toString()}`));
@@ -179,7 +195,7 @@ set -e
 
 OLD_HOME="${oldHome}"
 CLAUDE_DIR="\${HOME}/.claude"
-BACKUP_DIR="\${CLAUDE_DIR}/backups/migration-\$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="\${CLAUDE_DIR}/backups/migration-$(date +%Y%m%d_%H%M%S)"
 
 echo "╔═══════════════════════════════════════════╗"
 echo "║   EvoKit — Migration Import               ║"
@@ -199,7 +215,7 @@ fi
 
 # Copy files
 echo "📁 Installing system files..."
-SCRIPT_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 for dir in rules agents commands memory hooks; do
   if [ -d "\${SCRIPT_DIR}/claude-evolution/\${dir}" ]; then
     mkdir -p "\${CLAUDE_DIR}/\${dir}"

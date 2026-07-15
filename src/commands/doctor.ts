@@ -105,7 +105,12 @@ async function checkCodex(homeDir: string, options: any): Promise<boolean> {
 
   const checks = verifyCodexSetup(homeDir);
   for (const check of checks) {
-    const icon = check.status === 'pass' ? pc.green('✓') : check.status === 'warn' ? pc.yellow('⚠') : pc.red('✗');
+    const icon =
+      check.status === 'pass'
+        ? pc.green('✓')
+        : check.status === 'warn'
+          ? pc.yellow('⚠')
+          : pc.red('✗');
     console.log(`  ${icon} ${check.check}${check.detail ? pc.yellow(` — ${check.detail}`) : ''}`);
     if (check.status !== 'pass') pass = false;
   }
@@ -129,10 +134,10 @@ async function checkOpenCode(): Promise<boolean> {
   let pass = true;
 
   const checks = [
-    { name: '~/.config/opencode/AGENTS.md',   pass: status.agentsPresent },
+    { name: '~/.config/opencode/AGENTS.md', pass: status.agentsPresent },
     { name: '~/.config/opencode/opencode.json', pass: status.configPresent },
-    { name: '.opencode/tools/',                 pass: status.toolsPresent },
-    { name: '~/.config/opencode/memory/',       pass: status.memoryPresent },
+    { name: '.opencode/tools/', pass: status.toolsPresent },
+    { name: '~/.config/opencode/memory/', pass: status.memoryPresent },
   ];
 
   for (const check of checks) {
@@ -171,7 +176,9 @@ function checkMemory(homeDir: string, subDir: string): boolean {
   for (const file of memoryFiles) {
     const fp = path.join(memoryDir, file);
     const exists = fse.existsSync(fp);
-    console.log(`  ${exists ? pc.green('✓') : pc.yellow('⚠')} ${file}${!exists ? ' (optional)' : ''}`);
+    console.log(
+      `  ${exists ? pc.green('✓') : pc.yellow('⚠')} ${file}${!exists ? ' (optional)' : ''}`,
+    );
     if (!exists && file !== 'README.md') allExist = false;
   }
 

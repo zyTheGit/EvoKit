@@ -27,7 +27,7 @@ export async function inputBranch(
       if (!value || value.trim().length === 0) {
         return 'Branch name cannot be empty';
       }
-      if (/[^a-zA-Z0-9._\-\/]/.test(value)) {
+      if (/[^a-zA-Z0-9._\-/]/.test(value)) {
         return 'Branch name contains invalid characters';
       }
     },

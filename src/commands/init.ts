@@ -171,11 +171,11 @@ function printInitSummary(
 ): void {
   note(
     `Target: ${summary.adapterHome}${dryRun ? ' (DRY RUN)' : ''}\n` +
-    `Created: ${summary.filesCreated} file(s), skipped ${summary.filesSkipped} existing\n` +
-    (summary.hooksInstalled > 0 ? `Hooks:   ${summary.hooksInstalled} installed\n` : '') +
-    (summary.rulesInstalled > 0 ? `Rules:   ${summary.rulesInstalled} installed\n` : '') +
-    (summary.agentsInstalled > 0 ? `Agents:  ${summary.agentsInstalled} installed\n` : '') +
-    (summary.commandsInstalled > 0 ? `Commands: ${summary.commandsInstalled} installed\n` : ''),
+      `Created: ${summary.filesCreated} file(s), skipped ${summary.filesSkipped} existing\n` +
+      (summary.hooksInstalled > 0 ? `Hooks:   ${summary.hooksInstalled} installed\n` : '') +
+      (summary.rulesInstalled > 0 ? `Rules:   ${summary.rulesInstalled} installed\n` : '') +
+      (summary.agentsInstalled > 0 ? `Agents:  ${summary.agentsInstalled} installed\n` : '') +
+      (summary.commandsInstalled > 0 ? `Commands: ${summary.commandsInstalled} installed\n` : ''),
     `EvoKit — Install for ${installer.label}`,
   );
 }

@@ -1,4 +1,6 @@
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * EvoKit — File Permission Utilities
  *
  * Sets standard permissions on installed files:
@@ -13,6 +15,8 @@ import path from 'node:path';
 import fse from 'fs-extra';
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Set permissions on hook scripts (*.sh) to executable.
  */
 export function setHookPermissions(hooksDir: string): string[] {
@@ -33,6 +37,8 @@ export function setHookPermissions(hooksDir: string): string[] {
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Set permissions on JSONL memory files to 0o600 (owner read/write only).
  */
 export function setMemoryPermissions(memoryDir: string): string[] {
@@ -53,6 +59,8 @@ export function setMemoryPermissions(memoryDir: string): string[] {
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Quick check that a file has executable bits.
  */
 export function isExecutable(filePath: string): boolean {

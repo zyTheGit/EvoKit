@@ -93,9 +93,11 @@ User (later): "Same issue — named exports!"
 Skills are auto-invoked workflow instructions. Refer to `debug` skill for debugging, `code-review` for reviews. Skills use progressive disclosure (~50 tokens until invoked). Use `disable-model-invocation: true` for manually-triggered skills.
 
 ### Tool Priority
-1. **Codegraph** — `codegraph_explore`/`codegraph_search`/`codegraph_impact` (fastest)
-2. **Read** — file contents (after codegraph has located the right file)
-3. **Grep/Glob** — broad pattern matching
+Tools are listed in order of preference **when available**. Only Codegraph is optional (MCP server, not always installed); all others are always present.
+
+1. **Codegraph** *(optional)* — `codegraph_explore`/`codegraph_search`/`codegraph_impact` (fastest, if MCP installed)
+2. **Read** — file contents (fallback: the generic tool or Bash `cat`)
+3. **Grep/Glob** — broad pattern matching (fallback: Bash `grep`/`find`)
 4. **Bash** — running tests, builds, or one-off commands
 
 ### Agent Usage

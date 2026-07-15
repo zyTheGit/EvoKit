@@ -32,10 +32,7 @@ export function getConfig(): EvoConfig {
   return { ...defaults, ...getStore().store };
 }
 
-export function setConfigKey<K extends keyof EvoConfig>(
-  key: K,
-  value: EvoConfig[K],
-): void {
+export function setConfigKey<K extends keyof EvoConfig>(key: K, value: EvoConfig[K]): void {
   getStore().set(key, value as any);
 }
 
@@ -44,9 +41,7 @@ export function resetConfig(): void {
 }
 
 /** Build an EvoConfig from partial CLI options, merging with stored defaults */
-export function buildConfig(
-  overrides: Partial<EvoConfig> & { homeDir?: string },
-): EvoConfig {
+export function buildConfig(overrides: Partial<EvoConfig> & { homeDir?: string }): EvoConfig {
   const stored = getConfig();
   return {
     ...stored,

@@ -79,13 +79,21 @@ describe('rotate', () => {
       const memDir = path.join(dir, '.claude', 'memory');
       fs.mkdirSync(memDir, { recursive: true });
       const fp = path.join(memDir, 'obs.jsonl');
-      fs.appendFileSync(fp, JSON.stringify({
-        timestamp: new Date().toISOString(),
-        pattern: 'test',
-        confidence: 0.8,
-        source: 'test',
-      }) + '\n');
-      const config = buildConfig({ homeDir: dir, confidenceDecayDays: 60, confidenceThreshold: 0.3, dryRun: false });
+      fs.appendFileSync(
+        fp,
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          pattern: 'test',
+          confidence: 0.8,
+          source: 'test',
+        }) + '\n',
+      );
+      const config = buildConfig({
+        homeDir: dir,
+        confidenceDecayDays: 60,
+        confidenceThreshold: 0.3,
+        dryRun: false,
+      });
       const result = applyConfidenceDecay(config, 'obs.jsonl');
       expect(result.kept).toBe(1);
       expect(result.archived).toBe(0);
@@ -97,13 +105,21 @@ describe('rotate', () => {
       fs.mkdirSync(memDir, { recursive: true });
       const fp = path.join(memDir, 'obs.jsonl');
       const oldDate = new Date(0).toISOString();
-      fs.appendFileSync(fp, JSON.stringify({
-        timestamp: oldDate,
-        pattern: 'old-pattern',
-        confidence: 0.4, // will be 0.2 after decay < 0.3 threshold
-        source: 'test',
-      }) + '\n');
-      const config = buildConfig({ homeDir: dir, confidenceDecayDays: 1, confidenceThreshold: 0.3, dryRun: false });
+      fs.appendFileSync(
+        fp,
+        JSON.stringify({
+          timestamp: oldDate,
+          pattern: 'old-pattern',
+          confidence: 0.4, // will be 0.2 after decay < 0.3 threshold
+          source: 'test',
+        }) + '\n',
+      );
+      const config = buildConfig({
+        homeDir: dir,
+        confidenceDecayDays: 1,
+        confidenceThreshold: 0.3,
+        dryRun: false,
+      });
       const result = applyConfidenceDecay(config, 'obs.jsonl');
       expect(result.kept).toBe(0);
       expect(result.archived).toBe(1);

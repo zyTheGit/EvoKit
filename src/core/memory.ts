@@ -1,6 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { LearnedRule, CorrectionEntry, ObservationEntry, SessionEntry, ViolationEntry } from './types.js';
+import { LearnedRule } from './types.js';
+
+/**
+ * @internal — Internal JSONL/memory utilities for the evolution pipeline.
+ * Not part of the public adapter API.
+ */
 
 // ─── JSONL Operations ───────────────────────────────────────────
 

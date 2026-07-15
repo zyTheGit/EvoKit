@@ -93,7 +93,11 @@ describe('shared-memory', () => {
 
   describe('violations', () => {
     it('writes and reads violations', () => {
-      appendViolation(homeDir, { rule: 'no-console-log', file: 'src/index.ts', detail: 'console.log found' });
+      appendViolation(homeDir, {
+        rule: 'no-console-log',
+        file: 'src/index.ts',
+        detail: 'console.log found',
+      });
 
       const violations = readViolations(homeDir);
       expect(violations).toHaveLength(1);

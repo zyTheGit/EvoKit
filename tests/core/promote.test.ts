@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { analyzeCorrections, promotePatterns, generateVerifyLine, logDecisions } from '../../src/core/promote.js';
+import {
+  analyzeCorrections,
+  promotePatterns,
+  generateVerifyLine,
+  logDecisions,
+} from '../../src/core/promote.js';
 import { buildConfig } from '../../src/core/config.js';
 import { appendToJsonl, readLearnedRules, getMemoryDir } from '../../src/core/memory.js';
 
@@ -39,9 +44,24 @@ describe('promote', () => {
       fs.mkdirSync(memDir, { recursive: true });
       const fp = path.join(memDir, 'corrections.jsonl');
 
-      appendToJsonl(fp, { timestamp: new Date().toISOString(), pattern: 'use-uv', context: 'test', count: 1 });
-      appendToJsonl(fp, { timestamp: new Date().toISOString(), pattern: 'use-uv', context: 'test', count: 1 });
-      appendToJsonl(fp, { timestamp: new Date().toISOString(), pattern: 'other', context: 'test', count: 1 });
+      appendToJsonl(fp, {
+        timestamp: new Date().toISOString(),
+        pattern: 'use-uv',
+        context: 'test',
+        count: 1,
+      });
+      appendToJsonl(fp, {
+        timestamp: new Date().toISOString(),
+        pattern: 'use-uv',
+        context: 'test',
+        count: 1,
+      });
+      appendToJsonl(fp, {
+        timestamp: new Date().toISOString(),
+        pattern: 'other',
+        context: 'test',
+        count: 1,
+      });
 
       const config = buildConfig({ homeDir: dir, dryRun: true });
       const groups = analyzeCorrections(config);

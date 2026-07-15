@@ -24,7 +24,6 @@ jobs:
           test -f template/claude/hooks/pre-tool-use.sh
           test -f template/claude/hooks/post-tool-use.sh
           test -f template/claude/hooks/pre-compact.sh
-          test -f template/claude/hooks/dotenv-append.sh
           test -f template/claude/rules/security.md
           test -f template/claude/rules/coding.md
           test -f template/claude/rules/core-invariants.md

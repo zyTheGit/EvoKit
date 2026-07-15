@@ -1,3 +1,8 @@
+/**
+ * @internal — Correction analysis and rule promotion logic for the evolution pipeline.
+ * Not part of the public adapter API.
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -21,9 +26,7 @@ import {
 
 export function analyzeCorrections(config: EvoConfig): CorrectionGroup[] {
   const memoryDir = getMemoryDir(config.homeDir);
-  const corrections = readJsonlFile<CorrectionEntry>(
-    path.join(memoryDir, 'corrections.jsonl'),
-  );
+  const corrections = readJsonlFile<CorrectionEntry>(path.join(memoryDir, 'corrections.jsonl'));
 
   const grouped = new Map<string, CorrectionEntry[]>();
   for (const entry of corrections) {
@@ -43,19 +46,14 @@ export function analyzeCorrections(config: EvoConfig): CorrectionGroup[] {
 
 // ─── Promotion ──────────────────────────────────────────────────
 
-export function promotePatterns(
-  config: EvoConfig,
-  groups: CorrectionGroup[],
-): PromotionResult[] {
+export function promotePatterns(config: EvoConfig, groups: CorrectionGroup[]): PromotionResult[] {
   const memoryDir = getMemoryDir(config.homeDir);
   const rulesPath = path.join(memoryDir, 'learned-rules.md');
   const logPath = path.join(memoryDir, 'evolution-log.md');
   const threshold = config.promoteThreshold ?? 2;
 
   const existingRules = readLearnedRules(rulesPath);
-  const existingPatterns = new Set(
-    existingRules.map((r) => r.description.toLowerCase().trim()),
-  );
+  const existingPatterns = new Set(existingRules.map((r) => r.description.toLowerCase().trim()));
 
   // Read evolution log for previously rejected patterns
   const logContent = readEvolutionLogFromPath(logPath);
@@ -124,10 +122,7 @@ export function promotePatterns(
 
 // ─── Stale Rule Pruning ─────────────────────────────────────────
 
-export function pruneStaleRules(
-  config: EvoConfig,
-  sessions: SessionEntry[],
-): PromotionResult[] {
+export function pruneStaleRules(config: EvoConfig, sessions: SessionEntry[]): PromotionResult[] {
   const memoryDir = getMemoryDir(config.homeDir);
   const rulesPath = path.join(memoryDir, 'learned-rules.md');
   const logPath = path.join(memoryDir, 'evolution-log.md');
@@ -187,18 +182,19 @@ export function pruneStaleRules(
 
 // ─── Logging ────────────────────────────────────────────────────
 
-export function logDecisions(
-  config: EvoConfig,
-  results: PromotionResult[],
-): void {
+export function logDecisions(config: EvoConfig, results: PromotionResult[]): void {
   if (config.dryRun) return;
   const logPath = path.join(getMemoryDir(config.homeDir), 'evolution-log.md');
 
   for (const r of results) {
     const emoji =
-      r.decision === 'promoted' ? '⬆️' :
-      r.decision === 'pruned' ? '🗑️' :
-      r.decision === 'rejected' ? '⏭️' : '⏸️';
+      r.decision === 'promoted'
+        ? '⬆️'
+        : r.decision === 'pruned'
+          ? '🗑️'
+          : r.decision === 'rejected'
+            ? '⏭️'
+            : '⏸️';
     appendToEvolutionLog(
       logPath,
       `${emoji} ${r.decision}: "${r.pattern}" (count=${r.count}) — ${r.reason}`,
@@ -206,26 +202,19 @@ export function logDecisions(
   }
 }
 
-export function prunePromotedCorrections(
-  config: EvoConfig,
-  results: PromotionResult[],
-): void {
+export function prunePromotedCorrections(config: EvoConfig, results: PromotionResult[]): void {
   if (config.dryRun) return;
 
   const memoryDir = getMemoryDir(config.homeDir);
   const correctionsPath = path.join(memoryDir, 'corrections.jsonl');
 
   const promoted = new Set(
-    results
-      .filter((r) => r.decision === 'promoted')
-      .map((r) => r.pattern.toLowerCase().trim()),
+    results.filter((r) => r.decision === 'promoted').map((r) => r.pattern.toLowerCase().trim()),
   );
   if (promoted.size === 0) return;
 
   const corrections = readJsonlFile<CorrectionEntry>(correctionsPath);
-  const remaining = corrections.filter(
-    (c) => !promoted.has(c.pattern.toLowerCase().trim()),
-  );
+  const remaining = corrections.filter((c) => !promoted.has(c.pattern.toLowerCase().trim()));
   writeJsonlFile(correctionsPath, remaining);
 }
 
@@ -269,8 +258,21 @@ export function generateVerifyLine(pattern: string): string {
   }
 
   // Try to generate a meaningful check
-  const toolKeywords = keywords.filter(
-    (w) => ['npm', 'yarn', 'pnpm', 'uv', 'pip', 'fnm', 'node', 'python', 'git', 'docker', 'make', 'npx'].includes(w),
+  const toolKeywords = keywords.filter((w) =>
+    [
+      'npm',
+      'yarn',
+      'pnpm',
+      'uv',
+      'pip',
+      'fnm',
+      'node',
+      'python',
+      'git',
+      'docker',
+      'make',
+      'npx',
+    ].includes(w),
   );
 
   if (toolKeywords.length > 0) {

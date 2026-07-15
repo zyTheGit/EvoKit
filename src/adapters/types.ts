@@ -1,13 +1,18 @@
 /**
  * EvoKit — Adapter Installer Interface
  *
+ * @public — Part of the public adapter API. Implement this to add custom adapters.
+ *
  * Every adapter (Claude Code, Codex CLI, OpenCode CLI, etc.) implements
  * this interface for uniform template installation and verification.
  *
  * @packageDocumentation
  */
 
-/** Configuration passed to each adapter installer */
+/**
+ * @public — This type is part of the public adapter API.
+ * Third-party adapter implementers should use this type.
+ */
 export interface AdapterInstallConfig {
   homeDir: string;
   templateDir: string;

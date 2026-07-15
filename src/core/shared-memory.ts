@@ -1,4 +1,6 @@
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * EvoKit — Shared Memory Layer
  *
  * Provides cross-adapter access to learning data in ~/.claude/memory/.
@@ -25,6 +27,8 @@ export type AssistantName = 'claude' | 'codex' | 'opencode' | 'aider';
 // ─── Read Operations ──────────────────────────────────────────
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Resolve the shared memory directory path.
  */
 export function getMemoryDir(homeDir: string, memoryDir?: string): string {
@@ -32,6 +36,8 @@ export function getMemoryDir(homeDir: string, memoryDir?: string): string {
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Read all corrections from corrections.jsonl.
  */
 export function readCorrections(homeDir: string, memoryDir?: string): CorrectionEntry[] {
@@ -41,6 +47,8 @@ export function readCorrections(homeDir: string, memoryDir?: string): Correction
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Read all observations from observations.jsonl.
  */
 export function readObservations(homeDir: string, memoryDir?: string): ObservationEntry[] {
@@ -50,6 +58,8 @@ export function readObservations(homeDir: string, memoryDir?: string): Observati
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Read session records from sessions.jsonl, optionally filtered by assistant.
  */
 export function readSessions(
@@ -66,6 +76,8 @@ export function readSessions(
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Read learned-rules.md and parse its rules.
  */
 export function readLearnedRules(homeDir: string, memoryDir?: string): LearnedRule[] {
@@ -91,6 +103,8 @@ export function readLearnedRules(homeDir: string, memoryDir?: string): LearnedRu
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Read violations from violations.jsonl.
  */
 export function readViolations(homeDir: string, memoryDir?: string): ViolationEntry[] {
@@ -102,6 +116,8 @@ export function readViolations(homeDir: string, memoryDir?: string): ViolationEn
 // ─── Write Operations ─────────────────────────────────────────
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Append a correction entry (append-only).
  */
 export function appendCorrection(
@@ -123,6 +139,8 @@ export function appendCorrection(
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Append an observation entry (append-only).
  */
 export function appendObservation(
@@ -143,6 +161,8 @@ export function appendObservation(
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Record a session entry tagged by assistant name.
  */
 export function recordSession(
@@ -163,6 +183,8 @@ export function recordSession(
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Append a violation entry.
  */
 export function appendViolation(
@@ -185,6 +207,8 @@ export function appendViolation(
 // ─── Helpers ──────────────────────────────────────────────────
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Parse a JSONL file into an array of typed objects.
  */
 function parseJsonl<T>(filePath: string): T[] {
@@ -203,6 +227,8 @@ function parseJsonl<T>(filePath: string): T[] {
 }
 
 /**
+ *
+ * @internal — Internal helper, not part of the public adapter API.
  * Append a JSONL entry to a file with secure permissions.
  */
 function appendJsonl(filePath: string, entry: unknown): void {
