@@ -100,17 +100,6 @@
           }
         ]
       }
-    ],
-    "DotenvAppend": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash __HOME__/.claude/hooks/dotenv-append.sh"
-          }
-        ]
-      }
     ]
   },
   "autoMemoryEnabled": true,
