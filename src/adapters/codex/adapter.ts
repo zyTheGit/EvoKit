@@ -200,7 +200,7 @@ export class CodexAdapter implements AdapterInstaller {
  * Install EvoKit for Codex CLI.
  * Delegates to the layout engine via `getLayout()` + `executeLayout()`.
  */
-export async function installCodex(config: CodexInstallConfig): Promise<InstallSummary> {
+export function installCodex(config: CodexInstallConfig): InstallSummary {
   const codexHome = resolveCodexHome(config.homeDir);
   const codexTemplateDir = path.join(config.templateDir, 'codex');
 

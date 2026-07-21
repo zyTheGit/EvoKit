@@ -273,6 +273,7 @@ export class OpenCodeAdapter implements AdapterInstaller {
       adapterHome: resolveOpenCodeConfigHome(homeDir),
       allPass,
       checks,
+      projectDir,
     };
   }
 }
@@ -283,7 +284,7 @@ export class OpenCodeAdapter implements AdapterInstaller {
  * Install EvoKit for OpenCode CLI.
  * Delegates to the layout engine via `getLayout()` + `executeLayout()`.
  */
-export async function installOpenCode(config: OpenCodeInstallConfig): Promise<InstallSummary> {
+export function installOpenCode(config: OpenCodeInstallConfig): InstallSummary {
   const opencodeTemplateDir = path.join(config.templateDir, 'opencode');
   const dryRun = config.dryRun ?? false;
 

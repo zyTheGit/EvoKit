@@ -45,6 +45,8 @@ export interface AdapterStatus {
   adapterHome: string;
   allPass: boolean;
   checks: AdapterVerifyCheck[];
+  /** Project directory (for adapters that install project-level files, e.g. OpenCode) */
+  projectDir?: string;
 }
 
 /**

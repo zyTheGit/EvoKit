@@ -45,11 +45,11 @@ describe('codex-installer', () => {
   });
 
   describe('installCodex', () => {
-    it('creates directory structure and copies files', async () => {
+    it('creates directory structure and copies files', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const summary = await installCodex({ homeDir, templateDir, dryRun: false });
+      const summary = installCodex({ homeDir, templateDir, dryRun: false });
 
       const codexHome = resolveCodexHome(homeDir);
       expect(fs.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(true);
@@ -74,11 +74,11 @@ describe('codex-installer', () => {
       expect(summary.rulesInstalled).toBe(1);
     });
 
-    it('respects dry-run mode', async () => {
+    it('respects dry-run mode', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const summary = await installCodex({ homeDir, templateDir, dryRun: true });
+      const summary = installCodex({ homeDir, templateDir, dryRun: true });
 
       const codexHome = resolveCodexHome(homeDir);
       expect(fs.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(false);
@@ -86,20 +86,20 @@ describe('codex-installer', () => {
       expect(summary.hooksInstalled).toBe(3);
     });
 
-    it('is idempotent — skips existing files', async () => {
+    it('is idempotent — skips existing files', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const first = await installCodex({ homeDir, templateDir, dryRun: false });
-      const second = await installCodex({ homeDir, templateDir, dryRun: false });
+      const first = installCodex({ homeDir, templateDir, dryRun: false });
+      const second = installCodex({ homeDir, templateDir, dryRun: false });
 
       expect(second.filesSkipped).toBeGreaterThan(0);
     });
 
-    it('throws with invalid template path', async () => {
-      await expect(
-        installCodex({ homeDir: tmpDir(), templateDir: '/nonexistent' }),
-      ).rejects.toThrow('Codex template not found');
+    it('throws with invalid template path', () => {
+      expect(() => installCodex({ homeDir: tmpDir(), templateDir: '/nonexistent' })).toThrow(
+        'Codex template not found',
+      );
     });
   });
 
@@ -112,10 +112,10 @@ describe('codex-installer', () => {
       expect(failing.length).toBeGreaterThan(2);
     });
 
-    it('passes for complete installation', async () => {
+    it('passes for complete installation', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
-      await installCodex({ homeDir, templateDir, dryRun: false });
+      installCodex({ homeDir, templateDir, dryRun: false });
       // Create shared memory (for fully complete setup)
       fs.mkdirSync(path.join(homeDir, '.codex', 'memory'), { recursive: true });
 
@@ -305,9 +305,9 @@ describe('codex-adapter memory', () => {
       expect(status.installed).toBe(false);
     });
 
-    it('reports installed after template install', async () => {
+    it('reports installed after template install', () => {
       const templateDir = path.resolve('template');
-      await installCodex({ homeDir, templateDir, dryRun: false });
+      installCodex({ homeDir, templateDir, dryRun: false });
 
       const status = getCodexStatus(homeDir);
       expect(status.installed).toBe(true);
