@@ -107,90 +107,9 @@ export interface InstallSummary {
   agentsInstalled: number;
 }
 
-// ─── Codex Adapter Types ─────────────────────────────────────
-
-/** Supported Codex CLI hook event names */
-export type CodexHookEventName =
-  | 'SessionStart'
-  | 'SubagentStart'
-  | 'PreToolUse'
-  | 'PermissionRequest'
-  | 'PostToolUse'
-  | 'PreCompact'
-  | 'PostCompact'
-  | 'UserPromptSubmit'
-  | 'SubagentStop'
-  | 'Stop';
-
-/** Scope of a Codex hook event */
-export type CodexHookScope = 'thread' | 'turn' | 'subagent';
-
-/** Configuration for a single Codex hook handler */
-export interface CodexHookHandler {
-  type: 'command';
-  command: string;
-  command_windows?: string;
-  timeout?: number;
-  statusMessage?: string;
-  async?: boolean;
-}
-
-/** A matcher group with hooks for a Codex event */
-export interface CodexHookMatcherGroup {
-  matcher: string;
-  hooks: CodexHookHandler[];
-}
-
-/** Full hooks.json structure */
-export interface CodexHooksJson {
-  hooks: Partial<Record<CodexHookEventName, CodexHookMatcherGroup[]>>;
-}
-
-/** Options for the Codex adapter */
-export interface CodexAdapterOptions {
-  codexHome?: string;
-  sharedMemoryDir?: string;
-  dryRun?: boolean;
-  verify?: boolean;
-}
-
-/** Codex-specific installation config */
-export interface CodexInstallConfig {
-  homeDir: string;
-  templateDir: string;
-  codexHome?: string;
-  dryRun?: boolean;
-}
-
-/** Result from a Codex hook script execution */
-export interface CodexHookResult {
-  continue: boolean;
-  stopReason?: string;
-  systemMessage?: string;
-  permissions?: Record<string, 'allow' | 'deny' | 'prompt'>;
-  additionalContext?: string;
-}
-
 /** Shared memory entry tagged by assistant */
 export interface SharedMemoryEntry {
   assistant: 'claude' | 'codex' | 'opencode' | 'aider';
   timestamp: string;
   data: Record<string, unknown>;
-}
-
-// ─── OpenCode Adapter Types ────────────────────────────────────
-
-/** Options for the OpenCode adapter */
-export interface OpenCodeAdapterOptions {
-  opencodeDir?: string;
-  dryRun?: boolean;
-  verify?: boolean;
-}
-
-/** OpenCode-specific installation config */
-export interface OpenCodeInstallConfig {
-  homeDir: string;
-  projectDir: string;
-  templateDir: string;
-  dryRun?: boolean;
 }

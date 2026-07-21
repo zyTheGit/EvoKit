@@ -11,6 +11,8 @@
  * - .codex/rules/ for Starlark permission rules
  * - ~/.codex/memory/ for evolution data
  *
+ * Uses the declarative `AdapterLayout` + `executeLayout()` engine.
+ *
  * @packageDocumentation
  */
 
@@ -24,16 +26,12 @@ import {
   type AdapterInstallConfig,
   type AdapterInstallResult,
   type AdapterVerifyCheck,
+  type AdapterStatus,
 } from '../types.js';
-import {
-  CodexAdapterOptions,
-  CodexInstallConfig,
-  VerifyResult,
-  InstallSummary,
-  SessionEntry,
-} from '../../core/types.js';
-
-import { installCodexTemplate, verifyCodexInstallation } from './installer.js';
+import type { CodexAdapterOptions, CodexInstallConfig } from './types.js';
+import type { VerifyResult, InstallSummary, SessionEntry } from '../../core/types.js';
+import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
+import { executeLayout } from '../../core/layout-engine.js';
 import { CodexHooksBuilder } from './hooks.js';
 
 // ESM __dirname equivalent
@@ -50,6 +48,90 @@ export function resolveCodexHome(homeDir: string): string {
   return process.env.CODEX_HOME || path.join(homeDir, '.codex');
 }
 
+// ─── Layout builder ────────────────────────────────────────────
+
+/**
+ * Build the declarative layout for Codex CLI adapter installation.
+ */
+export function getLayout(opts: { homeDir: string; templateDir: string }): AdapterLayout {
+  const { homeDir, templateDir } = opts;
+  const codexHome = resolveCodexHome(homeDir);
+  const codexTemplateDir = path.join(templateDir, 'codex');
+
+  const sections: AdapterSection[] = [];
+
+  // ── 1. Directories ──────────────────────────────────────────
+  sections.push({
+    type: 'dirs',
+    paths: [...CODEX_SUBDIRS],
+  });
+
+  // ── 2. AGENTS.md (skip-if-exists, with __HOME__ replacement) ─
+  sections.push({
+    type: 'copy',
+    src: path.join(codexTemplateDir, 'AGENTS.md'),
+    dst: path.join(codexHome, 'AGENTS.md'),
+    strategy: 'skip-if-exists',
+    replaceHome: true,
+  });
+
+  // ── 3. hooks.json (always copy — upgrade path, with __HOME__) ─
+  sections.push({
+    type: 'copy',
+    src: path.join(codexTemplateDir, 'hooks.json'),
+    dst: path.join(codexHome, 'hooks.json'),
+    strategy: 'always',
+    replaceHome: true,
+  });
+
+  // ── 4. config.toml (skip-if-exists, no __HOME__ replacement) ─
+  sections.push({
+    type: 'copy',
+    src: path.join(codexTemplateDir, 'config.toml'),
+    dst: path.join(codexHome, 'config.toml'),
+    strategy: 'skip-if-exists',
+  });
+
+  // ── 5. Rules (always copy — upgrade path) ────────────────────
+  sections.push({
+    type: 'copy-dir',
+    srcDir: path.join(codexTemplateDir, 'rules'),
+    dstDir: path.join(codexHome, 'rules'),
+    filter: '.rules',
+    strategy: 'always',
+    counter: 'rulesInstalled',
+  });
+
+  // ── 6. Hook scripts (always copy, with __HOME__) ─────────────
+  sections.push({
+    type: 'copy-dir',
+    srcDir: path.join(codexTemplateDir, 'hooks-scripts'),
+    dstDir: path.join(codexHome, 'hooks-scripts'),
+    filter: '.sh',
+    strategy: 'always',
+    replaceHome: true,
+    counter: 'hooksInstalled',
+  });
+
+  // ── 7. Memory seed (skip-if-exists) ──────────────────────────
+  sections.push({
+    type: 'seed-memory',
+    srcDir: path.join(codexTemplateDir, 'memory'),
+    dstDir: path.join(codexHome, 'memory'),
+    files: [...MEMORY_SEED_FILES],
+  });
+
+  // ── 8. Permissions ───────────────────────────────────────────
+  sections.push({
+    type: 'permissions',
+    dir: path.join(codexHome, 'hooks-scripts'),
+    extension: '.sh',
+    mode: 0o755,
+  });
+
+  return { targetDir: codexHome, sections };
+}
+
 // ─── AdapterInstaller Implementation ─────────────────────────────
 
 export class CodexAdapter implements AdapterInstaller {
@@ -63,18 +145,8 @@ export class CodexAdapter implements AdapterInstaller {
     const templateDir = config.templateDir;
     const codexHome = resolveCodexHome(homeDir);
     const codexTemplateDir = path.join(templateDir, 'codex');
-    const dryRun = config.dryRun ?? false;
 
-    const result: AdapterInstallResult = {
-      filesCreated: 0,
-      filesSkipped: 0,
-      hooksInstalled: 0,
-      commandsInstalled: 0,
-      rulesInstalled: 0,
-      agentsInstalled: 0,
-      adapterHome: codexHome,
-    };
-
+    // Validate template exists
     if (!fse.existsSync(path.join(codexTemplateDir, 'AGENTS.md'))) {
       throw new Error(
         `Codex template not found at: ${codexTemplateDir}\n` +
@@ -82,111 +154,21 @@ export class CodexAdapter implements AdapterInstaller {
       );
     }
 
-    // 1. Create directories
-    if (!dryRun) {
-      fse.ensureDirSync(codexHome);
-      for (const subdir of CODEX_SUBDIRS) {
-        fse.ensureDirSync(path.join(codexHome, subdir));
-      }
-    }
+    const layout = getLayout({ homeDir, templateDir });
+    const summary = executeLayout(layout, {
+      homeDir,
+      dryRun: config.dryRun ?? false,
+    });
 
-    // 2. AGENTS.md (only if not exists)
-    const agentsTarget = path.join(codexHome, 'AGENTS.md');
-    if (!fse.existsSync(agentsTarget)) {
-      const src = path.join(codexTemplateDir, 'AGENTS.md');
-      if (fse.existsSync(src)) {
-        if (!dryRun) {
-          let content = fs.readFileSync(src, 'utf-8');
-          content = content.replace(/__HOME__/g, homeDir);
-          fs.writeFileSync(agentsTarget, content, 'utf-8');
-        }
-        result.filesCreated++;
-      }
-    } else {
-      result.filesSkipped++;
-    }
-
-    // 3. hooks.json (always copy — upgrade path)
-    const hooksSrc = path.join(codexTemplateDir, 'hooks.json');
-    if (fse.existsSync(hooksSrc)) {
-      if (!dryRun) {
-        let content = fs.readFileSync(hooksSrc, 'utf-8');
-        content = content.replace(/__HOME__/g, homeDir);
-        fs.writeFileSync(path.join(codexHome, 'hooks.json'), content, 'utf-8');
-      }
-      result.filesCreated++;
-    }
-
-    // 4. config.toml (only if not exists)
-    const configTarget = path.join(codexHome, 'config.toml');
-    if (!fse.existsSync(configTarget)) {
-      const configSrc = path.join(codexTemplateDir, 'config.toml');
-      if (fse.existsSync(configSrc)) {
-        if (!dryRun) fs.copyFileSync(configSrc, configTarget);
-        result.filesCreated++;
-      }
-    } else {
-      result.filesSkipped++;
-    }
-
-    // 5. Rules (always copy)
-    const rulesSrcDir = path.join(codexTemplateDir, 'rules');
-    const rulesDstDir = path.join(codexHome, 'rules');
-    if (fse.existsSync(rulesSrcDir)) {
-      const ruleFiles = fs.readdirSync(rulesSrcDir).filter((f) => f.endsWith('.rules'));
-      if (!dryRun) {
-        for (const file of ruleFiles) {
-          fse.copySync(path.join(rulesSrcDir, file), path.join(rulesDstDir, file));
-        }
-      }
-      result.rulesInstalled += ruleFiles.length;
-    }
-
-    // 6. Hook scripts (always copy, with __HOME__)
-    const hooksScriptsSrc = path.join(codexTemplateDir, 'hooks-scripts');
-    const hooksScriptsDst = path.join(codexHome, 'hooks-scripts');
-    if (fse.existsSync(hooksScriptsSrc)) {
-      if (!dryRun) {
-        for (const script of HOOK_SCRIPTS) {
-          const src = path.join(hooksScriptsSrc, script);
-          if (fse.existsSync(src)) {
-            let content = fs.readFileSync(src, 'utf-8');
-            content = content.replace(/__HOME__/g, homeDir);
-            fs.writeFileSync(path.join(hooksScriptsDst, script), content, 'utf-8');
-          }
-        }
-      }
-      result.hooksInstalled += HOOK_SCRIPTS.length;
-    }
-
-    // 7. Memory seed
-    const memSrcDir = path.join(codexTemplateDir, 'memory');
-    const memDstDir = path.join(codexHome, 'memory');
-    if (fse.existsSync(memSrcDir)) {
-      if (!dryRun) fse.ensureDirSync(memDstDir);
-      for (const file of MEMORY_SEED_FILES) {
-        const target = path.join(memDstDir, file);
-        if (!fse.existsSync(target)) {
-          const src = path.join(memSrcDir, file);
-          if (fse.existsSync(src)) {
-            if (!dryRun) fse.copySync(src, target);
-            result.filesCreated++;
-          }
-        } else {
-          result.filesSkipped++;
-        }
-      }
-    }
-
-    // 8. Permissions
-    if (!dryRun) {
-      for (const script of HOOK_SCRIPTS) {
-        const sp = path.join(hooksScriptsDst, script);
-        if (fse.existsSync(sp)) fs.chmodSync(sp, 0o755);
-      }
-    }
-
-    return result;
+    return {
+      filesCreated: summary.filesCreated,
+      filesSkipped: summary.filesSkipped,
+      hooksInstalled: summary.hooksInstalled,
+      commandsInstalled: summary.commandsInstalled,
+      rulesInstalled: summary.rulesInstalled,
+      agentsInstalled: summary.agentsInstalled,
+      adapterHome: codexHome,
+    };
   }
 
   verify(config: AdapterInstallConfig): AdapterVerifyCheck[] {
@@ -194,7 +176,7 @@ export class CodexAdapter implements AdapterInstaller {
     return this._verifyCodexInstallation(codexHome);
   }
 
-  status(config: AdapterInstallConfig): Record<string, unknown> {
+  status(config: AdapterInstallConfig): AdapterStatus {
     const codexHome = resolveCodexHome(config.homeDir);
     const checks = this._verifyCodexInstallation(codexHome);
     const allPass = checks.every((c) => c.pass);
@@ -208,49 +190,7 @@ export class CodexAdapter implements AdapterInstaller {
   }
 
   private _verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[] {
-    const checks: AdapterVerifyCheck[] = [];
-
-    for (const file of ['AGENTS.md', 'hooks.json', 'config.toml']) {
-      const exists = fse.existsSync(path.join(codexHome, file));
-      checks.push({
-        name: `.codex/${file}`,
-        pass: exists,
-        detail: exists ? undefined : 'Missing file',
-      });
-    }
-
-    for (const subdir of CODEX_SUBDIRS) {
-      const exists = fse.existsSync(path.join(codexHome, subdir));
-      checks.push({
-        name: `.codex/${subdir}/`,
-        pass: exists,
-        detail: exists ? undefined : 'Missing directory',
-      });
-    }
-
-    const hooksDir = path.join(codexHome, 'hooks-scripts');
-    if (fse.existsSync(hooksDir)) {
-      for (const script of HOOK_SCRIPTS) {
-        const sp = path.join(hooksDir, script);
-        const exists = fse.existsSync(sp);
-        if (exists) {
-          const stats = fs.statSync(sp);
-          checks.push({
-            name: `.codex/hooks-scripts/${script}`,
-            pass: (stats.mode & 0o111) !== 0,
-            detail: (stats.mode & 0o111) !== 0 ? undefined : 'Not executable',
-          });
-        } else {
-          checks.push({
-            name: `.codex/hooks-scripts/${script}`,
-            pass: false,
-            detail: 'Missing script',
-          });
-        }
-      }
-    }
-
-    return checks;
+    return verifyCodexInstallation(codexHome);
   }
 }
 
@@ -258,10 +198,25 @@ export class CodexAdapter implements AdapterInstaller {
 
 /**
  * Install EvoKit for Codex CLI.
- * Copies templates to ~/.codex/ and sets up hooks.
+ * Delegates to the layout engine via `getLayout()` + `executeLayout()`.
  */
 export async function installCodex(config: CodexInstallConfig): Promise<InstallSummary> {
-  return installCodexTemplate(config);
+  const codexHome = resolveCodexHome(config.homeDir);
+  const codexTemplateDir = path.join(config.templateDir, 'codex');
+
+  // Validate template exists
+  if (!fse.existsSync(path.join(codexTemplateDir, 'AGENTS.md'))) {
+    throw new Error(
+      `Codex template not found at: ${codexTemplateDir}\n` +
+        '  Ensure the template directory contains a codex/ subdirectory with AGENTS.md.',
+    );
+  }
+
+  const layout = getLayout({ homeDir: config.homeDir, templateDir: config.templateDir });
+  return executeLayout(layout, {
+    homeDir: config.homeDir,
+    dryRun: config.dryRun ?? false,
+  });
 }
 
 /**
@@ -476,7 +431,7 @@ export function runCodexCommand(
  */
 export function verifyCodexSetup(
   homeDir: string,
-  options: CodexAdapterOptions = {},
+  _options: CodexAdapterOptions = {},
 ): VerifyResult[] {
   const codexHome = resolveCodexHome(homeDir);
   const checks = verifyCodexInstallation(codexHome);
@@ -491,6 +446,56 @@ export function verifyCodexSetup(
   }
 
   return results;
+}
+
+/**
+ * Verify a Codex CLI installation at a given path.
+ * Public wrapper used by standalone API.
+ */
+export function verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[] {
+  const checks: AdapterVerifyCheck[] = [];
+
+  for (const file of ['AGENTS.md', 'hooks.json', 'config.toml']) {
+    const exists = fse.existsSync(path.join(codexHome, file));
+    checks.push({
+      name: `.codex/${file}`,
+      pass: exists,
+      detail: exists ? undefined : 'Missing file',
+    });
+  }
+
+  for (const subdir of CODEX_SUBDIRS) {
+    const exists = fse.existsSync(path.join(codexHome, subdir));
+    checks.push({
+      name: `.codex/${subdir}/`,
+      pass: exists,
+      detail: exists ? undefined : 'Missing directory',
+    });
+  }
+
+  const hooksDir = path.join(codexHome, 'hooks-scripts');
+  if (fse.existsSync(hooksDir)) {
+    for (const script of HOOK_SCRIPTS) {
+      const sp = path.join(hooksDir, script);
+      const exists = fse.existsSync(sp);
+      if (exists) {
+        const stats = fs.statSync(sp);
+        checks.push({
+          name: `.codex/hooks-scripts/${script}`,
+          pass: (stats.mode & 0o111) !== 0,
+          detail: (stats.mode & 0o111) !== 0 ? undefined : 'Not executable',
+        });
+      } else {
+        checks.push({
+          name: `.codex/hooks-scripts/${script}`,
+          pass: false,
+          detail: 'Missing script',
+        });
+      }
+    }
+  }
+
+  return checks;
 }
 
 /**

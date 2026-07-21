@@ -637,4 +637,208 @@ describe('layout-engine', () => {
       expect(summary.filesCreated).toBeGreaterThanOrEqual(1);
     });
   });
+
+  // ─── additional coverage ─────────────────────────────────────
+
+  describe('copy section — dry-run', () => {
+    it('does not write files in dry-run mode', () => {
+      const src = srcFile('hello.txt', 'hello world');
+      const dst = targetPath('hello.txt');
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [{ type: 'copy', src, dst, strategy: 'always' }],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome, dryRun: true });
+
+      expect(fs.existsSync(dst)).toBe(false);
+      expect(summary.filesCreated).toBe(1); // counts what WOULD be created
+    });
+  });
+
+  describe('copy-dir section — counter variations', () => {
+    it('increments commandsInstalled counter', () => {
+      const src = srcDir('commands', { 'boot.md': '# Boot', 'evolve.md': '# Evolve' });
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [
+          {
+            type: 'copy-dir',
+            srcDir: src,
+            dstDir: targetPath('commands'),
+            filter: '.md',
+            strategy: 'always',
+            counter: 'commandsInstalled',
+          },
+        ],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome });
+
+      expect(summary.commandsInstalled).toBe(2);
+      expect(summary.filesCreated).toBe(0); // counter redirects to commandsInstalled
+    });
+
+    it('defaults to filesCreated when no counter specified', () => {
+      const src = srcDir('data', { 'file.txt': 'content' });
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [
+          {
+            type: 'copy-dir',
+            srcDir: src,
+            dstDir: targetPath('data'),
+            strategy: 'always',
+          },
+        ],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome });
+      expect(summary.filesCreated).toBe(1);
+    });
+  });
+
+  describe('merge-settings — edge cases', () => {
+    it('overwrites corrupt/invalid JSON target', () => {
+      const src = srcFile('settings.json', '{"valid": true}');
+      const dst = targetPath('settings.json');
+      fs.writeFileSync(dst, 'not valid json{{{', 'utf-8');
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [{ type: 'merge-settings', srcPath: src, dstPath: dst }],
+      };
+
+      executeLayout(layout, { homeDir: tmpHome });
+
+      const content = fs.readFileSync(dst, 'utf-8');
+      expect(JSON.parse(content)).toEqual({ valid: true });
+    });
+
+    it('replaces __HOME__ on fresh install', () => {
+      const src = srcFile('settings.json', '{"home": "__HOME__"}');
+      const dst = targetPath('settings.json');
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [{ type: 'merge-settings', srcPath: src, dstPath: dst, replaceHome: true }],
+      };
+
+      executeLayout(layout, { homeDir: '/opt/home' });
+
+      const content = fs.readFileSync(dst, 'utf-8');
+      expect(content).toContain('/opt/home');
+      expect(content).not.toContain('__HOME__');
+    });
+
+    it('does not write in dry-run mode for fresh install', () => {
+      const src = srcFile('settings.json', '{"hooks":{}}');
+      const dst = targetPath('settings.json');
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [{ type: 'merge-settings', srcPath: src, dstPath: dst }],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome, dryRun: true });
+
+      expect(fs.existsSync(dst)).toBe(false);
+      expect(summary.filesCreated).toBe(1);
+    });
+  });
+
+  describe('seed-memory — specific files list', () => {
+    it('only seeds files listed in the files array', () => {
+      const src = srcDir('memory', {
+        'README.md': '# Memory',
+        'data.jsonl': '[]',
+        'extra.txt': 'x',
+      });
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [
+          {
+            type: 'seed-memory',
+            srcDir: src,
+            dstDir: targetPath('memory'),
+            files: ['README.md'],
+          },
+        ],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome });
+
+      expect(fs.existsSync(targetPath('memory', 'README.md'))).toBe(true);
+      expect(fs.existsSync(targetPath('memory', 'data.jsonl'))).toBe(false);
+      expect(fs.existsSync(targetPath('memory', 'extra.txt'))).toBe(false);
+      expect(summary.filesCreated).toBe(1);
+    });
+
+    it('does not write in dry-run mode', () => {
+      const src = srcDir('memory', { 'README.md': '# Memory' });
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [
+          {
+            type: 'seed-memory',
+            srcDir: src,
+            dstDir: targetPath('memory'),
+          },
+        ],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome, dryRun: true });
+
+      expect(fs.existsSync(targetPath('memory', 'README.md'))).toBe(false);
+      expect(summary.filesCreated).toBe(1); // still counts what would be created
+    });
+  });
+
+  describe('copy-skills — edge cases', () => {
+    it('skips directories without SKILL.md', () => {
+      const skillDir = path.join(tmpHome, 'src', 'skills', 'noskill');
+      fse.ensureDirSync(skillDir);
+      fs.writeFileSync(path.join(skillDir, 'README.md'), '# Not a skill', 'utf-8');
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [
+          {
+            type: 'copy-skills',
+            srcDir: path.join(tmpHome, 'src', 'skills'),
+            dstDir: targetPath('skills'),
+          },
+        ],
+      };
+
+      const summary = executeLayout(layout, { homeDir: tmpHome });
+
+      // No SKILL.md = not a skill directory
+      expect(fs.existsSync(targetPath('skills', 'noskill'))).toBe(false);
+      expect(summary.filesCreated).toBe(0);
+    });
+  });
+
+  describe('copy section — always overwrite', () => {
+    it('always strategy overwrites existing file', () => {
+      const src = srcFile('config.json', '{"version": 2}');
+      const dst = targetPath('config.json');
+      fs.writeFileSync(dst, '{"version": 1}', 'utf-8');
+
+      const layout: AdapterLayout = {
+        targetDir: path.join(tmpHome, 'target'),
+        sections: [{ type: 'copy', src, dst, strategy: 'always' }],
+      };
+
+      executeLayout(layout, { homeDir: tmpHome });
+
+      const content = fs.readFileSync(dst, 'utf-8');
+      expect(JSON.parse(content)).toEqual({ version: 2 });
+    });
+  });
 });

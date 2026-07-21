@@ -13,6 +13,8 @@
  * - .opencode/tools/ for custom tools
  * - .opencode/agent/ for project-level agent overrides
  *
+ * Uses the declarative `AdapterLayout` + `executeLayout()` engine.
+ *
  * @packageDocumentation
  */
 
@@ -24,19 +26,12 @@ import {
   type AdapterInstallConfig,
   type AdapterInstallResult,
   type AdapterVerifyCheck,
+  type AdapterStatus,
 } from '../types.js';
-import type {
-  InstallSummary,
-  OpenCodeAdapterOptions,
-  OpenCodeInstallConfig,
-  SessionEntry,
-} from '../../core/types.js';
-import { installOrMergeAgents } from '../../core/merge-agents.js';
-import {
-  installOpenCodeTemplate,
-  verifyOpenCodeInstallation,
-  resolveOpenCodeConfigHome,
-} from './installer.js';
+import type { InstallSummary, SessionEntry } from '../../core/types.js';
+import type { OpenCodeAdapterOptions, OpenCodeInstallConfig } from './types.js';
+import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
+import { executeLayout } from '../../core/layout-engine.js';
 
 export const OPENCODE_ADAPTER_VERSION = '0.5.0';
 
@@ -48,10 +43,173 @@ const TOOL_FILES = [
   'evokit-memory.ts',
   'evokit-session.ts',
 ] as const;
+const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
 const MEMORY_SEED_FILES = ['README.md'] as const;
 
 export function resolveOpenCodeProjectDir(projectDir: string): string {
   return path.join(projectDir, '.opencode');
+}
+
+/**
+ * Resolve OpenCode global config directory.
+ * Respects XDG_CONFIG_HOME, defaults to ~/.config/opencode/.
+ */
+export function resolveOpenCodeConfigHome(homeDir: string): string {
+  const xdgConfig = process.env.XDG_CONFIG_HOME;
+  if (xdgConfig) {
+    return path.join(xdgConfig, 'opencode');
+  }
+  return path.join(homeDir, '.config', 'opencode');
+}
+
+// ─── Layout builder ────────────────────────────────────────────
+
+/**
+ * Build the declarative layout for OpenCode CLI adapter installation.
+ *
+ * OpenCode installs to two locations:
+ *   1. Global: ~/.config/opencode/
+ *   2. Project: .opencode/ + project root files
+ *
+ * The layout uses the global directory as targetDir; project-level
+ * files use absolute paths in their dst/dstDir fields.
+ */
+export function getLayout(opts: {
+  homeDir: string;
+  projectDir: string;
+  templateDir: string;
+}): AdapterLayout {
+  const { homeDir, projectDir, templateDir } = opts;
+  const opencodeDir = path.join(projectDir, '.opencode');
+  const opencodeTemplateDir = path.join(templateDir, 'opencode');
+  const globalDir = resolveOpenCodeConfigHome(homeDir);
+
+  const sections: AdapterSection[] = [];
+
+  // ═══════════════════════════════════════════════════════════
+  // GLOBAL INSTALL: ~/.config/opencode/
+  // ═══════════════════════════════════════════════════════════
+
+  // 1. Global directories
+  sections.push({
+    type: 'dirs',
+    paths: [...GLOBAL_DIRS],
+  });
+
+  // 2. AGENTS.md (global, skip-if-exists, with __HOME__ replacement)
+  sections.push({
+    type: 'copy',
+    src: path.join(opencodeTemplateDir, 'AGENTS.md'),
+    dst: path.join(globalDir, 'AGENTS.md'),
+    strategy: 'skip-if-exists',
+    replaceHome: true,
+  });
+
+  // 3. opencode.json (global, skip-if-exists, with __HOME__)
+  sections.push({
+    type: 'copy',
+    src: path.join(opencodeTemplateDir, 'opencode.json'),
+    dst: path.join(globalDir, 'opencode.json'),
+    strategy: 'skip-if-exists',
+    replaceHome: true,
+  });
+
+  // 4. Agent definitions (global ~/.config/opencode/agent/)
+  sections.push({
+    type: 'merge-agents',
+    srcDir: path.join(opencodeTemplateDir, 'agent'),
+    dstDir: path.join(globalDir, 'agent'),
+  });
+
+  // 5. Memory seed (global, skip-if-exists)
+  sections.push({
+    type: 'seed-memory',
+    srcDir: path.join(opencodeTemplateDir, 'memory'),
+    dstDir: path.join(globalDir, 'memory'),
+    files: [...MEMORY_SEED_FILES],
+  });
+
+  // 6. Skills (seed, skip-if-exists per file via copy-dir)
+  sections.push({
+    type: 'copy-skills',
+    srcDir: path.join(opencodeTemplateDir, 'skills'),
+    dstDir: path.join(globalDir, 'skills'),
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // PROJECT INSTALL: .opencode/  +  project root files
+  // ═══════════════════════════════════════════════════════════
+
+  // Note: Project directories are outside targetDir (globalDir).
+  // They will be created by the individual sections (copy-dir, merge-agents, etc.)
+  // via ensureDirSync on their dstDir. We add a dirs section for the
+  // project base directory using a relative path that will be resolved
+  // correctly by the engine (the engine creates targetDir at the start).
+
+  // 8. AGENTS.md (project root, skip-if-exists, with __HOME__)
+  sections.push({
+    type: 'copy',
+    src: path.join(opencodeTemplateDir, 'AGENTS.md'),
+    dst: path.join(projectDir, 'AGENTS.md'),
+    strategy: 'skip-if-exists',
+    replaceHome: true,
+  });
+
+  // 9. opencode.json (project root, skip-if-exists, with __HOME__)
+  sections.push({
+    type: 'copy',
+    src: path.join(opencodeTemplateDir, 'opencode.json'),
+    dst: path.join(projectDir, 'opencode.json'),
+    strategy: 'skip-if-exists',
+    replaceHome: true,
+  });
+
+  // 10. Tools (always copy — upgrade path, with __HOME__)
+  sections.push({
+    type: 'copy-dir',
+    srcDir: path.join(opencodeTemplateDir, 'tools'),
+    dstDir: path.join(opencodeDir, 'tools'),
+    filter: '.ts',
+    strategy: 'always',
+    replaceHome: true,
+  });
+
+  // 11. Project-level agents (merge, path .opencode/agent/)
+  sections.push({
+    type: 'merge-agents',
+    srcDir: path.join(opencodeTemplateDir, 'agent'),
+    dstDir: path.join(opencodeDir, 'agent'),
+  });
+
+  // 12. Project-level memory seed (skip-if-exists)
+  sections.push({
+    type: 'seed-memory',
+    srcDir: path.join(opencodeTemplateDir, 'memory'),
+    dstDir: path.join(opencodeDir, 'memory'),
+    files: [...MEMORY_SEED_FILES],
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // PERMISSIONS
+  // ═══════════════════════════════════════════════════════════
+
+  // 13. Tools — readable
+  sections.push({
+    type: 'permissions',
+    dir: path.join(opencodeDir, 'tools'),
+    extension: '.ts',
+    mode: 0o644,
+  });
+
+  // 14. Global memory JSONL files — 600 (personal data)
+  sections.push({
+    type: 'permissions',
+    dir: path.join(globalDir, 'memory'),
+    extension: '.jsonl',
+    mode: 0o600,
+  });
+
+  return { targetDir: globalDir, sections };
 }
 
 // ─── AdapterInstaller Implementation ─────────────────────────────
@@ -66,22 +224,35 @@ export class OpenCodeAdapter implements AdapterInstaller {
     const homeDir = config.homeDir;
     const projectDir = config.projectDir || process.cwd();
     const templateDir = config.templateDir;
+    const opencodeTemplateDir = path.join(templateDir, 'opencode');
     const dryRun = config.dryRun ?? false;
 
-    const result = installOpenCodeTemplate({
+    // Validate template exists
+    if (!fse.existsSync(path.join(opencodeTemplateDir, 'AGENTS.md'))) {
+      throw new Error(
+        `OpenCode template not found at: ${opencodeTemplateDir}\n` +
+          '  Ensure the template directory contains an opencode/ subdirectory with AGENTS.md.',
+      );
+    }
+
+    // Ensure project .opencode/ directory exists (outside targetDir/globalDir)
+    if (!dryRun) {
+      fse.ensureDirSync(path.join(projectDir, '.opencode'));
+    }
+
+    const layout = getLayout({ homeDir, projectDir, templateDir });
+    const summary = executeLayout(layout, {
       homeDir,
-      projectDir,
-      templateDir,
       dryRun,
     });
 
     return {
-      filesCreated: result.filesCreated,
-      filesSkipped: result.filesSkipped,
-      hooksInstalled: result.hooksInstalled,
-      commandsInstalled: result.commandsInstalled,
-      rulesInstalled: result.rulesInstalled,
-      agentsInstalled: result.agentsInstalled,
+      filesCreated: summary.filesCreated,
+      filesSkipped: summary.filesSkipped,
+      hooksInstalled: summary.hooksInstalled,
+      commandsInstalled: summary.commandsInstalled,
+      rulesInstalled: summary.rulesInstalled,
+      agentsInstalled: summary.agentsInstalled,
       adapterHome: resolveOpenCodeConfigHome(homeDir),
     };
   }
@@ -89,25 +260,18 @@ export class OpenCodeAdapter implements AdapterInstaller {
   verify(config: AdapterInstallConfig): AdapterVerifyCheck[] {
     const projectDir = config.projectDir || process.cwd();
     const homeDir = config.homeDir;
-    return verifyOpenCodeInstallation(projectDir, homeDir).map((c) => ({
-      name: c.name,
-      pass: c.pass,
-      detail: c.detail,
-    }));
+    return verifyOpenCodeInstallation(projectDir, homeDir);
   }
 
-  status(config: AdapterInstallConfig): Record<string, unknown> {
+  status(config: AdapterInstallConfig): AdapterStatus {
     const projectDir = config.projectDir || process.cwd();
     const homeDir = config.homeDir;
-    const checks = verifyOpenCodeInstallation(projectDir, homeDir).map((c) => ({
-      name: c.name,
-      pass: c.pass,
-      detail: c.detail,
-    }));
+    const checks = verifyOpenCodeInstallation(projectDir, homeDir);
+    const allPass = checks.every((c) => c.pass);
     return {
-      installed: checks.every((c) => c.pass),
+      installed: allPass,
       adapterHome: resolveOpenCodeConfigHome(homeDir),
-      projectDir,
+      allPass,
       checks,
     };
   }
@@ -117,9 +281,34 @@ export class OpenCodeAdapter implements AdapterInstaller {
 
 /**
  * Install EvoKit for OpenCode CLI.
+ * Delegates to the layout engine via `getLayout()` + `executeLayout()`.
  */
 export async function installOpenCode(config: OpenCodeInstallConfig): Promise<InstallSummary> {
-  return installOpenCodeTemplate(config);
+  const opencodeTemplateDir = path.join(config.templateDir, 'opencode');
+  const dryRun = config.dryRun ?? false;
+
+  // Validate template exists
+  if (!fse.existsSync(path.join(opencodeTemplateDir, 'AGENTS.md'))) {
+    throw new Error(
+      `OpenCode template not found at: ${opencodeTemplateDir}\n` +
+        '  Ensure the template directory contains an opencode/ subdirectory with AGENTS.md.',
+    );
+  }
+
+  // Ensure project .opencode/ directory exists (outside targetDir/globalDir)
+  if (!dryRun) {
+    fse.ensureDirSync(path.join(config.projectDir, '.opencode'));
+  }
+
+  const layout = getLayout({
+    homeDir: config.homeDir,
+    projectDir: config.projectDir,
+    templateDir: config.templateDir,
+  });
+  return executeLayout(layout, {
+    homeDir: config.homeDir,
+    dryRun,
+  });
 }
 
 /**
@@ -343,4 +532,92 @@ export function getOpenCodeStatus(projectDir: string): {
   }
 
   return result;
+}
+
+// ─── Verification ─────────────────────────────────────────────
+
+/**
+ * Verify an OpenCode EvoKit installation (both global and project).
+ */
+export function verifyOpenCodeInstallation(
+  projectDir: string,
+  homeDir: string,
+): AdapterVerifyCheck[] {
+  const opencodeDir = path.join(projectDir, '.opencode');
+  const globalDir = resolveOpenCodeConfigHome(homeDir);
+  const checks: AdapterVerifyCheck[] = [];
+
+  // Global config
+  checks.push({
+    name: '~/.config/opencode/AGENTS.md (global)',
+    pass: fse.existsSync(path.join(globalDir, 'AGENTS.md')),
+  });
+  checks.push({
+    name: '~/.config/opencode/opencode.json (global)',
+    pass: fse.existsSync(path.join(globalDir, 'opencode.json')),
+  });
+  for (const subdir of GLOBAL_DIRS) {
+    checks.push({
+      name: `~/.config/opencode/${subdir}/`,
+      pass: fse.existsSync(path.join(globalDir, subdir)),
+    });
+  }
+
+  // Project root files
+  for (const file of ['AGENTS.md', 'opencode.json']) {
+    const exists = fse.existsSync(path.join(projectDir, file));
+    checks.push({
+      name: `${file} (project root)`,
+      pass: exists,
+      detail: exists ? undefined : 'Missing file',
+    });
+  }
+
+  // Project subdirectories
+  for (const subdir of PROJECT_SUBDIRS) {
+    const exists = fse.existsSync(path.join(opencodeDir, subdir));
+    checks.push({
+      name: `.opencode/${subdir}/`,
+      pass: exists,
+      detail: exists ? undefined : 'Missing directory',
+    });
+  }
+
+  // Tool files
+  const toolsDir = path.join(opencodeDir, 'tools');
+  if (fse.existsSync(toolsDir)) {
+    for (const toolFile of TOOL_FILES) {
+      const exists = fse.existsSync(path.join(toolsDir, toolFile));
+      checks.push({
+        name: `.opencode/tools/${toolFile}`,
+        pass: exists,
+        detail: exists ? undefined : 'Missing tool',
+      });
+    }
+  }
+
+  // Agent files (global)
+  const globalAgentDir = path.join(globalDir, 'agent');
+  if (fse.existsSync(globalAgentDir)) {
+    for (const agentFile of AGENT_FILES) {
+      const exists = fse.existsSync(path.join(globalAgentDir, agentFile));
+      checks.push({
+        name: `~/.config/opencode/agent/${agentFile}`,
+        pass: exists,
+        detail: exists ? undefined : 'Missing agent definition',
+      });
+    }
+  }
+
+  // Global memory directory
+  const globalMemDir = path.join(globalDir, 'memory');
+  checks.push({
+    name: `~/.config/opencode/memory/`,
+    pass: true,
+    detail: fse.existsSync(globalMemDir)
+      ? undefined
+      : 'Not yet created (auto-created on first memory write)',
+  });
+
+  return checks;
 }

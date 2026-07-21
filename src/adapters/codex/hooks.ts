@@ -15,7 +15,7 @@ import {
   CodexHookHandler,
   CodexHookMatcherGroup,
   CodexHooksJson,
-} from '../../core/types.js';
+} from './types.js';
 
 /**
  * Builder for constructing hooks.json configurations.

@@ -39,6 +39,14 @@ export interface AdapterVerifyCheck {
   detail?: string;
 }
 
+/** Typed status returned by `AdapterInstaller.status()`. */
+export interface AdapterStatus {
+  installed: boolean;
+  adapterHome: string;
+  allPass: boolean;
+  checks: AdapterVerifyCheck[];
+}
+
 /**
  * Every adapter installer must implement this interface.
  * To add a new AI assistant (Cursor, Aider, Windsurf, …),
@@ -49,6 +57,8 @@ export interface AdapterInstaller {
   readonly label: string;
   readonly description: string;
   readonly version: string;
+  /** Mark as experimental — not yet fully implemented. */
+  readonly experimental?: boolean;
 
   /** Install template files for this adapter */
   install(config: AdapterInstallConfig): AdapterInstallResult;
@@ -56,6 +66,6 @@ export interface AdapterInstaller {
   /** Verify an existing installation */
   verify(config: AdapterInstallConfig): AdapterVerifyCheck[];
 
-  /** Return status info (for doctor / status checks) */
-  status(config: AdapterInstallConfig): Record<string, unknown>;
+  /** Return typed status info (for doctor / status checks) */
+  status(config: AdapterInstallConfig): AdapterStatus;
 }
