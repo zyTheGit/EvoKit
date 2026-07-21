@@ -14,6 +14,7 @@
 
 import fs from 'node:fs';
 import fse from 'fs-extra';
+import { replaceHomeInObject } from './replace-home.js';
 
 export interface SettingsMergeResult {
   changed: boolean;
@@ -48,7 +49,9 @@ export function mergeSettings(
     return { changed: false, reason: `Invalid JSON: ${e.message}` };
   }
 
-  // 2. Read template
+  // 2. Read and parse template (before __HOME__ replacement to avoid
+  //    Windows backslash issues — e.g. C:\Users\x produces invalid
+  //    JSON escape sequences like \U when replaced in raw strings)
   let templateRaw: string;
   try {
     templateRaw = fs.readFileSync(templatePath, 'utf-8');
@@ -58,13 +61,17 @@ export function mergeSettings(
 
   let template: Record<string, unknown>;
   try {
-    template = JSON.parse(templateRaw.replace(/__HOME__/g, homeDir));
+    template = JSON.parse(templateRaw);
   } catch (e: any) {
     return {
       changed: false,
-      reason: `Invalid template JSON after __HOME__ replacement: ${e.message}`,
+      reason: `Invalid template JSON: ${e.message}`,
     };
   }
+
+  // Replace __HOME__ in parsed object — JSON.stringify will escape
+  // backslashes automatically when writing, producing valid JSON.
+  template = replaceHomeInObject(template, homeDir);
 
   let changed = false;
 

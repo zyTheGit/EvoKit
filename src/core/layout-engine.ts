@@ -13,6 +13,7 @@ import path from 'node:path';
 import fse from 'fs-extra';
 import { mergeSettings } from './merge-settings.js';
 import { installOrMergeAgents } from './merge-agents.js';
+import { replaceHomeInString, replaceHomeInObject } from './replace-home.js';
 import type { InstallSummary } from './types.js';
 import type {
   AdapterLayout,
@@ -113,7 +114,7 @@ function executeCopy(
         // Append source content
         if (!dryRun) {
           let content = fs.readFileSync(src, 'utf-8');
-          if (replaceHome) content = content.replace(/__HOME__/g, homeDir);
+          if (replaceHome) content = replaceHomeInString(content, homeDir);
           fs.appendFileSync(dst, '\n\n---\n\n' + content, 'utf-8');
         }
         summary.filesCreated++;
@@ -129,7 +130,7 @@ function executeCopy(
   // 'always' strategy or target doesn't exist
   if (!dryRun) {
     let content = fs.readFileSync(src, 'utf-8');
-    if (replaceHome) content = content.replace(/__HOME__/g, homeDir);
+    if (replaceHome) content = replaceHomeInString(content, homeDir);
     fse.ensureDirSync(path.dirname(dst));
     fs.writeFileSync(dst, content, 'utf-8');
   }
@@ -163,7 +164,7 @@ function executeCopyDir(
     if (!dryRun) {
       if (replaceHome) {
         let content = fs.readFileSync(srcPath, 'utf-8');
-        content = content.replace(/__HOME__/g, homeDir);
+        content = replaceHomeInString(content, homeDir);
         fs.writeFileSync(dstPath, content, 'utf-8');
       } else {
         fse.copySync(srcPath, dstPath);
@@ -231,10 +232,23 @@ function executeMergeSettings(
   if (!fse.existsSync(dstPath)) {
     // Fresh install — copy template with optional __HOME__ replacement
     if (!dryRun) {
-      let content = fs.readFileSync(srcPath, 'utf-8');
-      if (replaceHome) content = content.replace(/__HOME__/g, homeDir);
-      fse.ensureDirSync(path.dirname(dstPath));
-      fs.writeFileSync(dstPath, content, 'utf-8');
+      const content = fs.readFileSync(srcPath, 'utf-8');
+      if (replaceHome) {
+        // Parse JSON first, then replace __HOME__ in the object to avoid
+        // Windows backslash issues (e.g. C:\Users\x → invalid JSON escape)
+        try {
+          const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
+          fse.ensureDirSync(path.dirname(dstPath));
+          fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+        } catch {
+          // Fallback: if template is not valid JSON, do string replacement
+          fse.ensureDirSync(path.dirname(dstPath));
+          fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
+        }
+      } else {
+        fse.ensureDirSync(path.dirname(dstPath));
+        fs.writeFileSync(dstPath, content, 'utf-8');
+      }
     }
     summary.filesCreated++;
     return;
@@ -251,9 +265,17 @@ function executeMergeSettings(
   if (!isValid) {
     // Corrupt/empty file — overwrite from template
     if (!dryRun) {
-      let content = fs.readFileSync(srcPath, 'utf-8');
-      if (replaceHome) content = content.replace(/__HOME__/g, homeDir);
-      fs.writeFileSync(dstPath, content, 'utf-8');
+      const content = fs.readFileSync(srcPath, 'utf-8');
+      if (replaceHome) {
+        try {
+          const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
+          fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+        } catch {
+          fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
+        }
+      } else {
+        fs.writeFileSync(dstPath, content, 'utf-8');
+      }
     }
     summary.filesCreated++;
     return;
