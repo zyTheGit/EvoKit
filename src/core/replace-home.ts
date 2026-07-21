@@ -11,18 +11,33 @@
  *   when replacing `__HOME__` in a raw JSON string before parsing
  *   (e.g. `C:\Users\x` produces invalid escape sequences like `\U`).
  *
+ * On Windows, both functions convert backslashes to forward slashes
+ * in strings that contained `__HOME__`.  This ensures that hook
+ * commands like `bash C:/Users/x/.claude/hooks/...` work correctly
+ * in Git Bash / MSYS2, where backslashes would be interpreted as
+ * escape characters.
+ *
  * @packageDocumentation
  */
 
 /**
  * Replace all `__HOME__` placeholders in a plain-text string.
  *
+ * On Windows, converts backslashes to forward slashes in the
+ * replacement result, since bash treats `\` as an escape character.
+ *
  * Safe for shell scripts, markdown, and other non-JSON content.
  * For JSON content, use `replaceHomeInObject` instead to avoid
  * backslash-escaping issues on Windows.
  */
 export function replaceHomeInString(content: string, homeDir: string): string {
-  return content.replace(/__HOME__/g, homeDir);
+  const result = content.replace(/__HOME__/g, homeDir);
+  // On Windows, convert backslashes to forward slashes in strings
+  // that contained __HOME__ — bash interprets \ as escape char.
+  if (process.platform === 'win32' && content.includes('__HOME__')) {
+    return result.replace(/\\/g, '/');
+  }
+  return result;
 }
 
 /**
@@ -34,6 +49,12 @@ export function replaceHomeInString(content: string, homeDir: string): string {
  *    backslash issues on Windows).
  * 2. `JSON.stringify` will automatically escape backslashes in the
  *    final output, producing valid JSON regardless of platform.
+ * 3. On Windows, backslashes in replaced strings are converted to
+ *    forward slashes, ensuring hook commands work in Git Bash.
+ *
+ * Only strings that originally contained `__HOME__` are converted —
+ * other string values (e.g. glob patterns in permissions) are left
+ * untouched.
  *
  * @param obj - A value parsed from JSON (object, array, string, etc.)
  * @param homeDir - The path to substitute for `__HOME__`
@@ -41,7 +62,14 @@ export function replaceHomeInString(content: string, homeDir: string): string {
  */
 export function replaceHomeInObject<T>(obj: T, homeDir: string): T {
   if (typeof obj === 'string') {
-    return obj.replace(/__HOME__/g, homeDir) as T;
+    if (!obj.includes('__HOME__')) return obj;
+    const replaced = obj.replace(/__HOME__/g, homeDir);
+    // On Windows, convert backslashes to forward slashes in strings
+    // that contained __HOME__ — bash interprets \ as escape char.
+    if (process.platform === 'win32') {
+      return replaced.replace(/\\/g, '/') as T;
+    }
+    return replaced as T;
   }
 
   if (Array.isArray(obj)) {
