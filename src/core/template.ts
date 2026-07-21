@@ -5,8 +5,9 @@
  * `installPipeline()` that handles directories, files, __HOME__ replacement,
  * settings merge, agent frontmatter merge, memory seeding, and permissions.
  *
- * Each adapter (Claude, Codex, OpenCode) calls `installPipeline()` with
- * different options — no code duplication.
+ * Internally, `installPipeline()` builds a declarative `AdapterLayout`
+ * from the boolean flags and delegates to `executeLayout()`.  Future
+ * adapters can build their own layout directly, skipping the flags.
  *
  * This file also retains `installTemplate()` and `verifyInstallation()`
  * for backward compatibility.
@@ -17,10 +18,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
-import { mergeSettings } from './merge-settings.js';
-import { installOrMergeAgents } from './merge-agents.js';
 import { setHookPermissions, setMemoryPermissions } from './permissions.js';
 import type { InstallSummary } from './types.js';
+import type { AdapterLayout, AdapterSection } from './layout-types.js';
+import { executeLayout } from './layout-engine.js';
 
 export interface BootCheck {
   name: string;
@@ -61,238 +62,156 @@ const HOOK_FILES = ['session-start.sh', 'stop.sh', 'export-system.sh'] as const;
 
 // ─── Pipeline ─────────────────────────────────────────────────
 
-export function installPipeline(opts: InstallPipelineOptions): InstallSummary {
-  const { homeDir, templateDir, targetDir, dryRun = false } = opts;
+/**
+ * Build an `AdapterLayout` from the legacy boolean-flag options.
+ *
+ * This is the bridge between the old `InstallPipelineOptions` interface
+ * and the new declarative layout engine.  Each boolean flag maps to
+ * one or more `AdapterSection` entries.
+ */
+function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
+  const { homeDir, templateDir, targetDir } = opts;
   const claudeTemplateDir = path.join(templateDir, 'claude');
 
-  const summary: InstallSummary = {
-    homeDir,
-    filesCreated: 0,
-    filesSkipped: 0,
-    hooksInstalled: 0,
-    commandsInstalled: 0,
-    rulesInstalled: 0,
-    agentsInstalled: 0,
-  };
+  const sections: AdapterSection[] = [];
 
-  // ── 1. Create directories ───────────────────────────────────
-  const dirs = new Set<string>();
-  if (opts.installRules) dirs.add('rules');
-  if (opts.installCommands) dirs.add('commands');
-  if (opts.installAgents) dirs.add('agents');
-  if (opts.installHooks) dirs.add('hooks');
-  if (opts.seedMemory) dirs.add('memory');
-  if (opts.installSkills) dirs.add('skills');
-
-  if (!dryRun) {
-    fse.ensureDirSync(targetDir);
-    for (const d of dirs) {
-      fse.ensureDirSync(path.join(targetDir, d));
-    }
+  // ── 1. Directories ──────────────────────────────────────────
+  const dirs: string[] = [];
+  if (opts.installRules) dirs.push('rules');
+  if (opts.installCommands) dirs.push('commands');
+  if (opts.installAgents) dirs.push('agents');
+  if (opts.installHooks) dirs.push('hooks');
+  if (opts.seedMemory) dirs.push('memory');
+  if (opts.installSkills) dirs.push('skills');
+  if (dirs.length > 0) {
+    sections.push({ type: 'dirs', paths: dirs });
   }
 
   // ── 2. CLAUDE.md (copy or append protocol section) ──────────
   if (opts.installClaudeMd) {
-    const src = path.join(claudeTemplateDir, 'CLAUDE.md');
-    const rootTarget = path.join(homeDir, 'CLAUDE.md');
-    if (fse.existsSync(src)) {
-      if (!fse.existsSync(rootTarget)) {
-        if (!dryRun) fse.copySync(src, rootTarget);
-        summary.filesCreated++;
-      } else {
-        const marker = 'Self-Evolving System Protocol';
-        const existing = fs.readFileSync(rootTarget, 'utf-8');
-        if (!existing.includes(marker)) {
-          if (!dryRun) {
-            const protocolContent = fs.readFileSync(src, 'utf-8');
-            fs.appendFileSync(rootTarget, '\n\n---\n\n' + protocolContent, 'utf-8');
-          }
-          summary.filesCreated++;
-        } else {
-          summary.filesSkipped++;
-        }
-      }
-    }
+    sections.push({
+      type: 'copy',
+      src: path.join(claudeTemplateDir, 'CLAUDE.md'),
+      dst: path.join(homeDir, 'CLAUDE.md'),
+      strategy: 'skip-if-exists',
+      appendMarker: 'Self-Evolving System Protocol',
+    });
   }
 
-  // ── 3. MEMORY.md → targetDir ────────────────────────────────
+  // ── 3. MEMORY.md ────────────────────────────────────────────
   if (opts.installMemoryMd) {
-    const src = path.join(claudeTemplateDir, 'MEMORY.md');
-    const target = path.join(targetDir, 'MEMORY.md');
-    if (fse.existsSync(src)) {
-      if (!dryRun) fse.copySync(src, target);
-      summary.filesCreated++;
-    }
+    sections.push({
+      type: 'copy',
+      src: path.join(claudeTemplateDir, 'MEMORY.md'),
+      dst: path.join(targetDir, 'MEMORY.md'),
+      strategy: 'always',
+    });
   }
 
   // ── 4. settings.json (merge or fresh) ───────────────────────
   if (opts.installSettings) {
-    const templateFile = path.join(claudeTemplateDir, 'settings.json');
-    const targetFile = path.join(targetDir, 'settings.json');
-
-    if (!fse.existsSync(targetFile)) {
-      // Fresh install — copy template with __HOME__ replacement
-      if (fse.existsSync(templateFile)) {
-        if (!dryRun) {
-          let content = fs.readFileSync(templateFile, 'utf-8');
-          content = content.replace(/__HOME__/g, homeDir);
-          fs.writeFileSync(targetFile, content, 'utf-8');
-        }
-        summary.filesCreated++;
-      }
-    } else if (fse.existsSync(templateFile)) {
-      // File exists — check if valid JSON, then merge or overwrite
-      let isValid = true;
-      try {
-        JSON.parse(fs.readFileSync(targetFile, 'utf-8'));
-      } catch {
-        isValid = false;
-      }
-
-      if (!isValid) {
-        // Corrupt/empty file — overwrite from template
-        if (!dryRun) {
-          let content = fs.readFileSync(templateFile, 'utf-8');
-          content = content.replace(/__HOME__/g, homeDir);
-          fs.writeFileSync(targetFile, content, 'utf-8');
-        }
-        summary.filesCreated++;
-      } else {
-        // Valid JSON — deep-merge (adds missing hooks/env, never overwrites)
-        if (!dryRun) {
-          const result = mergeSettings(targetFile, templateFile, homeDir);
-          if (result.changed) summary.filesCreated++;
-          else summary.filesSkipped++;
-        } else {
-          summary.filesCreated++;
-        }
-      }
-    }
+    sections.push({
+      type: 'merge-settings',
+      srcPath: path.join(claudeTemplateDir, 'settings.json'),
+      dstPath: path.join(targetDir, 'settings.json'),
+      replaceHome: true,
+    });
   }
 
-  // ── 4. Hooks (copy with __HOME__ replacement) ───────────────
+  // ── 5. Hooks (copy with __HOME__ replacement, always overwrite) ─
   if (opts.installHooks) {
-    const hooksSrc = path.join(claudeTemplateDir, 'hooks');
-    const hooksDst = path.join(targetDir, 'hooks');
-    if (fse.existsSync(hooksSrc)) {
-      const hooks = fs.readdirSync(hooksSrc).filter((f) => f.endsWith('.sh'));
-      for (const hook of hooks) {
-        const src = path.join(hooksSrc, hook);
-        if (dryRun) {
-          summary.hooksInstalled++;
-          continue;
-        }
-        let content = fs.readFileSync(src, 'utf-8');
-        content = content.replace(/__HOME__/g, homeDir);
-        fs.writeFileSync(path.join(hooksDst, hook), content, 'utf-8');
-        summary.hooksInstalled++;
-      }
-    }
+    sections.push({
+      type: 'copy-dir',
+      srcDir: path.join(claudeTemplateDir, 'hooks'),
+      dstDir: path.join(targetDir, 'hooks'),
+      filter: '.sh',
+      strategy: 'always',
+      replaceHome: true,
+      counter: 'hooksInstalled',
+    });
   }
 
-  // ── 5. Rules (copy, overwrite — upgrade path) ───────────────
+  // ── 6. Rules (copy, overwrite — upgrade path) ───────────────
   if (opts.installRules) {
-    const rulesSrc = path.join(claudeTemplateDir, 'rules');
-    const rulesDst = path.join(targetDir, 'rules');
-    if (fse.existsSync(rulesSrc)) {
-      const files = fs.readdirSync(rulesSrc).filter((f) => f.endsWith('.md'));
-      if (!dryRun) {
-        for (const file of files) {
-          fse.copySync(path.join(rulesSrc, file), path.join(rulesDst, file));
-        }
-      }
-      summary.rulesInstalled += files.length;
-    }
+    sections.push({
+      type: 'copy-dir',
+      srcDir: path.join(claudeTemplateDir, 'rules'),
+      dstDir: path.join(targetDir, 'rules'),
+      filter: '.md',
+      strategy: 'always',
+      counter: 'rulesInstalled',
+    });
   }
 
-  // ── 6. Commands (copy, overwrite) ───────────────────────────
+  // ── 7. Commands (copy, overwrite) ───────────────────────────
   if (opts.installCommands) {
-    const cmdSrc = path.join(claudeTemplateDir, 'commands');
-    const cmdDst = path.join(targetDir, 'commands');
-    if (fse.existsSync(cmdSrc)) {
-      const files = fs.readdirSync(cmdSrc).filter((f) => f.endsWith('.md'));
-      if (!dryRun) {
-        for (const file of files) {
-          fse.copySync(path.join(cmdSrc, file), path.join(cmdDst, file));
-        }
-      }
-      summary.commandsInstalled += files.length;
-    }
+    sections.push({
+      type: 'copy-dir',
+      srcDir: path.join(claudeTemplateDir, 'commands'),
+      dstDir: path.join(targetDir, 'commands'),
+      filter: '.md',
+      strategy: 'always',
+      counter: 'commandsInstalled',
+    });
   }
 
-  // ── 7. Agents (frontmatter merge) ───────────────────────────
+  // ── 8. Agents (frontmatter merge) ───────────────────────────
   if (opts.installAgents) {
-    const agentsSrc = path.join(claudeTemplateDir, 'agents');
-    const agentsDst = path.join(targetDir, 'agents');
-    if (fse.existsSync(agentsSrc)) {
-      if (dryRun) {
-        const files = fs.readdirSync(agentsSrc).filter((f) => f.endsWith('.md'));
-        summary.agentsInstalled += files.length;
-      } else {
-        const results = installOrMergeAgents(agentsSrc, agentsDst);
-        summary.agentsInstalled += results.filter(
-          (r) => r.status === 'COPY' || r.status === 'MERGED',
-        ).length;
-      }
-    }
+    sections.push({
+      type: 'merge-agents',
+      srcDir: path.join(claudeTemplateDir, 'agents'),
+      dstDir: path.join(targetDir, 'agents'),
+    });
   }
 
-  // ── 8. Skills (copy skill subdirectories) ───────────────────
+  // ── 9. Skills ───────────────────────────────────────────────
   if (opts.installSkills) {
-    const skillsSrc = path.join(claudeTemplateDir, 'skills');
-    const skillsDst = path.join(targetDir, 'skills');
-    if (fse.existsSync(skillsSrc) && !dryRun) {
-      for (const entry of fs.readdirSync(skillsSrc)) {
-        const skillDir = path.join(skillsSrc, entry);
-        if (fse.statSync(skillDir).isDirectory()) {
-          const skillMd = path.join(skillDir, 'SKILL.md');
-          if (fse.existsSync(skillMd)) {
-            fse.ensureDirSync(path.join(skillsDst, entry));
-            fse.copySync(skillMd, path.join(skillsDst, entry, 'SKILL.md'));
-          }
-        }
-      }
-      const readmeSrc = path.join(skillsSrc, 'README.md');
-      if (fse.existsSync(readmeSrc)) {
-        fse.copySync(readmeSrc, path.join(skillsDst, 'README.md'));
-      }
-    }
+    sections.push({
+      type: 'copy-skills',
+      srcDir: path.join(claudeTemplateDir, 'skills'),
+      dstDir: path.join(targetDir, 'skills'),
+    });
   }
 
-  // ── 9. Memory seed (only if not exist) ──────────────────────
+  // ── 10. Memory seed (only if not exist) ─────────────────────
   if (opts.seedMemory) {
-    const memSrc = path.join(claudeTemplateDir, 'memory');
-    const memDst = path.join(targetDir, 'memory');
-    if (fse.existsSync(memSrc)) {
-      fse.ensureDirSync(memDst);
-      for (const file of MEMORY_SEED_FILES) {
-        const target = path.join(memDst, file);
-        if (!fse.existsSync(target)) {
-          const src = path.join(memSrc, file);
-          if (fse.existsSync(src)) {
-            if (!dryRun) fse.copySync(src, target);
-            summary.filesCreated++;
-          }
-        } else {
-          summary.filesSkipped++;
-        }
-      }
-    }
+    sections.push({
+      type: 'seed-memory',
+      srcDir: path.join(claudeTemplateDir, 'memory'),
+      dstDir: path.join(targetDir, 'memory'),
+      files: [...MEMORY_SEED_FILES],
+    });
   }
 
-  // ── 10. Permissions ─────────────────────────────────────────
-  if (!dryRun) {
-    const hooksDir = path.join(targetDir, 'hooks');
-    if (fse.existsSync(hooksDir)) {
-      setHookPermissions(hooksDir);
-    }
-    const memDir = path.join(targetDir, 'memory');
-    if (fse.existsSync(memDir)) {
-      setMemoryPermissions(memDir);
-    }
-  }
+  // ── 11. Permissions ─────────────────────────────────────────
+  sections.push({
+    type: 'permissions',
+    dir: path.join(targetDir, 'hooks'),
+    extension: '.sh',
+    mode: 0o755,
+  });
+  sections.push({
+    type: 'permissions',
+    dir: path.join(targetDir, 'memory'),
+    extension: '.jsonl',
+    mode: 0o600,
+  });
 
-  return summary;
+  return { targetDir, sections };
+}
+
+/**
+ * Install EvoKit template files using the legacy boolean-flag options.
+ *
+ * Internally builds an `AdapterLayout` and delegates to `executeLayout()`.
+ * The boolean flags are preserved for backward compatibility.
+ */
+export function installPipeline(opts: InstallPipelineOptions): InstallSummary {
+  const layout = buildClaudeLayout(opts);
+  return executeLayout(layout, {
+    homeDir: opts.homeDir,
+    dryRun: opts.dryRun ?? false,
+  });
 }
 
 // ─── Legacy installTemplate (backward compat) ─────────────────
