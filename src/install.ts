@@ -203,7 +203,7 @@ function printNextSteps(adapterIds: string[]): void {
         steps.push(
           '📖 Codex CLI:\n' +
             '  1. Start Codex (hooks run automatically)\n' +
-            '  2. Run: evokit doctor --adapter codex',
+            '  2. Run: npx evokit doctor --adapter codex',
         );
         break;
       case 'opencode':
@@ -218,7 +218,8 @@ function printNextSteps(adapterIds: string[]): void {
     }
   }
 
-  steps.push('💡 Also available via npm: npm install -g @zythegit/evokit');
+  steps.push('💡 CLI usage: npx evokit doctor');
+  steps.push('   Or install globally: npm install -g @zythegit/evokit');
   steps.push('📚 Docs: https://github.com/zyTheGit/EvoKit');
 
   note(steps.join('\n\n'), 'Next steps');
