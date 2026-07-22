@@ -50,8 +50,8 @@ interface AgentAdapter {
 // 类型定义
 
 interface InstallConfig {
-  targetPath: string;       // 安装目标路径（例如 ~/.claude/）
-  templatePath: string;     // 模板所在路径
+  targetPath: string; // 安装目标路径（例如 ~/.claude/）
+  templatePath: string; // 模板所在路径
   adapterOptions?: Record<string, any>;
 }
 
@@ -63,7 +63,7 @@ interface InstallResult {
 
 interface HookEvent {
   event: 'SessionStart' | 'Stop' | 'PreToolUse' | string;
-  handler: string;  // 命令路径或回调
+  handler: string; // 命令路径或回调
 }
 
 interface MemoryData {
@@ -85,38 +85,38 @@ interface CommandResult {
 
 ### Claude Code 适配器（v0.1 — ✅ 当前版本）
 
-| 方面 | 实现方式 |
-|--------|---------------|
-| 安装 | 将模板复制到 `~/.claude/` |
-| 钩子 | `settings.json` 钩子配置 |
-| 记忆 | 基于文件，存储在 `.claude/memory/` |
-| 命令 | `.claude/commands/` 中的斜杠命令 |
+| 方面   | 实现方式                           |
+| ------ | ---------------------------------- |
+| 安装   | 将模板复制到 `~/.claude/`          |
+| 钩子   | `settings.json` 钩子配置           |
+| 记忆   | 基于文件，存储在 `.claude/memory/` |
+| 命令   | `.claude/commands/` 中的斜杠命令   |
 | 智能体 | `.claude/agents/` 中的子智能体定义 |
-| 状态 | ✅ 已完成 |
+| 状态   | ✅ 已完成                          |
 
 ### Codex CLI 适配器（v0.3 — ✅ 已实现）
 
-| 方面 | 实现方式 |
-|--------|---------------|
-| 安装 | `evokit init --adapter codex` — 复制到 `~/.codex/` |
-| 钩子 | `hooks.json` — SessionStart、Stop、PreToolUse 事件 |
-| 规则 | `~/.codex/rules/` 中的 Starlark `.rules` 文件 |
-| 记忆 | `~/.codex/memory/`（按适配器独立，标记 `assistant: "codex"`） |
-| 认知核心 | `~/.codex/AGENTS.md`（类似于 CLAUDE.md） |
-| 配置 | `~/.codex/config.toml`（功能开关、模型、权限） |
-| 命令 | `evokit evolve`、`evokit doctor`、基于 shell 的 `/boot` |
-| 状态 | ✅ v0.3.0 — 已完成 |
+| 方面     | 实现方式                                                      |
+| -------- | ------------------------------------------------------------- |
+| 安装     | `evokit init --adapter codex` — 复制到 `~/.codex/`            |
+| 钩子     | `hooks.json` — SessionStart、Stop、PreToolUse 事件            |
+| 规则     | `~/.codex/rules/` 中的 Starlark `.rules` 文件                 |
+| 记忆     | `~/.codex/memory/`（按适配器独立，标记 `assistant: "codex"`） |
+| 认知核心 | `~/.codex/AGENTS.md`（类似于 CLAUDE.md）                      |
+| 配置     | `~/.codex/config.toml`（功能开关、模型、权限）                |
+| 命令     | `evokit evolve`、`evokit doctor`、基于 shell 的 `/boot`       |
+| 状态     | ✅ v0.3.0 — 已完成                                            |
 
 #### EvoKit → Codex CLI 映射
 
-| EvoKit 概念 | Codex CLI 对应项 |
-|----------------|----------------------|
-| `~/.claude/` + `CLAUDE.md` | `~/.codex/` + `AGENTS.md` |
-| `.claude/hooks/settings.json` | `hooks.json` + 内联 `[hooks]` TOML |
-| `.claude/rules/`（markdown） | `.codex/rules/`（Starlark `.rules`） |
-| `.claude/agents/` | 子智能体 + 技能 |
-| `.claude/commands/`（`/boot`） | SessionStart 钩子 + `codex exec` |
-| `.claude/memory/`（JSONL） | `~/.codex/memory/`（按适配器独立） |
+| EvoKit 概念                    | Codex CLI 对应项                     |
+| ------------------------------ | ------------------------------------ |
+| `~/.claude/` + `CLAUDE.md`     | `~/.codex/` + `AGENTS.md`            |
+| `.claude/hooks/settings.json`  | `hooks.json` + 内联 `[hooks]` TOML   |
+| `.claude/rules/`（markdown）   | `.codex/rules/`（Starlark `.rules`） |
+| `.claude/agents/`              | 子智能体 + 技能                      |
+| `.claude/commands/`（`/boot`） | SessionStart 钩子 + `codex exec`     |
+| `.claude/memory/`（JSONL）     | `~/.codex/memory/`（按适配器独立）   |
 
 #### 安装后结构
 
@@ -139,34 +139,35 @@ interface CommandResult {
 
 ### OpenCode CLI 适配器（v0.4 — ✅ 已实现）
 
-| 方面 | 实现方式 |
-|--------|---------------|
-| 安装 | `evokit init --adapter opencode`（或 `bash install.sh`，选项 3） |
-| 钩子 | 无——由 `.opencode/tools/` 中的自定义工具替代 |
-| 记忆 | `.opencode/memory/`（按适配器独立，项目级别） |
-| 命令 | 使用 `@opencode-ai/plugin` 的自定义工具 |
-| 认知核心 | 项目根目录 `AGENTS.md` |
-| 配置 | 项目根目录 `opencode.json` |
-| 子智能体 | `.opencode/agents/` Markdown 文件 |
-| 状态 | ✅ v0.4.0 — 已完成 |
+| 方面     | 实现方式                                                         |
+| -------- | ---------------------------------------------------------------- |
+| 安装     | `evokit init --adapter opencode`（或 `bash install.sh`，选项 3） |
+| 钩子     | 无——由 `.opencode/tools/` 中的自定义工具替代                     |
+| 记忆     | `.opencode/memory/`（按适配器独立，项目级别）                    |
+| 命令     | 使用 `@opencode-ai/plugin` 的自定义工具                          |
+| 认知核心 | 项目根目录 `AGENTS.md`                                           |
+| 配置     | 项目根目录 `opencode.json`                                       |
+| 子智能体 | `.opencode/agents/` Markdown 文件                                |
+| 状态     | ✅ v0.4.0 — 已完成                                               |
 
 #### EvoKit → OpenCode CLI 映射
 
-| EvoKit 概念 | OpenCode 对应项 |
-|----------------|-------------------|
-| `~/.claude/` + `CLAUDE.md` | 项目根目录 `AGENTS.md` |
-| `.claude/hooks/settings.json` | 无——自定义工具替代钩子 |
+| EvoKit 概念                    | OpenCode 对应项                                         |
+| ------------------------------ | ------------------------------------------------------- |
+| `~/.claude/` + `CLAUDE.md`     | 项目根目录 `AGENTS.md`                                  |
+| `.claude/hooks/settings.json`  | 无——自定义工具替代钩子                                  |
 | `.claude/hooks/`（shell 脚本） | `.opencode/tools/`（TypeScript，`@opencode-ai/plugin`） |
-| `.claude/rules/`（markdown） | `opencode.json` → `instructions` 字段（glob 模式） |
-| `.claude/agents/` | `.opencode/agents/`（Markdown + YAML 前置元数据） |
-| `.claude/commands/`（`/boot`） | `.opencode/tools/evokit-boot.ts` |
-| `.claude/memory/`（JSONL） | `.opencode/memory/`（按适配器独立） |
-| SessionStart 钩子 | 自定义工具 `evokit-boot.ts`（由 AI 调用） |
-| Stop 钩子 | 自定义工具 `evokit-session.ts`（由 AI 调用） |
+| `.claude/rules/`（markdown）   | `opencode.json` → `instructions` 字段（glob 模式）      |
+| `.claude/agents/`              | `.opencode/agents/`（Markdown + YAML 前置元数据）       |
+| `.claude/commands/`（`/boot`） | `.opencode/tools/evokit-boot.ts`                        |
+| `.claude/memory/`（JSONL）     | `.opencode/memory/`（按适配器独立）                     |
+| SessionStart 钩子              | 自定义工具 `evokit-boot.ts`（由 AI 调用）               |
+| Stop 钩子                      | 自定义工具 `evokit-session.ts`（由 AI 调用）            |
 
 #### 重要提示：无自动钩子
 
 OpenCode 没有 SessionStart/Stop 生命周期钩子，因此：
+
 - **引导验证不会自动执行**——AI 必须调用 `evokit-boot.ts`（通过 `AGENTS.md` 中的指令实现）
 - **会话记录不会自动执行**——AI 必须在结束前调用含 `action: "end"` 的 `evokit-session.ts`
 - 所有工具都是幂等的——多次调用是安全的
@@ -190,23 +191,23 @@ project-root/
         └── README.md                  # 学习数据目录
 ```
 
-### Aider 适配器（v0.4 — 🔜 计划中）
+### Pi CLI 适配器（v0.4 — 🔜 计划中）
 
-| 方面 | 实现方式 |
-|--------|---------------|
-| 安装 | Aider 配置 + 约定文件 |
-| 钩子 | Aider 聊天模式钩子 |
-| 记忆 | Aider 专用（按适配器独立） |
-| 命令 | Aider 命令 |
+| 方面 | 实现方式                             |
+| ---- | ------------------------------------ |
+| 安装 | ~/.pi/agent/（全局）+ .pi/（项目级） |
+| 钩子 | Pi CLI 扩展 + 技能                   |
+| 记忆 | ~/.pi/agent/ 记忆（按适配器独立）    |
+| 命令 | Pi CLI 技能                          |
 
 ## 按适配器划分的学习数据
 
 每个适配器将其学习数据存储在自己的目录中：
 
-| 适配器 | 记忆路径 |
-|---------|-------------|
-| Claude Code | `~/.claude/memory/` |
-| Codex CLI | `~/.codex/memory/` |
+| 适配器       | 记忆路径                      |
+| ------------ | ----------------------------- |
+| Claude Code  | `~/.claude/memory/`           |
+| Codex CLI    | `~/.codex/memory/`            |
 | OpenCode CLI | `<project>/.opencode/memory/` |
 
 每条会话记录使用标签标识助手：

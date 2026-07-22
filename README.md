@@ -23,14 +23,14 @@ _让 AI 编程助手越用越聪明 — 跨会话持久化纠错、观察和规�
 
 **EvoKit** 是一个开源的 **自进化系统框架**，专为 AI 编程助手设计。它能让 Claude Code、Codex、OpenCode 等 AI 工具**越用越聪明**——通过跨会话持久化纠错、观察和规则，实现知识的自动积累与晋升。
 
-| 核心思想          | 说明                                                    |
-| ----------------- | ------------------------------------------------------- |
-| 🧠 **跨会话记忆** | 纠错和观察跨会话保留，永不丢失                          |
-| 📈 **自动晋升**   | 重复出现的模式自动晋升为永久规则                        |
-| 🔌 **Hook 驱动**  | 会话生命周期全自动管理                                  |
-| 🚚 **一键迁移**   | 跨机器无缝迁移学习数据                                  |
-| 🔒 **隐私优先**   | 所有数据本地存储，无云端、无遥测                        |
-| 🤖 **多智能体**   | 适配器架构，支持 Claude Code / Codex / OpenCode / Aider |
+| 核心思想          | 说明                                                     |
+| ----------------- | -------------------------------------------------------- |
+| 🧠 **跨会话记忆** | 纠错和观察跨会话保留，永不丢失                           |
+| 📈 **自动晋升**   | 重复出现的模式自动晋升为永久规则                         |
+| 🔌 **Hook 驱动**  | 会话生命周期全自动管理                                   |
+| 🚚 **一键迁移**   | 跨机器无缝迁移学习数据                                   |
+| 🔒 **隐私优先**   | 所有数据本地存储，无云端、无遥测                         |
+| 🤖 **多智能体**   | 适配器架构，支持 Claude Code / Codex / OpenCode / Pi CLI |
 
 </div>
 
@@ -252,7 +252,7 @@ EvoKit 通过统一的适配器接口支持多种 AI 编程助手。每个适配
 | **Claude Code**  | v0.2.0 | ✅ **完整支持**    | `~/.claude/`           | Claude Code ≥ v0.1.0（CLI）  |
 | **Codex CLI**    | v0.3.0 | ✅ **完整支持**    | `~/.codex/`            | Codex CLI ≥ v0.3.0（OpenAI） |
 | **OpenCode CLI** | v0.4.0 | ✅ **完整支持**    | `.opencode/`（项目级） | OpenCode CLI ≥ v0.4.0        |
-| **Aider**        | —      | 🚧 **存根/待实现** | —                      | Aider（规划中）              |
+| **Pi CLI**       | —      | 🚧 **存根/待实现** | —                      | Pi CLI（规划中）             |
 
 > **适配器版本说明**：每个适配器的 `version` 字段在其源码中定义（`src/adapters/*/adapter.ts`），匹配该助手首次获得完整支持的 EvoKit 里程碑版本。插件的后续迭代随 EvoKit 主版本同步发布。
 
@@ -362,7 +362,7 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ **Claude Code 适配器 v0.2.0** — 模块化重构，插件化安装管线
 - ✅ **Codex CLI 适配器 v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark 规则
 - ✅ **OpenCode CLI 适配器 v0.4.0** — AGENTS.md / opencode.json / 自定义工具 / 项目级安装
-- ✅ **Aider 适配器** — 存根代码已创建（`src/adapters/aider/adapter.ts`），待实现
+- ✅ **Pi CLI 适配器** — 存根代码已创建（`src/adapters/pi/adapter.ts`），待实现
 - ✅ **配置文件智能合并** — 不覆盖已有 settings / AGENTS.md / opencode.json
 - ✅ **交互式适配器选择** — 带 box-drawing UI，支持多选和默认回车
 - 🚧 自修复 CI 流水线
@@ -395,7 +395,7 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 ### 贡献方向
 
 - 编写自定义规则、智能体、命令示例
-- 实现新适配器（Codex、OpenCode、Aider）
+- 实现新适配器（Codex、OpenCode、Pi CLI）
 - 改进文档和截图
 - 报告 bug 或提功能建议
 - 完善测试覆盖

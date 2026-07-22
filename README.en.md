@@ -23,14 +23,14 @@ _Make AI coding assistants learn and evolve across sessions_
 
 **EvoKit** is an open-source **self-evolving system framework** for AI coding assistants. It enables Claude Code, Codex, OpenCode, and other AI tools to **get smarter over time** — by persisting corrections, observations, and rules across sessions, enabling automatic knowledge accumulation and promotion.
 
-| Core Concept                | Description                                                            |
-| --------------------------- | ---------------------------------------------------------------------- |
-| 🧠 **Cross-session Memory** | Corrections and observations persist across sessions, never lost       |
-| 📈 **Auto-promotion**       | Repeated patterns automatically graduate to permanent rules            |
-| 🔌 **Hook-driven**          | Fully automated session lifecycle management                           |
-| 🚚 **One-click Migration**  | Seamless transfer of learning data between machines                    |
-| 🔒 **Privacy-first**        | All data stored locally — no cloud, no telemetry                       |
-| 🤖 **Multi-agent**          | Adapter architecture supporting Claude Code / Codex / OpenCode / Aider |
+| Core Concept                | Description                                                             |
+| --------------------------- | ----------------------------------------------------------------------- |
+| 🧠 **Cross-session Memory** | Corrections and observations persist across sessions, never lost        |
+| 📈 **Auto-promotion**       | Repeated patterns automatically graduate to permanent rules             |
+| 🔌 **Hook-driven**          | Fully automated session lifecycle management                            |
+| 🚚 **One-click Migration**  | Seamless transfer of learning data between machines                     |
+| 🔒 **Privacy-first**        | All data stored locally — no cloud, no telemetry                        |
+| 🤖 **Multi-agent**          | Adapter architecture supporting Claude Code / Codex / OpenCode / Pi CLI |
 
 </div>
 
@@ -252,7 +252,7 @@ EvoKit supports multiple AI coding assistants through a unified adapter interfac
 | **Claude Code**  | v0.2.0  | ✅ **Full support**   | `~/.claude/`                 | Claude Code ≥ v0.1.0 (CLI)  |
 | **Codex CLI**    | v0.3.0  | ✅ **Full support**   | `~/.codex/`                  | Codex CLI ≥ v0.3.0 (OpenAI) |
 | **OpenCode CLI** | v0.4.0  | ✅ **Full support**   | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0       |
-| **Aider**        | —       | 🚧 **Stub / Planned** | —                            | Aider (planned)             |
+| **Pi CLI**       | —       | 🚧 **Stub / Planned** | —                            | Pi CLI (planned)            |
 
 > **Adapter versioning**: Each adapter's `version` field is defined in its source (`src/adapters/*/adapter.ts`) and corresponds to the EvoKit milestone where that assistant first received full support. Subsequent iterations ship with the main EvoKit release cycle.
 
@@ -362,7 +362,7 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ **Claude Code Adapter v0.2.0** — Modular refactor, pluggable installation pipeline
 - ✅ **Codex CLI Adapter v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark rules
 - ✅ **OpenCode CLI Adapter v0.4.0** — AGENTS.md / opencode.json / custom tools / project-level install
-- ✅ **Aider Adapter** — Stub created (`src/adapters/aider/adapter.ts`), pending implementation
+- ✅ **Pi CLI Adapter** — Stub created (`src/adapters/pi/adapter.ts`), pending implementation
 - ✅ **Smart config merge** — Won't overwrite existing settings / AGENTS.md / opencode.json
 - ✅ **Interactive adapter selection** — box-drawing UI, multi-select, default-on-Enter
 - 🚧 Self-healing CI pipeline
@@ -395,7 +395,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ### Ideas for Contributors
 
 - Write custom rule/agent/command examples
-- Implement new adapters (Codex, OpenCode, Aider)
+- Implement new adapters (Codex, OpenCode, Pi CLI)
 - Improve documentation and screenshots
 - Report bugs or suggest features
 - Improve test coverage

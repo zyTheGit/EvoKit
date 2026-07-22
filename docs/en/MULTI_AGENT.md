@@ -50,8 +50,8 @@ interface AgentAdapter {
 // Types
 
 interface InstallConfig {
-  targetPath: string;       // Where to install (e.g., ~/.claude/)
-  templatePath: string;     // Where templates are
+  targetPath: string; // Where to install (e.g., ~/.claude/)
+  templatePath: string; // Where templates are
   adapterOptions?: Record<string, any>;
 }
 
@@ -63,7 +63,7 @@ interface InstallResult {
 
 interface HookEvent {
   event: 'SessionStart' | 'Stop' | 'PreToolUse' | string;
-  handler: string;  // Command path or callback
+  handler: string; // Command path or callback
 }
 
 interface MemoryData {
@@ -85,38 +85,38 @@ interface CommandResult {
 
 ### Claude Code Adapter (v0.1 — ✅ Current)
 
-| Aspect | Implementation |
-|--------|---------------|
-| Installation | Copy template to `~/.claude/` |
-| Hooks | `settings.json` hooks config |
-| Memory | File-based in `.claude/memory/` |
-| Commands | Slash commands in `.claude/commands/` |
-| Agents | Sub-agent definitions in `.claude/agents/` |
-| Status | ✅ Complete |
+| Aspect       | Implementation                             |
+| ------------ | ------------------------------------------ |
+| Installation | Copy template to `~/.claude/`              |
+| Hooks        | `settings.json` hooks config               |
+| Memory       | File-based in `.claude/memory/`            |
+| Commands     | Slash commands in `.claude/commands/`      |
+| Agents       | Sub-agent definitions in `.claude/agents/` |
+| Status       | ✅ Complete                                |
 
 ### Codex CLI Adapter (v0.3 — ✅ Implemented)
 
-| Aspect | Implementation |
-|--------|---------------|
-| Installation | `evokit init --adapter codex` — copies to `~/.codex/` |
-| Hooks | `hooks.json` — SessionStart, Stop, PreToolUse events |
-| Rules | Starlark `.rules` files in `~/.codex/rules/` |
-| Memory | `~/.codex/memory/` (per-adapter, tagged with `assistant: "codex"`) |
-| Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md) |
-| Config | `~/.codex/config.toml` (features, model, permissions) |
-| Commands | `evokit evolve`, `evokit doctor`, shell-based `/boot` |
-| Status | ✅ v0.3.0 — Complete |
+| Aspect         | Implementation                                                     |
+| -------------- | ------------------------------------------------------------------ |
+| Installation   | `evokit init --adapter codex` — copies to `~/.codex/`              |
+| Hooks          | `hooks.json` — SessionStart, Stop, PreToolUse events               |
+| Rules          | Starlark `.rules` files in `~/.codex/rules/`                       |
+| Memory         | `~/.codex/memory/` (per-adapter, tagged with `assistant: "codex"`) |
+| Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md)                      |
+| Config         | `~/.codex/config.toml` (features, model, permissions)              |
+| Commands       | `evokit evolve`, `evokit doctor`, shell-based `/boot`              |
+| Status         | ✅ v0.3.0 — Complete                                               |
 
 #### EvoKit → Codex CLI Mapping
 
-| EvoKit Concept | Codex CLI Equivalent |
-|----------------|----------------------|
-| `~/.claude/` + `CLAUDE.md` | `~/.codex/` + `AGENTS.md` |
+| EvoKit Concept                | Codex CLI Equivalent                 |
+| ----------------------------- | ------------------------------------ |
+| `~/.claude/` + `CLAUDE.md`    | `~/.codex/` + `AGENTS.md`            |
 | `.claude/hooks/settings.json` | `hooks.json` + inline `[hooks]` TOML |
-| `.claude/rules/` (markdown) | `.codex/rules/` (Starlark `.rules`) |
-| `.claude/agents/` | Subagents + Skills |
-| `.claude/commands/` (`/boot`) | SessionStart hook + `codex exec` |
-| `.claude/memory/` (JSONL) | `~/.codex/memory/` (per-adapter) |
+| `.claude/rules/` (markdown)   | `.codex/rules/` (Starlark `.rules`)  |
+| `.claude/agents/`             | Subagents + Skills                   |
+| `.claude/commands/` (`/boot`) | SessionStart hook + `codex exec`     |
+| `.claude/memory/` (JSONL)     | `~/.codex/memory/` (per-adapter)     |
 
 #### Installed Structure
 
@@ -139,34 +139,35 @@ When installed with `evokit init --adapter codex`, the following is created:
 
 ### OpenCode CLI Adapter (v0.4 — ✅ Implemented)
 
-| Aspect | Implementation |
-|--------|---------------|
-| Installation | `evokit init --adapter opencode` (or `bash install.sh`, option 3) |
-| Hooks | None — replaced by custom tools in `.opencode/tools/` |
-| Memory | `.opencode/memory/` (per-adapter, project-level) |
-| Commands | Custom tools using `@opencode-ai/plugin` |
-| Cognitive Core | Project root `AGENTS.md` |
-| Config | Project root `opencode.json` |
-| Sub-agents | `.opencode/agents/` Markdown files |
-| Status | ✅ v0.4.0 — Complete |
+| Aspect         | Implementation                                                    |
+| -------------- | ----------------------------------------------------------------- |
+| Installation   | `evokit init --adapter opencode` (or `bash install.sh`, option 3) |
+| Hooks          | None — replaced by custom tools in `.opencode/tools/`             |
+| Memory         | `.opencode/memory/` (per-adapter, project-level)                  |
+| Commands       | Custom tools using `@opencode-ai/plugin`                          |
+| Cognitive Core | Project root `AGENTS.md`                                          |
+| Config         | Project root `opencode.json`                                      |
+| Sub-agents     | `.opencode/agents/` Markdown files                                |
+| Status         | ✅ v0.4.0 — Complete                                              |
 
 #### EvoKit → OpenCode CLI Mapping
 
-| EvoKit Concept | OpenCode Equivalent |
-|----------------|-------------------|
-| `~/.claude/` + `CLAUDE.md` | Project root `AGENTS.md` |
-| `.claude/hooks/settings.json` | None — custom tools replace hooks |
+| EvoKit Concept                   | OpenCode Equivalent                                    |
+| -------------------------------- | ------------------------------------------------------ |
+| `~/.claude/` + `CLAUDE.md`       | Project root `AGENTS.md`                               |
+| `.claude/hooks/settings.json`    | None — custom tools replace hooks                      |
 | `.claude/hooks/` (shell scripts) | `.opencode/tools/` (TypeScript, `@opencode-ai/plugin`) |
-| `.claude/rules/` (markdown) | `opencode.json` → `instructions` field (glob patterns) |
-| `.claude/agents/` | `.opencode/agents/` (Markdown + YAML frontmatter) |
-| `.claude/commands/` (`/boot`) | `.opencode/tools/evokit-boot.ts` |
-| `.claude/memory/` (JSONL) | `.opencode/memory/` (per-adapter) |
-| SessionStart hook | Custom tool `evokit-boot.ts` (AI-invoked) |
-| Stop hook | Custom tool `evokit-session.ts` (AI-invoked) |
+| `.claude/rules/` (markdown)      | `opencode.json` → `instructions` field (glob patterns) |
+| `.claude/agents/`                | `.opencode/agents/` (Markdown + YAML frontmatter)      |
+| `.claude/commands/` (`/boot`)    | `.opencode/tools/evokit-boot.ts`                       |
+| `.claude/memory/` (JSONL)        | `.opencode/memory/` (per-adapter)                      |
+| SessionStart hook                | Custom tool `evokit-boot.ts` (AI-invoked)              |
+| Stop hook                        | Custom tool `evokit-session.ts` (AI-invoked)           |
 
 #### Important: No Automatic Hooks
 
 OpenCode has no SessionStart/Stop lifecycle hooks, so:
+
 - **Boot verification is not automatic** — AI must call `evokit-boot.ts` (instructed via `AGENTS.md`)
 - **Session recording is not automatic** — AI must call `evokit-session.ts` with `action: "end"` before finishing
 - All tools are idempotent — safe to call multiple times
@@ -190,23 +191,23 @@ project-root/
         └── README.md                  # Learning data directory
 ```
 
-### Aider Adapter (v0.4 — 🔜 Planned)
+### Pi CLI Adapter (v0.4 — 🔜 Planned)
 
-| Aspect | Implementation |
-|--------|---------------|
-| Installation | Aider config + convention files |
-| Hooks | Aider chat mode hooks |
-| Memory | Aider-specific (per-adapter) |
-| Commands | Aider commands |
+| Aspect       | Implementation                         |
+| ------------ | -------------------------------------- |
+| Installation | ~/.pi/agent/ (global) + .pi/ (project) |
+| Hooks        | Pi CLI extensions + skills             |
+| Memory       | ~/.pi/agent/ memory (per-adapter)      |
+| Commands     | Pi CLI skills                          |
 
 ## Per-Adapter Learning Data
 
 Each adapter stores its learning data in its own directory:
 
-| Adapter | Memory Path |
-|---------|-------------|
-| Claude Code | `~/.claude/memory/` |
-| Codex CLI | `~/.codex/memory/` |
+| Adapter      | Memory Path                   |
+| ------------ | ----------------------------- |
+| Claude Code  | `~/.claude/memory/`           |
+| Codex CLI    | `~/.codex/memory/`            |
 | OpenCode CLI | `<project>/.opencode/memory/` |
 
 Each session record identifies the assistant with a tag:

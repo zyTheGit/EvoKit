@@ -51,7 +51,7 @@ export interface AdapterStatus {
 
 /**
  * Every adapter installer must implement this interface.
- * To add a new AI assistant (Cursor, Aider, Windsurf, …),
+ * To add a new AI assistant (Cursor, Pi CLI, Windsurf, …),
  * implement this class and call registerAdapter().
  */
 export interface AdapterInstaller {

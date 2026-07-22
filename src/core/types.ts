@@ -21,7 +21,7 @@ export interface SessionEntry {
   corrections: number;
   observations: number;
   score: string;
-  assistant?: 'claude' | 'codex' | 'opencode' | 'aider';
+  assistant?: 'claude' | 'codex' | 'opencode' | 'pi';
   session_id?: string;
   model?: string;
 }
@@ -109,7 +109,7 @@ export interface InstallSummary {
 
 /** Shared memory entry tagged by assistant */
 export interface SharedMemoryEntry {
-  assistant: 'claude' | 'codex' | 'opencode' | 'aider';
+  assistant: 'claude' | 'codex' | 'opencode' | 'pi';
   timestamp: string;
   data: Record<string, unknown>;
 }
