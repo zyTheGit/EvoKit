@@ -69,8 +69,8 @@ Five canonical roles, all using default label strings. See `docs/agents/triage-l
 
 Single-context repo — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-# CI-equivalent validation (template structure + no personal paths + shellcheck + dry-run)
-bash .github/workflows/ci.yml-equivalent  # or run the individual steps from ci.yml
+# 本地 CI 等效验证（模板结构 + 无个人路径 + shellcheck + dry-run）
+# 各步骤见 .github/workflows/ci.yml，本地命令速查见 docs/zh/DEV_STANDARDS.md §9
 
 # Template structure test
 test -f template/claude/CLAUDE.md && test -f template/claude/settings.json && test -f template/claude/MEMORY.md
@@ -79,10 +79,10 @@ test -f template/claude/hooks/session-start.sh && test -f template/claude/hooks/
 
 ## Important Design Rules
 
-- **No personal paths in templates** — the installer uses `__HOME__` placeholders that get replaced at install time via `sed`. Never hardcode `/home/...` paths in template files.
-- **`settings.json` uses `__HOME__`** placeholder (replaced by `sed -i` during install).
-- **Memory files are append-only** — `corrections.jsonl` and `observations.jsonl` entries are never deleted.
-- **`learned-rules.md`** must never exceed 50 lines.
-- **`CLAUDE.md`** must never exceed 150 lines.
-- The `/evolve` command handles rotation (archive entries >30d old, gzip >1000 lines) and confidence decay (halve confidence after 60d).
-- The `stop.sh` hook uses embedded Python (via `uv run --isolated python3` if available) for JSON processing.
+权威完整版见 `docs/zh/DEV_STANDARDS.md`（§7 模板红线）；路径规则见 `.claude/rules/`。
+
+- **模板无个人路径** — 一律使用 `__HOME__` 占位符（含 `settings.json`），安装时 `sed` 替换；CI grep 校验
+- **Memory 文件 append-only** — `corrections.jsonl` / `observations.jsonl` 条目永不删除
+- **行数限制** — `learned-rules.md` ≤ 50 行；`CLAUDE.md` ≤ 150 行（认知核心，不是垃圾场）
+- **轮转与衰减** — `/evolve` 负责（30 天归档、1000 行 gzip、60 天置信度减半）
+- **内嵌 Python** — `stop.sh` 优先 `uv run --isolated python3`，不可用时回退 `python3`

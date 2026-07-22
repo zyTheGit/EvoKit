@@ -4,6 +4,8 @@
 
 Thank you for considering contributing to EvoKit. This is a community-driven project that aims to make AI coding assistants smarter through self-evolution.
 
+> 📖 **Development standards**: code style, testing requirements, commit/release flow, and documentation sync rules are documented in [docs/en/DEV_STANDARDS.md](docs/en/DEV_STANDARDS.md) (中文版：[docs/zh/DEV_STANDARDS.md](docs/zh/DEV_STANDARDS.md)). This file covers _how to contribute_; DEV_STANDARDS covers _how we write code_.
+
 ## Code of Conduct
 
 - Be respectful and inclusive
@@ -14,7 +16,7 @@ Thank you for considering contributing to EvoKit. This is a community-driven pro
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/your-username/EvoKit/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/zyTheGit/EvoKit/issues)
 2. If not, create a new issue using the [Bug Report template](.github/ISSUE_TEMPLATE/bug-report.md)
 3. Include:
    - Clear description of the issue
@@ -24,7 +26,7 @@ Thank you for considering contributing to EvoKit. This is a community-driven pro
 
 ### Suggesting Features
 
-1. Check existing [Issues](https://github.com/your-username/EvoKit/issues) for similar requests
+1. Check existing [Issues](https://github.com/zyTheGit/EvoKit/issues) for similar requests
 2. Create a new issue using the [Feature Request template](.github/ISSUE_TEMPLATE/feature-request.md)
 3. Explain:
    - What problem you're solving
@@ -60,10 +62,13 @@ docs(readme): update install instructions
 ## Development Setup
 
 ```bash
-git clone https://github.com/your-username/EvoKit.git
+git clone https://github.com/zyTheGit/EvoKit.git
 cd EvoKit
 
-# The project is template-based — no build step needed
+# Install dependencies and build the CLI (Node.js >= 20.12.0)
+npm ci
+npm run build
+
 # Test the template locally:
 bash bin/install.sh --template template --dry-run
 ```
@@ -92,10 +97,10 @@ ls -la /tmp/evokit-test-home/.claude/
 EvoKit/
 ├── template/          # Installable template (~/.claude/)
 ├── bin/               # Installation scripts
-├── src/               # Source code (future)
-├── docs/              # Documentation
+├── src/               # CLI source code (TypeScript)
+├── docs/              # Documentation (bilingual: zh/ + en/)
 ├── examples/          # Customization examples
-└── tests/             # Tests (future)
+└── tests/             # vitest tests
 ```
 
 ## Adding a New Adapter
@@ -108,4 +113,4 @@ EvoKit/
 
 ## Questions?
 
-Open a [Discussion](https://github.com/your-username/EvoKit/discussions) or check [FAQ.md](docs/en/FAQ.md).
+Open a [Discussion](https://github.com/zyTheGit/EvoKit/discussions) or check [FAQ.md](docs/en/FAQ.md).

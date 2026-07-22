@@ -8,6 +8,7 @@ template/memory/sessions.jsonl
 
 # User's own .claude directory (personal)
 .claude/
+!.claude/rules/
 *.claude/
 
 # System files
