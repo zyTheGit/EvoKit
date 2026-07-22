@@ -6,6 +6,7 @@
  *   evokit install     — 为一个或多个 AI 编程助手安装 EvoKit
  *   evokit uninstall   — 为 AI 编程助手卸载 EvoKit
  *   evokit init        — install 的别名（向后兼容）
+ *   evokit project     — 在项目目录中生成 AI 助手规范文件
  *   evokit doctor      — 系统健康检查
  *   evokit evolve      — 运行演化审计
  *   evokit export      — 导出学习数据
@@ -22,6 +23,7 @@ import './adapters/index.js';
 
 import { installCommand } from './install.js';
 import { initCommand } from './commands/init.js';
+import { projectCommand } from './commands/project.js';
 import { evolveCommand } from './commands/evolve.js';
 import { exportCommand } from './commands/export_cmd.js';
 import { importCommand } from './commands/import_cmd.js';
@@ -37,6 +39,7 @@ program.name('evokit').description('EvoKit — AI 编程助手的自演化系统
 
 program.addCommand(installCommand);
 program.addCommand(initCommand);
+program.addCommand(projectCommand);
 program.addCommand(evolveCommand);
 program.addCommand(exportCommand);
 program.addCommand(importCommand);
