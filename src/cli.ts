@@ -13,6 +13,7 @@
  * @packageDocumentation
  */
 
+import { createRequire } from 'node:module';
 import { Command } from 'commander';
 
 // Register all built-in adapters (side-effect import)
@@ -25,12 +26,15 @@ import { exportCommand } from './commands/export_cmd.js';
 import { importCommand } from './commands/import_cmd.js';
 import { doctorCommand } from './commands/doctor.js';
 
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json') as { version: string };
+
 const program = new Command();
 
 program
   .name('evokit')
   .description('EvoKit — Self-Evolving System Framework for AI Coding Assistants')
-  .version('0.4.7');
+  .version(pkg.version);
 
 program.addCommand(installCommand);
 program.addCommand(initCommand);
