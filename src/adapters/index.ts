@@ -11,13 +11,13 @@ import { registerAdapter } from './registry.js';
 import { ClaudeAdapter } from './claude/adapter.js';
 import { CodexAdapter } from './codex/adapter.js';
 import { OpenCodeAdapter } from './opencode/adapter.js';
-import { AiderAdapter } from './aider/adapter.js';
+import { PiAdapter } from './pi/adapter.js';
 
 // Register built-in adapters
 registerAdapter(new ClaudeAdapter());
 registerAdapter(new CodexAdapter());
 registerAdapter(new OpenCodeAdapter());
-registerAdapter(new AiderAdapter());
+registerAdapter(new PiAdapter());
 
 export { registerAdapter, getInstaller, listAdapters, hasAdapter } from './registry.js';
 export type {
@@ -30,4 +30,4 @@ export type {
 export { ClaudeAdapter, getLayout as getClaudeLayout } from './claude/adapter.js';
 export { CodexAdapter, resolveCodexHome } from './codex/adapter.js';
 export { OpenCodeAdapter, resolveOpenCodeProjectDir } from './opencode/adapter.js';
-export { AiderAdapter } from './aider/adapter.js';
+export { PiAdapter } from './pi/adapter.js';

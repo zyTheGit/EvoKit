@@ -28,7 +28,7 @@ See `docs/en/ARCHITECTURE.md` for full detail.
   - `template/agents/` — Sub-agent definitions
   - `template/memory/` — Learning data files (seeded empty for users)
 - **`bin/`** — `install.sh` (one-click installer, supports `--dry-run` and `--template`)
-- **`src/adapters/`** — Multi-agent adapter TypeScript sources (Claude Code: done; Codex/OpenCode/Aider: planned)
+- **`src/adapters/`** — Multi-agent adapter TypeScript sources (Claude Code: done; Codex/OpenCode/Pi: planned)
 - **`docs/`** — Bilingual documentation (`en/` for English, `zh/` for Chinese): architecture, evolution pipeline, migration, multi-agent, customization, FAQ
 - **`examples/`** — Example custom rules, agents, and commands for users
 

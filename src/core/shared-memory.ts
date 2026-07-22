@@ -4,7 +4,7 @@
  * EvoKit — Shared Memory Layer
  *
  * Provides cross-adapter access to learning data in ~/.claude/memory/.
- * All adapters (Claude Code, Codex CLI, OpenCode, Aider) share the same
+ * All adapters (Claude Code, Codex CLI, OpenCode, Pi CLI) share the same
  * canonical data store. Each session record is tagged by assistant name.
  *
  * @packageDocumentation
@@ -22,7 +22,7 @@ import {
 } from './types.js';
 
 export const DEFAULT_MEMORY_DIR = '.claude/memory';
-export type AssistantName = 'claude' | 'codex' | 'opencode' | 'aider';
+export type AssistantName = 'claude' | 'codex' | 'opencode' | 'pi';
 
 // ─── Read Operations ──────────────────────────────────────────
 

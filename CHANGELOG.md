@@ -6,7 +6,7 @@
 
 - 🧩 **适配器接口统一重构** — 抽取 `AdapterInstaller` 接口 + 注册表，三端适配器（Claude / Codex / OpenCode）共享同一安装/验证契约
 - 🏗️ **适配器模块化迁移** — 旧单文件适配器（`src/adapters/*-adapter.ts`）全部删除，替换为按助手分目录（`src/adapters/{claude,codex,opencode}/`）的模块化结构
-- 🎯 **Aider 适配器存根** — `src/adapters/aider/adapter.ts` 已创建，待后续实现完整集成
+- 🎯 **Pi CLI 适配器存根** — `src/adapters/pi/adapter.ts` 已创建，待后续实现完整集成
 
 ### Documentation
 
@@ -20,8 +20,8 @@
 
 ### Internal
 
-- 🔧 删除旧的单文件适配器（aider-adapter.ts, claude-adapter.ts, codex-adapter.ts, codex-hooks.ts, codex-installer.ts, opencode-adapter.ts, opencode-hooks.ts, opencode-installer.ts）
-- 📦 新增模块化适配器文件（`src/adapters/{claude,codex,opencode,aider}/` + `index.ts` + `registry.ts` + `types.ts`）
+- 🔧 删除旧的单文件适配器（pi-adapter.ts, claude-adapter.ts, codex-adapter.ts, codex-hooks.ts, codex-installer.ts, opencode-adapter.ts, opencode-hooks.ts, opencode-installer.ts）
+- 📦 新增模块化适配器文件（`src/adapters/{claude,codex,opencode,pi}/` + `index.ts` + `registry.ts` + `types.ts`）
 - 🔌 新增核心模块（`src/core/download.ts`, `interactive.ts`, `merge-agents.ts`, `merge-settings.ts`, `permissions.ts`）
 - 🚚 模板目录重组织（`template/` → `template/{claude,codex,opencode}/`）
 
@@ -35,7 +35,7 @@
 - 💡 **Better UX** — Pressing Enter defaults to `[1] Claude Code`; input now accepts commas (`1,3` same as `1 3`); cleaner prompt with `→` indicator
 - 🛡️ **More robust input handling** — Strips `\r`, trims whitespace, accumulates only validated choices before parsing
 - 📝 **README updated** — Preview section shows the new interactive menu; install docs highlight `--adapter` flag for non-interactive use
-- 📋 **README roadmap updated** — v0.4.0 moved from "规划中 🔜" to "开发中 🚧" with actual OpenCode/Aider progress reflected; versioning rule documented
+- 📋 **README roadmap updated** — v0.4.0 moved from "规划中 🔜" to "开发中 🚧" with actual OpenCode/Pi CLI progress reflected; versioning rule documented
 
 ## v0.4.9 (2026-07-15)
 

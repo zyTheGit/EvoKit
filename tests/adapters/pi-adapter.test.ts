@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { AiderAdapter } from '../../src/adapters/aider/adapter.js';
+import { PiAdapter } from '../../src/adapters/pi/adapter.js';
 
 const CONFIG = {
   homeDir: '/tmp/test-home',
   templateDir: '/tmp/test-template',
 };
 
-describe('aider-adapter', () => {
-  const adapter = new AiderAdapter();
+describe('pi-adapter', () => {
+  const adapter = new PiAdapter();
 
   it('has correct metadata', () => {
-    expect(adapter.id).toBe('aider');
-    expect(adapter.label).toBe('Aider');
+    expect(adapter.id).toBe('pi');
+    expect(adapter.label).toBe('Pi CLI');
     expect(adapter.version).toBe('0.0.1');
     expect(adapter.experimental).toBe(true);
   });

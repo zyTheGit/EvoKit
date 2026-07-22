@@ -6,12 +6,12 @@ EvoKit adapters allow the self-evolving system to work with different AI coding 
 
 ## Current Status
 
-| Adapter | Status | Version |
-|---------|--------|---------|
-| Claude Code | ✅ Complete | v0.1.0 |
-| Codex CLI | ✅ Complete | v0.3.0 |
-| OpenCode CLI | ✅ Complete | v0.4.0 |
-| Aider | 🔜 Planned | v0.4.0 |
+| Adapter      | Status      | Version |
+| ------------ | ----------- | ------- |
+| Claude Code  | ✅ Complete | v0.1.0  |
+| Codex CLI    | ✅ Complete | v0.3.0  |
+| OpenCode CLI | ✅ Complete | v0.4.0  |
+| Pi CLI       | 🔜 Planned  | v0.4.0  |
 
 ## Interface
 

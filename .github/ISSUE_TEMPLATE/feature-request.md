@@ -1,9 +1,9 @@
 ---
 name: Feature Request
 about: Suggest an idea for this project
-title: "[FEATURE] "
+title: '[FEATURE] '
 labels: enhancement
-assignees: ""
+assignees: ''
 ---
 
 ## Problem
@@ -24,7 +24,7 @@ A clear and concise description of any alternative solutions or features you've 
 - [ ] Claude Code
 - [ ] Codex
 - [ ] OpenCode
-- [ ] Aider
+- [ ] Pi CLI
 - [ ] Other (describe below)
 
 ## Would you be willing to help implement this?
