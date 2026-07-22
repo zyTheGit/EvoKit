@@ -405,9 +405,7 @@ describe('uninstall-engine', () => {
       const result = executeUninstall(options);
 
       expect(result.heuristic).toBe(true);
-      expect(result.warnings).toContain(
-        'No manifest found — using heuristic uninstall. Some files may be missed.',
-      );
+      expect(result.warnings).toContain('未找到清单文件 — 使用启发式卸载。部分文件可能被遗漏。');
     });
   });
 

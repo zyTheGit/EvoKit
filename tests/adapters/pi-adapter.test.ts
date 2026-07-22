@@ -16,15 +16,15 @@ describe('pi-adapter', () => {
     expect(adapter.experimental).toBe(true);
   });
 
-  it('install() throws "not yet implemented"', () => {
-    expect(() => adapter.install(CONFIG)).toThrow('not yet implemented');
+  it('install() throws "尚未实现"', () => {
+    expect(() => adapter.install(CONFIG)).toThrow('尚未实现');
   });
 
   it('verify() returns a single failing check', () => {
     const checks = adapter.verify(CONFIG);
     expect(checks).toHaveLength(1);
     expect(checks[0].pass).toBe(false);
-    expect(checks[0].detail).toContain('Not yet implemented');
+    expect(checks[0].detail).toContain('尚未实现');
   });
 
   it('status() returns not-installed AdapterStatus', () => {

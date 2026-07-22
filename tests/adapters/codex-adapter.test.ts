@@ -98,7 +98,7 @@ describe('codex-installer', () => {
 
     it('throws with invalid template path', () => {
       expect(() => installCodex({ homeDir: tmpDir(), templateDir: '/nonexistent' })).toThrow(
-        'Codex template not found',
+        'Codex 模板未找到',
       );
     });
   });

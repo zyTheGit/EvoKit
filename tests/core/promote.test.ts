@@ -116,7 +116,7 @@ describe('promote', () => {
 
       const rejected = results.find((r) => r.decision === 'rejected');
       expect(rejected).toBeDefined();
-      expect(rejected!.reason).toContain('Already exists');
+      expect(rejected!.reason).toContain('已存在于 learned-rules.md 中');
     });
 
     it('respects dry-run', () => {
