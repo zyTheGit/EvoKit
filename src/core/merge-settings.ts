@@ -19,6 +19,14 @@ import { replaceHomeInObject } from './replace-home.js';
 export interface SettingsMergeResult {
   changed: boolean;
   reason?: string;
+  /** Detailed record of what was merged (for manifest collection) */
+  detail?: {
+    hooksAdded: Array<{ event: string; entry: Record<string, unknown> }>;
+    envVarsAdded: Array<{ key: string; value: string }>;
+    autoMemoryEnabledSet: boolean;
+    permissionsAllow: string[];
+    permissionsDeny: string[];
+  };
 }
 
 /**
@@ -75,6 +83,15 @@ export function mergeSettings(
 
   let changed = false;
 
+  // Detail tracking for manifest collection
+  const detail: NonNullable<SettingsMergeResult['detail']> = {
+    hooksAdded: [],
+    envVarsAdded: [],
+    autoMemoryEnabledSet: false,
+    permissionsAllow: [],
+    permissionsDeny: [],
+  };
+
   // 3. Merge hooks — add only missing hook events
   const tHooks = (template.hooks as Record<string, unknown>) || {};
   if (Object.keys(tHooks).length > 0) {
@@ -88,6 +105,12 @@ export function mergeSettings(
       if (!(event in eHooks)) {
         mHooks[event] = hooksList;
         changed = true;
+        // Record each matcher group in the added event
+        if (Array.isArray(hooksList)) {
+          for (const entry of hooksList) {
+            detail.hooksAdded.push({ event, entry: entry as Record<string, unknown> });
+          }
+        }
       }
     }
     if (changed) {
@@ -100,6 +123,7 @@ export function mergeSettings(
   if ((settings.autoMemoryEnabled as boolean | undefined) !== tAuto) {
     settings.autoMemoryEnabled = tAuto;
     changed = true;
+    detail.autoMemoryEnabledSet = true;
   }
 
   // 5. Env vars — add missing, never overwrite
@@ -114,9 +138,23 @@ export function mergeSettings(
     if (!(k in eEnv)) {
       mEnv[k] = v as string;
       changed = true;
+      detail.envVarsAdded.push({ key: k, value: v as string });
     }
   }
   settings.env = mEnv;
+
+  // 6. Record permissions from template for manifest tracking
+  //    (permissions are not merged — they're only set on fresh install —
+  //    but we record them in the detail so the manifest knows what EvoKit owns)
+  const tPerms = template.permissions as Record<string, unknown> | undefined;
+  if (tPerms && typeof tPerms === 'object') {
+    if (Array.isArray(tPerms.allow)) {
+      detail.permissionsAllow = (tPerms.allow as string[]).map(String);
+    }
+    if (Array.isArray(tPerms.deny)) {
+      detail.permissionsDeny = (tPerms.deny as string[]).map(String);
+    }
+  }
 
   if (!changed) {
     return { changed: false, reason: 'SKIPPED' };
@@ -157,5 +195,5 @@ export function mergeSettings(
   }
 
   fse.removeSync(settingsPath + '.bak.merge');
-  return { changed: true };
+  return { changed: true, detail };
 }

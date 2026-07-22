@@ -14,6 +14,7 @@
  */
 
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import {
   type AdapterInstaller,
   type AdapterInstallConfig,
@@ -24,6 +25,8 @@ import {
 import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
 import { executeLayout } from '../../core/layout-engine.js';
 import { verifyInstallation } from '../../core/template.js';
+import { ManifestCollector } from '../../core/manifest-collector.js';
+import { updateAdapterManifest } from '../../core/manifest.js';
 
 export const CLAUDE_ADAPTER_VERSION = '0.2.0';
 
@@ -168,6 +171,7 @@ export class ClaudeAdapter implements AdapterInstaller {
 
   install(config: AdapterInstallConfig): AdapterInstallResult {
     const claudeDir = path.join(config.homeDir, '.claude');
+    const collector = new ManifestCollector();
     const layout = getLayout({
       homeDir: config.homeDir,
       templateDir: config.templateDir,
@@ -177,7 +181,21 @@ export class ClaudeAdapter implements AdapterInstaller {
     const summary = executeLayout(layout, {
       homeDir: config.homeDir,
       dryRun: config.dryRun ?? false,
+      collector,
     });
+
+    // Write manifest after install completes (not in dry-run)
+    if (!config.dryRun) {
+      const adapterManifest = collector.build({
+        adapterId: this.id,
+        adapterVersion: this.version,
+        homeDir: config.homeDir,
+        adapterHome: claudeDir,
+      });
+      // Read evokitVersion from package.json
+      const pkgVersion = getEvokitVersion();
+      updateAdapterManifest(config.homeDir, adapterManifest, pkgVersion);
+    }
 
     return {
       filesCreated: summary.filesCreated,
@@ -209,5 +227,18 @@ export class ClaudeAdapter implements AdapterInstaller {
       allPass,
       checks,
     };
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+
+/** Read EvoKit version from package.json */
+function getEvokitVersion(): string {
+  try {
+    const require2 = createRequire(import.meta.url);
+    const pkg = require2('../../../package.json') as { version: string };
+    return pkg.version;
+  } catch {
+    return '0.0.0';
   }
 }

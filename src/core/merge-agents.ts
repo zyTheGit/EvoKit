@@ -30,7 +30,7 @@ const KEY_ORDER = [
  * Parse YAML frontmatter from markdown content.
  * Returns frontmatter as a flat Record<string, string> plus the body text.
  */
-function parseFrontmatter(content: string): {
+export function parseFrontmatter(content: string): {
   frontmatter: Record<string, string>;
   body: string;
   hasFrontmatter: boolean;
@@ -68,7 +68,7 @@ function parseFrontmatter(content: string): {
   return { frontmatter, body, hasFrontmatter: true };
 }
 
-function serializeFrontmatter(fm: Record<string, string>): string {
+export function serializeFrontmatter(fm: Record<string, string>): string {
   const keys = Object.keys(fm).sort((a, b) => {
     const ai = KEY_ORDER.indexOf(a);
     const bi = KEY_ORDER.indexOf(b);
@@ -119,6 +119,8 @@ export type AgentFileStatus = 'COPY' | 'MERGED' | 'SKIPPED' | `ERROR:${string}`;
 export interface AgentFileResult {
   name: string;
   status: AgentFileStatus;
+  /** Frontmatter fields that were added by this merge (for manifest) */
+  fieldsAdded?: Record<string, string>;
 }
 
 /**
@@ -189,7 +191,8 @@ export function installOrMergeAgents(
           results.push({ name: file, status: 'ERROR:write failed' });
           continue;
         }
-        results.push({ name: file, status: 'MERGED' });
+        // All template fields were added
+        results.push({ name: file, status: 'MERGED', fieldsAdded: { ...srcParsed.frontmatter } });
         continue;
       }
 
@@ -200,12 +203,20 @@ export function installOrMergeAgents(
         continue;
       }
 
+      // Record which fields were actually added (present in merged but not in original)
+      const fieldsAdded: Record<string, string> = {};
+      for (const [key, value] of Object.entries(merged)) {
+        if (!(key in dstParsed.frontmatter)) {
+          fieldsAdded[key] = value;
+        }
+      }
+
       const newContent = '---\n' + serializeFrontmatter(merged) + '\n---\n' + dstParsed.body;
       if (!writeAtomic(dstPath, newContent)) {
         results.push({ name: file, status: 'ERROR:write failed' });
         continue;
       }
-      results.push({ name: file, status: 'MERGED' });
+      results.push({ name: file, status: 'MERGED', fieldsAdded });
     } catch (e: any) {
       results.push({ name: file, status: `ERROR:${e.message}` });
     }

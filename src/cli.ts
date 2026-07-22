@@ -4,6 +4,7 @@
  *
  * Registers all built-in adapters and exposes commands:
  *   evokit install     — Install EvoKit for one or more AI coding assistants
+ *   evokit uninstall   — Uninstall EvoKit for an AI coding assistant
  *   evokit init        — Alias for install (backward compat)
  *   evokit doctor      — System health check
  *   evokit evolve      — Run evolution audit
@@ -25,6 +26,7 @@ import { evolveCommand } from './commands/evolve.js';
 import { exportCommand } from './commands/export_cmd.js';
 import { importCommand } from './commands/import_cmd.js';
 import { doctorCommand } from './commands/doctor.js';
+import { uninstallCommand } from './commands/uninstall.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
@@ -42,6 +44,7 @@ program.addCommand(evolveCommand);
 program.addCommand(exportCommand);
 program.addCommand(importCommand);
 program.addCommand(doctorCommand);
+program.addCommand(uninstallCommand);
 
 // Show help when no args
 if (process.argv.length <= 2) {

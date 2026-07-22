@@ -49,6 +49,35 @@ export interface AdapterStatus {
   projectDir?: string;
 }
 
+/** Configuration for an adapter uninstall operation */
+export interface AdapterUninstallConfig {
+  homeDir: string;
+  projectDir?: string;
+  adapterHome?: string;
+  /** Delete user data (memory/, MEMORY.md) in addition to EvoKit-managed files */
+  purge?: boolean;
+  /** Preview only, no modifications */
+  dryRun?: boolean;
+  /** Skip backup creation */
+  noBackup?: boolean;
+  /** Custom backup directory */
+  backupDir?: string;
+}
+
+/** Result summary from an adapter uninstallation */
+export interface AdapterUninstallResult {
+  filesDeleted: number;
+  filesPreserved: number;
+  hooksRemoved: number;
+  envVarsRemoved: number;
+  agentFieldsRemoved: number;
+  directoriesRemoved: number;
+  backupPath?: string;
+  /** Whether this was a heuristic (no-manifest) uninstall */
+  heuristic: boolean;
+  warnings: string[];
+}
+
 /**
  * Every adapter installer must implement this interface.
  * To add a new AI assistant (Cursor, Pi CLI, Windsurf, …),
@@ -70,4 +99,7 @@ export interface AdapterInstaller {
 
   /** Return typed status info (for doctor / status checks) */
   status(config: AdapterInstallConfig): AdapterStatus;
+
+  /** Uninstall template files for this adapter. Optional — defaults to manifest-driven uninstall. */
+  uninstall?(config: AdapterUninstallConfig): AdapterUninstallResult;
 }
