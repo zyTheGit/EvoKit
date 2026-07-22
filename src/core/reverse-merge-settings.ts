@@ -1,9 +1,9 @@
 /**
- * EvoKit — Reverse Settings.json Merge
+ * EvoKit — 反向合并 settings.json
  *
- * Reverses the settings.json merge performed during installation.
- * Removes EvoKit-added hook entries, env vars, autoMemoryEnabled,
- * and permissions entries, while preserving any user-added values.
+ * 撤销安装时执行的 settings.json 合并操作。
+ * 移除 EvoKit 添加的 hook 条目、环境变量、autoMemoryEnabled
+ * 和权限条目，同时保留用户添加的值。
  *
  * @packageDocumentation
  */
@@ -12,31 +12,31 @@ import fs from 'node:fs';
 import fse from 'fs-extra';
 import type { AdapterManifest } from './manifest.js';
 
-/** Result of reversing a settings.json merge */
+/** 反向合并 settings.json 的结果 */
 export interface ReverseMergeResult {
-  /** Whether any changes were made (or would be made in dry-run) */
+  /** 是否进行了任何更改（或在 dry-run 模式下本应进行的更改） */
   changed: boolean;
-  /** Number of hook matcher groups removed */
+  /** 移除的 hook matcher 组数 */
   hooksRemoved: number;
-  /** Number of env vars removed */
+  /** 移除的环境变量数 */
   envVarsRemoved: number;
-  /** Whether autoMemoryEnabled was reverted */
+  /** autoMemoryEnabled 是否被还原 */
   autoMemoryEnabledReverted: boolean;
-  /** Number of permissions allow entries removed */
+  /** 移除的 permissions allow 条目数 */
   permissionsAllowRemoved: number;
-  /** Number of permissions deny entries removed */
+  /** 移除的 permissions deny 条目数 */
   permissionsDenyRemoved: number;
-  /** If the file was deleted because it became empty */
+  /** 文件是否因变为空而被删除 */
   fileDeleted: boolean;
 }
 
 /**
- * Reverse the settings.json merge — remove EvoKit-added entries.
+ * 反向合并 settings.json — 移除 EvoKit 添加的条目。
  *
- * Compares entries precisely using JSON.stringify for hook matcher groups,
- * and exact key+value match for env vars.  Preserves any user-added values.
- * If the file becomes effectively empty (only `$schema` remains), deletes it.
- * Writes atomically via temp file + rename.
+ * 使用 JSON.stringify 精确比较 hook matcher 组，
+ * 对环境变量使用精确的键+值匹配。保留用户添加的值。
+ * 如果文件变为有效空内容（仅剩 `$schema`），则删除它。
+ * 通过临时文件+重命名进行原子写入。
  */
 export function reverseMergeSettings(
   settingsPath: string,
@@ -53,17 +53,17 @@ export function reverseMergeSettings(
     fileDeleted: false,
   };
 
-  // 1. Read current settings — if missing or invalid, return unchanged
+  // 1. 读取当前设置 — 如果缺失或无效，返回不变
   let settings: Record<string, unknown>;
   try {
     const raw = fs.readFileSync(settingsPath, 'utf-8');
     settings = JSON.parse(raw);
   } catch (e: any) {
-    // File doesn't exist or invalid JSON → nothing to reverse
+    // 文件不存在或 JSON 无效 → 没有需要撤销的内容
     return result;
   }
 
-  // 2. Remove hook entries
+  // 2. 移除 hook 条目
   if (manifest.hooks.length > 0 && settings.hooks && typeof settings.hooks === 'object') {
     const hooks = settings.hooks as Record<string, unknown>;
     for (const hookEntry of manifest.hooks) {
@@ -88,13 +88,13 @@ export function reverseMergeSettings(
       }
     }
 
-    // Clean up empty hooks object
+    // 清理空的 hooks 对象
     if (Object.keys(hooks).length === 0) {
       delete settings.hooks;
     }
   }
 
-  // 3. Remove env vars
+  // 3. 移除环境变量
   if (manifest.envVars.length > 0 && settings.env && typeof settings.env === 'object') {
     const env = settings.env as Record<string, string>;
     for (const { key, value } of manifest.envVars) {
@@ -105,21 +105,21 @@ export function reverseMergeSettings(
       }
     }
 
-    // Clean up empty env object
+    // 清理空的 env 对象
     if (Object.keys(env).length === 0) {
       delete settings.env;
     }
   }
 
-  // 4. Revert autoMemoryEnabled
+  // 4. 还原 autoMemoryEnabled
   if (manifest.autoMemoryEnabledSet && 'autoMemoryEnabled' in settings) {
     delete settings.autoMemoryEnabled;
     result.autoMemoryEnabledReverted = true;
     result.changed = true;
   }
 
-  // 5. Remove permissions entries
-  // Claude's settings.json stores permissions under permissions.allow / permissions.deny (nested)
+  // 5. 移除权限条目
+  // Claude 的 settings.json 将权限存储在 permissions.allow / permissions.deny 下（嵌套）
   if (
     manifest.permissionsAllow.length > 0 &&
     settings.permissions &&
@@ -164,7 +164,7 @@ export function reverseMergeSettings(
     }
   }
 
-  // 6. Clean up empty permissions object
+  // 6. 清理空的 permissions 对象
   if (
     settings.permissions &&
     typeof settings.permissions === 'object' &&
@@ -177,7 +177,7 @@ export function reverseMergeSettings(
 
   if (dryRun) return result;
 
-  // 7. Check if settings is effectively empty (only $schema remains)
+  // 7. 检查 settings 是否有效为空（仅剩 $schema）
   const keysWithoutSchema = Object.keys(settings).filter((k) => k !== '$schema');
   if (keysWithoutSchema.length === 0) {
     fse.removeSync(settingsPath);
@@ -185,15 +185,15 @@ export function reverseMergeSettings(
     return result;
   }
 
-  // 8. Write atomically: tmp → rename
+  // 8. 原子写入：临时文件 → 重命名
   const tmpPath = settingsPath + '.reverse.tmp';
   fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
 
-  // Validate written JSON
+  // 验证写入的 JSON
   try {
     JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
   } catch {
-    /* written JSON is corrupt — discard temp file and abort write */
+    /* 写入的 JSON 已损坏 — 丢弃临时文件并中止写入 */
     fse.removeSync(tmpPath);
     return result;
   }
@@ -201,7 +201,7 @@ export function reverseMergeSettings(
   try {
     fs.renameSync(tmpPath, settingsPath);
   } catch {
-    /* atomic rename failed (cross-device or permissions) — discard temp file */
+    /* 原子重命名失败（跨设备或权限问题）— 丢弃临时文件 */
     fse.removeSync(tmpPath);
   }
 

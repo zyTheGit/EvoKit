@@ -1,7 +1,7 @@
 /**
- * EvoKit — Confirmation Prompt
+ * EvoKit — 确认提示
  *
- * Uses @clack/prompts confirm() for yes/no confirmation dialogs.
+ * 使用 @clack/prompts confirm() 进行是/否确认对话框。
  *
  * @packageDocumentation
  */
@@ -9,14 +9,14 @@
 import { confirm, isCancel, cancel } from '@clack/prompts';
 
 /**
- * Ask the user to confirm an action.
+ * 询问用户确认操作。
  *
- * @param message - The prompt message (default: "Continue installation?")
- * @param initial - Default value (default: true)
- * @returns true if confirmed, false otherwise
+ * @param message - 提示消息（默认: "继续安装？"）
+ * @param initial - 默认值（默认: true）
+ * @returns 确认返回 true，否则返回 false
  */
 export async function confirmAction(
-  message: string = 'Continue installation?',
+  message: string = '继续安装？',
   initial: boolean = true,
 ): Promise<boolean> {
   const result = await confirm({
@@ -25,7 +25,7 @@ export async function confirmAction(
   });
 
   if (isCancel(result)) {
-    cancel('Installation cancelled');
+    cancel('安装已取消');
     process.exit(0);
   }
 

@@ -1,17 +1,17 @@
 /**
- * EvoKit — Codex CLI Adapter
+ * EvoKit — Codex CLI 适配器安装器
  *
- * @internal — Adapter implementation for Codex CLI. The CodexAdapter class implements the public AdapterInstaller interface.
+ * @internal — Codex CLI 的适配器实现。CodexAdapter 类实现了公共 AdapterInstaller 接口。
  *
- * Implements the AgentAdapter interface for OpenAI Codex CLI.
- * Codex CLI uses ~/.codex/ with:
- * - AGENTS.md for cognitive core (analogous to CLAUDE.md)
- * - hooks.json for lifecycle hooks (SessionStart, Stop, PreToolUse)
- * - config.toml for configuration
- * - .codex/rules/ for Starlark permission rules
- * - ~/.codex/memory/ for evolution data
+ * 实现 OpenAI Codex CLI 的 AgentAdapter 接口。
+ * Codex CLI 使用 ~/.codex/，包含：
+ * - AGENTS.md 作为认知核心（类似于 CLAUDE.md）
+ * - hooks.json 用于生命周期钩子（SessionStart、Stop、PreToolUse）
+ * - config.toml 用于配置
+ * - .codex/rules/ 用于 Starlark 权限规则
+ * - ~/.codex/memory/ 用于进化数据
  *
- * Uses the declarative `AdapterLayout` + `executeLayout()` engine.
+ * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎。
  *
  * @packageDocumentation
  */
@@ -34,7 +34,7 @@ import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
 import { executeLayout } from '../../core/layout-engine.js';
 import { CodexHooksBuilder } from './hooks.js';
 
-// ESM __dirname equivalent
+// ESM 中的 __dirname 等价写法
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -48,10 +48,10 @@ export function resolveCodexHome(homeDir: string): string {
   return process.env.CODEX_HOME || path.join(homeDir, '.codex');
 }
 
-// ─── Layout builder ────────────────────────────────────────────
+// ─── 布局构建器 ────────────────────────────────────────────
 
 /**
- * Build the declarative layout for Codex CLI adapter installation.
+ * 构建 Codex CLI 适配器安装的声明式布局。
  */
 export function getLayout(opts: { homeDir: string; templateDir: string }): AdapterLayout {
   const { homeDir, templateDir } = opts;
@@ -60,13 +60,13 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
 
   const sections: AdapterSection[] = [];
 
-  // ── 1. Directories ──────────────────────────────────────────
+  // ── 1. 目录 ──────────────────────────────────────────
   sections.push({
     type: 'dirs',
     paths: [...CODEX_SUBDIRS],
   });
 
-  // ── 2. AGENTS.md (skip-if-exists, with __HOME__ replacement) ─
+  // ── 2. AGENTS.md（skip-if-exists，替换 __HOME__）──
   sections.push({
     type: 'copy',
     src: path.join(codexTemplateDir, 'AGENTS.md'),
@@ -75,7 +75,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
     replaceHome: true,
   });
 
-  // ── 3. hooks.json (always copy — upgrade path, with __HOME__) ─
+  // ── 3. hooks.json（始终复制 — 升级路径，替换 __HOME__）──
   sections.push({
     type: 'copy',
     src: path.join(codexTemplateDir, 'hooks.json'),
@@ -84,7 +84,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
     replaceHome: true,
   });
 
-  // ── 4. config.toml (skip-if-exists, no __HOME__ replacement) ─
+  // ── 4. config.toml（skip-if-exists，不替换 __HOME__）──
   sections.push({
     type: 'copy',
     src: path.join(codexTemplateDir, 'config.toml'),
@@ -92,7 +92,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
     strategy: 'skip-if-exists',
   });
 
-  // ── 5. Rules (always copy — upgrade path) ────────────────────
+  // ── 5. Rules（始终复制 — 升级路径）────────────────────
   sections.push({
     type: 'copy-dir',
     srcDir: path.join(codexTemplateDir, 'rules'),
@@ -102,7 +102,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
     counter: 'rulesInstalled',
   });
 
-  // ── 6. Hook scripts (always copy, with __HOME__) ─────────────
+  // ── 6. Hook 脚本（始终复制，替换 __HOME__）──────────────
   sections.push({
     type: 'copy-dir',
     srcDir: path.join(codexTemplateDir, 'hooks-scripts'),
@@ -113,7 +113,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
     counter: 'hooksInstalled',
   });
 
-  // ── 7. Memory seed (skip-if-exists) ──────────────────────────
+  // ── 7. Memory 初始化（skip-if-exists）────────────────────
   sections.push({
     type: 'seed-memory',
     srcDir: path.join(codexTemplateDir, 'memory'),
@@ -121,7 +121,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
     files: [...MEMORY_SEED_FILES],
   });
 
-  // ── 8. Permissions ───────────────────────────────────────────
+  // ── 8. 权限 ─────────────────────────────────────────────
   sections.push({
     type: 'permissions',
     dir: path.join(codexHome, 'hooks-scripts'),
@@ -132,7 +132,7 @@ export function getLayout(opts: { homeDir: string; templateDir: string }): Adapt
   return { targetDir: codexHome, sections };
 }
 
-// ─── AdapterInstaller Implementation ─────────────────────────────
+// ─── AdapterInstaller 实现 ─────────────────────────────────
 
 export class CodexAdapter implements AdapterInstaller {
   readonly id = 'codex';
@@ -146,11 +146,11 @@ export class CodexAdapter implements AdapterInstaller {
     const codexHome = resolveCodexHome(homeDir);
     const codexTemplateDir = path.join(templateDir, 'codex');
 
-    // Validate template exists
+    // 验证模板是否存在
     if (!fse.existsSync(path.join(codexTemplateDir, 'AGENTS.md'))) {
       throw new Error(
-        `Codex template not found at: ${codexTemplateDir}\n` +
-          '  Ensure the template directory contains a codex/ subdirectory with AGENTS.md.',
+        `Codex 模板未找到: ${codexTemplateDir}\n` +
+          '  请确保模板目录包含 codex/ 子目录及 AGENTS.md。',
       );
     }
 
@@ -194,21 +194,21 @@ export class CodexAdapter implements AdapterInstaller {
   }
 }
 
-// ─── Standalone API ──────────────────────────────────────────────
+// ─── 独立 API ──────────────────────────────────────────────
 
 /**
- * Install EvoKit for Codex CLI.
- * Delegates to the layout engine via `getLayout()` + `executeLayout()`.
+ * 为 Codex CLI 安装 EvoKit。
+ * 通过 `getLayout()` + `executeLayout()` 委托给布局引擎。
  */
 export function installCodex(config: CodexInstallConfig): InstallSummary {
   const codexHome = resolveCodexHome(config.homeDir);
   const codexTemplateDir = path.join(config.templateDir, 'codex');
 
-  // Validate template exists
+  // 验证模板是否存在
   if (!fse.existsSync(path.join(codexTemplateDir, 'AGENTS.md'))) {
     throw new Error(
-      `Codex template not found at: ${codexTemplateDir}\n` +
-        '  Ensure the template directory contains a codex/ subdirectory with AGENTS.md.',
+      `Codex 模板未找到: ${codexTemplateDir}\n` +
+        '  请确保模板目录包含 codex/ 子目录及 AGENTS.md。',
     );
   }
 
@@ -220,25 +220,25 @@ export function installCodex(config: CodexInstallConfig): InstallSummary {
 }
 
 /**
- * Set up lifecycle hooks for Codex CLI.
- * Generates hooks.json with SessionStart, Stop, and PreToolUse handlers.
+ * 设置 Codex CLI 的生命周期钩子。
+ * 生成包含 SessionStart、Stop 和 PreToolUse 处理器的 hooks.json。
  */
 export function setupCodexHooks(codexHome: string, options: CodexAdapterOptions = {}): void {
   const scriptsDir = options.codexHome
     ? path.resolve(options.codexHome, 'hooks-scripts')
     : path.resolve(codexHome, 'hooks-scripts');
 
-  // Use default hooks configuration
+  // 使用默认钩子配置
   const builder = CodexHooksBuilder.createDefault(scriptsDir);
 
-  // Write hooks.json
+  // 写入 hooks.json
   const hooksPath = path.join(codexHome, 'hooks.json');
   builder.writeToFile(hooksPath);
 }
 
 /**
- * Inject learning data into Codex-accessible context.
- * Writes corrections and observations to the shared memory directory.
+ * 将学习数据注入 Codex 可访问的上下文。
+ * 将纠正和观察写入共享 memory 目录。
  */
 export function injectCodexMemory(
   homeDir: string,
@@ -256,7 +256,7 @@ export function injectCodexMemory(
   fse.ensureDirSync(memoryDir);
   let filesWritten = 0;
 
-  // Append corrections
+  // 追加纠正记录
   if (data.corrections?.length) {
     const correctionsPath = path.join(memoryDir, 'corrections.jsonl');
     const lines = data.corrections.map((c) =>
@@ -272,7 +272,7 @@ export function injectCodexMemory(
     filesWritten++;
   }
 
-  // Append observations
+  // 追加观察记录
   if (data.observations?.length) {
     const observationsPath = path.join(memoryDir, 'observations.jsonl');
     const lines = data.observations.map((o) =>
@@ -292,7 +292,7 @@ export function injectCodexMemory(
 }
 
 /**
- * Export learning data from shared memory.
+ * 从共享 memory 导出学习数据。
  */
 export function exportCodexMemory(
   homeDir: string,
@@ -314,7 +314,7 @@ export function exportCodexMemory(
     sessions: [] as unknown[],
   };
 
-  // Parse corrections.jsonl
+  // 解析 corrections.jsonl
   const correctionsPath = path.join(memoryDir, 'corrections.jsonl');
   if (fse.existsSync(correctionsPath)) {
     result.corrections = fs
@@ -324,7 +324,7 @@ export function exportCodexMemory(
       .map((l) => JSON.parse(l));
   }
 
-  // Parse observations.jsonl
+  // 解析 observations.jsonl
   const observationsPath = path.join(memoryDir, 'observations.jsonl');
   if (fse.existsSync(observationsPath)) {
     result.observations = fs
@@ -334,13 +334,13 @@ export function exportCodexMemory(
       .map((l) => JSON.parse(l));
   }
 
-  // Read learned-rules.md
+  // 读取 learned-rules.md
   const rulesPath = path.join(memoryDir, 'learned-rules.md');
   if (fse.existsSync(rulesPath)) {
     result.learnedRules = fs.readFileSync(rulesPath, 'utf-8');
   }
 
-  // Parse sessions.jsonl (filtered by codex if tagged)
+  // 解析 sessions.jsonl（如有 codex 标签则过滤）
   const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
   if (fse.existsSync(sessionsPath)) {
     result.sessions = fs
@@ -361,7 +361,7 @@ export function exportCodexMemory(
 }
 
 /**
- * Record a session entry tagged with the Codex assistant name.
+ * 记录带有 Codex 助手名称标签的会话条目。
  */
 export function recordCodexSession(
   homeDir: string,
@@ -386,8 +386,8 @@ export function recordCodexSession(
 }
 
 /**
- * Run an EvoKit command within the Codex context.
- * Uses shell execution for /boot, /evolve, /review commands.
+ * 在 Codex 上下文中运行 EvoKit 命令。
+ * 使用 shell 执行 /boot、/evolve、/review 命令。
  */
 export function runCodexCommand(
   name: string,
@@ -427,7 +427,7 @@ export function runCodexCommand(
 }
 
 /**
- * Full boot verification for Codex CLI installation.
+ * Codex CLI 安装的完整启动验证。
  */
 export function verifyCodexSetup(
   homeDir: string,
@@ -449,8 +449,8 @@ export function verifyCodexSetup(
 }
 
 /**
- * Verify a Codex CLI installation at a given path.
- * Public wrapper used by standalone API.
+ * 验证指定路径下的 Codex CLI 安装。
+ * 独立 API 使用的公共包装函数。
  */
 export function verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[] {
   const checks: AdapterVerifyCheck[] = [];
@@ -460,7 +460,7 @@ export function verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[]
     checks.push({
       name: `.codex/${file}`,
       pass: exists,
-      detail: exists ? undefined : 'Missing file',
+      detail: exists ? undefined : '文件缺失',
     });
   }
 
@@ -469,7 +469,7 @@ export function verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[]
     checks.push({
       name: `.codex/${subdir}/`,
       pass: exists,
-      detail: exists ? undefined : 'Missing directory',
+      detail: exists ? undefined : '目录缺失',
     });
   }
 
@@ -483,13 +483,13 @@ export function verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[]
         checks.push({
           name: `.codex/hooks-scripts/${script}`,
           pass: (stats.mode & 0o111) !== 0,
-          detail: (stats.mode & 0o111) !== 0 ? undefined : 'Not executable',
+          detail: (stats.mode & 0o111) !== 0 ? undefined : '不可执行',
         });
       } else {
         checks.push({
           name: `.codex/hooks-scripts/${script}`,
           pass: false,
-          detail: 'Missing script',
+          detail: '脚本缺失',
         });
       }
     }
@@ -499,7 +499,7 @@ export function verifyCodexInstallation(codexHome: string): AdapterVerifyCheck[]
 }
 
 /**
- * Get the status summary of a Codex CLI EvoKit installation.
+ * 获取 Codex CLI EvoKit 安装的状态摘要。
  */
 export function getCodexStatus(homeDir: string): {
   installed: boolean;
@@ -543,7 +543,7 @@ export function getCodexStatus(homeDir: string): {
   return result;
 }
 
-// ─── Internal Helpers ──────────────────────────────────────────
+// ─── 内部辅助函数 ──────────────────────────────────────────
 
 function getBootCommand(homeDir: string): string {
   const codexHome = resolveCodexHome(homeDir);
@@ -551,6 +551,6 @@ function getBootCommand(homeDir: string): string {
   if (fse.existsSync(scriptPath)) {
     return `bash "${scriptPath}"`;
   }
-  // Fallback: verify installation directly
-  return `echo "EvoKit boot check for Codex CLI (home: ${codexHome})"`;
+  // 回退：直接验证安装
+  return `echo "EvoKit 启动检查 for Codex CLI (home: ${codexHome})"`;
 }

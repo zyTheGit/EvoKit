@@ -1,18 +1,18 @@
 /**
- * EvoKit — OpenCode Tool Generators
+ * EvoKit — OpenCode 工具生成器
  *
- * OpenCode has no lifecycle hooks. Instead, EvoKit commands are implemented
- * as custom tools using the @opencode-ai/plugin SDK.
+ * OpenCode 没有生命周期钩子。EvoKit 命令通过 @opencode-ai/plugin SDK
+ * 实现为自定义工具。
  *
- * This module generates the TypeScript source code for each tool.
- * Tools read/write global memory at ~/.config/opencode/memory/.
+ * 本模块为每个工具生成 TypeScript 源码。
+ * 工具在 ~/.config/opencode/memory/ 中读写全局内存。
  *
  * @packageDocumentation
  */
 
 /**
- * Generate source code for the evokit-boot tool.
- * Performs system integrity verification at session start.
+ * 生成 evokit-boot 工具的源码。
+ * 在会话启动时执行系统完整性验证。
  */
 export function generateBootToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
@@ -22,16 +22,16 @@ import { join, homedir } from "path";
 const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
-  description: "Run EvoKit boot verification — check system integrity and learned rules",
+  description: "运行 EvoKit 启动验证 — 检查系统完整性和已学习规则",
   args: {},
   async execute(_args, context) {
     mkdirSync(MEMORY_DIR, { recursive: true });
     const results: string[] = [];
     let passed = 0, failed = 0;
 
-    results.push("# EvoKit Boot Verification\\n");
+    results.push("# EvoKit 启动验证\\n");
 
-    // 1. Check global config files
+    // 1. 检查全局配置文件
     const globalDir = join(homedir(), ".config", "opencode");
     for (const file of ["AGENTS.md", "opencode.json"]) {
       const ok = existsSync(join(globalDir, file));
@@ -39,21 +39,21 @@ export default tool({
       ok ? passed++ : failed++;
     }
 
-    // 2. Check project-level files
+    // 2. 检查项目级文件
     for (const file of ["AGENTS.md", "opencode.json"]) {
       const ok = existsSync(join(context.directory, file));
       results.push(\`\${ok ? "✅" : "❌"} \${file} (project root)\`);
       ok ? passed++ : failed++;
     }
 
-    // 3. Check memory files
+    // 3. 检查内存文件
     for (const file of ["corrections.jsonl", "learned-rules.md", "observations.jsonl"]) {
       const ok = existsSync(join(MEMORY_DIR, file));
       results.push(\`\${ok ? "✅" : "⚠️"} memory/\${file}\`);
       ok ? passed++ : failed++;
     }
 
-    // 4. Run learned rules verify commands
+    // 4. 运行已学习规则的验证命令
     const rulesPath = join(MEMORY_DIR, "learned-rules.md");
     if (existsSync(rulesPath)) {
       const rules = readFileSync(rulesPath, "utf-8");
@@ -73,7 +73,7 @@ export default tool({
 
     results.push(\`\\n---\\n**\${passed} passed, \${failed} failed**\\n\`);
 
-    // Record violation if any failures
+    // 如果有失败，记录违规
     if (failed > 0) {
       const violation = JSON.stringify({
         timestamp: new Date().toISOString(),
@@ -89,8 +89,8 @@ export default tool({
 }
 
 /**
- * Generate source code for the evokit-evolve tool.
- * Audits corrections and promotes patterns to learned rules.
+ * 生成 evokit-evolve 工具的源码。
+ * 审计修正记录并将模式提升为已学习规则。
  */
 export function generateEvolveToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
@@ -100,19 +100,19 @@ import { join, homedir } from "path";
 const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
-  description: "Run EvoKit evolution audit — promote corrections to learned rules",
+  description: "运行 EvoKit 演化审计 — 将修正提升为已学习规则",
   args: {
-    dryRun: tool.schema.boolean().optional().describe("Preview changes without applying"),
+    dryRun: tool.schema.boolean().optional().describe("预览变更，不实际应用"),
   },
   async execute(args, _context) {
     mkdirSync(MEMORY_DIR, { recursive: true });
 
     const correctionsPath = join(MEMORY_DIR, "corrections.jsonl");
     if (!existsSync(correctionsPath)) {
-      return "No corrections found — nothing to evolve.\\n";
+      return "未找到修正记录 — 无需演化。\\n";
     }
 
-    // Read corrections and group by pattern
+    // 读取修正记录并按模式分组
     const corrections = readFileSync(correctionsPath, "utf-8")
       .split("\\n")
       .filter(Boolean)
@@ -127,47 +127,47 @@ export default tool({
     }
 
     const report: string[] = [];
-    report.push("# EvoKit Evolution Audit\\n");
+    report.push("# EvoKit 演化审计\\n");
     let promoted = 0;
 
-    // Read existing learned rules
+    // 读取已有的已学习规则
     const rulesPath = join(MEMORY_DIR, "learned-rules.md");
     let existingRules = existsSync(rulesPath) ? readFileSync(rulesPath, "utf-8") : "";
 
     for (const [pattern, group] of grouped) {
       if (group.count >= 2 && !existingRules.includes(\`verify:\`)) {
         if (args.dryRun) {
-          report.push(\`📋 Would promote: "\${pattern}" (\${group.count} occurrences)\\n\`);
+          report.push(\`📋 将提升: "\${pattern}" (\${group.count} 次出现)\\n\`);
         } else {
-          // Append to learned-rules.md
+          // 追加到 learned-rules.md
           const ruleEntry = \`- pattern: \${pattern}\\n  verify: echo "verify: \${pattern}"\\n  promoted: \${new Date().toISOString().split("T")[0]}\\n\\n\`;
           appendFileSync(rulesPath, ruleEntry, "utf-8");
-          report.push(\`✅ Promoted: "\${pattern}"\\n\`);
+          report.push(\`✅ 已提升: "\${pattern}"\\n\`);
           promoted++;
         }
       } else if (group.count < 2) {
-        report.push(\`⏳ "\${pattern}" — only \${group.count}/2 occurrences, deferring\\n\`);
+        report.push(\`⏳ "\${pattern}" — 仅 \${group.count}/2 次出现，推迟\\n\`);
       } else {
-        report.push(\`ℹ️ "\${pattern}" — already promoted\\n\`);
+        report.push(\`ℹ️ "\${pattern}" — 已提升\\n\`);
       }
     }
 
-    // Log evolution decision
+    // 记录演化决策
     const logPath = join(MEMORY_DIR, "evolution-log.md");
     if (!args.dryRun) {
-      const logEntry = \`## \${new Date().toISOString().split("T")[0]} — Promoted \${promoted} rules\\n\`;
+      const logEntry = \`## \${new Date().toISOString().split("T")[0]} — 提升 \${promoted} 条规则\\n\`;
       appendFileSync(logPath, logEntry, "utf-8");
     }
 
-    report.push(\`\\n**Promoted: \${promoted} rule(s)**\\n\`);
+    report.push(\`\\n**已提升: \${promoted} 条规则**\\n\`);
     return report.join("\\n");
   },
 });`;
 }
 
 /**
- * Generate source code for the evokit-memory tool.
- * Manages corrections, observations, and context injection.
+ * 生成 evokit-memory 工具的源码。
+ * 管理修正、观察记录和上下文注入。
  */
 export function generateMemoryToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
@@ -177,22 +177,22 @@ import { join, homedir } from "path";
 const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
-  description: "Manage EvoKit learning data — record corrections, observations, and inject context",
+  description: "管理 EvoKit 学习数据 — 记录修正、观察和注入上下文",
   args: {
     action: tool.schema
       .enum(["record-correction", "record-observation", "export", "inject"])
-      .describe("Action to perform"),
-    pattern: tool.schema.string().optional().describe("Correction or observation pattern"),
-    context: tool.schema.string().optional().describe("Context for the correction/observation"),
-    confidence: tool.schema.number().optional().describe("Confidence score (0.0-1.0)"),
-    source: tool.schema.string().optional().describe("Source of the observation"),
+      .describe("要执行的操作"),
+    pattern: tool.schema.string().optional().describe("修正或观察的模式"),
+    context: tool.schema.string().optional().describe("修正/观察的上下文"),
+    confidence: tool.schema.number().optional().describe("置信度分数 (0.0-1.0)"),
+    source: tool.schema.string().optional().describe("观察的来源"),
   },
   async execute(args, _context) {
     mkdirSync(MEMORY_DIR, { recursive: true });
 
     switch (args.action) {
       case "record-correction": {
-        if (!args.pattern) return "Error: pattern is required for record-correction\\n";
+        if (!args.pattern) return "错误: record-correction 需要 pattern 参数\\n";
         const entry = JSON.stringify({
           timestamp: new Date().toISOString(),
           pattern: args.pattern,
@@ -200,11 +200,11 @@ export default tool({
           count: 1,
         });
         appendFileSync(join(MEMORY_DIR, "corrections.jsonl"), entry + "\\n", "utf-8");
-        return \`✅ Correction recorded: "\${args.pattern}"\\n\`;
+        return \`✅ 修正已记录: "\${args.pattern}"\\n\`;
       }
 
       case "record-observation": {
-        if (!args.pattern) return "Error: pattern is required for record-observation\\n";
+        if (!args.pattern) return "错误: record-observation 需要 pattern 参数\\n";
         const entry = JSON.stringify({
           timestamp: new Date().toISOString(),
           pattern: args.pattern,
@@ -212,11 +212,11 @@ export default tool({
           source: args.source || "auto",
         });
         appendFileSync(join(MEMORY_DIR, "observations.jsonl"), entry + "\\n", "utf-8");
-        return \`✅ Observation recorded: "\${args.pattern}"\\n\`;
+        return \`✅ 观察已记录: "\${args.pattern}"\\n\`;
       }
 
       case "export": {
-        const output = ["# EvoKit Memory Export\\n"];
+        const output = ["# EvoKit 内存导出\\n"];
         for (const file of ["corrections.jsonl", "observations.jsonl", "learned-rules.md", "sessions.jsonl"]) {
           const filePath = join(MEMORY_DIR, file);
           if (existsSync(filePath)) {
@@ -232,21 +232,21 @@ export default tool({
         const rulesPath = join(MEMORY_DIR, "learned-rules.md");
         if (existsSync(rulesPath)) {
           const rules = readFileSync(rulesPath, "utf-8");
-          return \`EvoKit learned rules for this session:\\n\${rules}\\n\`;
+          return \`本次会话的 EvoKit 已学习规则:\\n\${rules}\\n\`;
         }
-        return "No learned rules found.\\n";
+        return "未找到已学习规则。\\n";
       }
 
       default:
-        return \`Error: unknown action "\${args.action}"\\n\`;
+        return \`错误: 未知操作 "\${args.action}"\\n\`;
     }
   },
 });`;
 }
 
 /**
- * Generate source code for the evokit-session tool.
- * Records session lifecycle events.
+ * 生成 evokit-session 工具的源码。
+ * 记录会话生命周期事件。
  */
 export function generateSessionToolSource(): string {
   return `import { tool } from "@opencode-ai/plugin";
@@ -256,14 +256,14 @@ import { join, homedir } from "path";
 const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
 
 export default tool({
-  description: "Record EvoKit session lifecycle — call with action: end before finishing",
+  description: "记录 EvoKit 会话生命周期 — 结束前调用 action: end",
   args: {
-    action: tool.schema.enum(["start", "end"]).describe("Session lifecycle event"),
-    duration: tool.schema.number().optional().describe("Session duration in seconds"),
-    model: tool.schema.string().optional().describe("Model used in this session"),
-    score: tool.schema.string().optional().describe("Session score (A/B/C/D)"),
-    corrections: tool.schema.number().optional().describe("Number of corrections recorded"),
-    observations: tool.schema.number().optional().describe("Number of observations recorded"),
+    action: tool.schema.enum(["start", "end"]).describe("会话生命周期事件"),
+    duration: tool.schema.number().optional().describe("会话持续时间（秒）"),
+    model: tool.schema.string().optional().describe("本次会话使用的模型"),
+    score: tool.schema.string().optional().describe("会话评分 (A/B/C/D)"),
+    corrections: tool.schema.number().optional().describe("记录的修正数量"),
+    observations: tool.schema.number().optional().describe("记录的观察数量"),
   },
   async execute(args, _context) {
     mkdirSync(MEMORY_DIR, { recursive: true });
@@ -283,7 +283,7 @@ export default tool({
     });
 
     appendFileSync(sessionsPath, entry + "\\n", "utf-8");
-    return \`✅ Session \${args.action} recorded.\\n\`;
+    return \`✅ 会话 \${args.action} 已记录。\\n\`;
   },
 });`;
 }

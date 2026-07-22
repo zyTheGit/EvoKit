@@ -1,9 +1,9 @@
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * EvoKit — Interactive Adapter Selection
+ * @internal — 内部辅助模块，不属于公共适配器 API。
+ * EvoKit — 交互式适配器选择
  *
- * Replaces raw TTY / readline menus with @clack/prompts multiselect.
+ * 使用 @clack/prompts 多选菜单替代原始 TTY / readline 菜单。
  *
  * @packageDocumentation
  */
@@ -14,20 +14,20 @@ import type { MenuAdapter } from '../cli/adapter-selector.js';
 export type { MenuAdapter };
 
 const DEFAULT_ADAPTERS: MenuAdapter[] = [
-  { key: 'claude', label: 'Claude Code (recommended)', description: '~/.claude/' },
+  { key: 'claude', label: 'Claude Code（推荐）', description: '~/.claude/' },
   { key: 'codex', label: 'Codex CLI (v0.3.0)', description: '~/.codex/' },
   { key: 'opencode', label: 'OpenCode CLI (v0.5.0)', description: '~/.config/opencode/' },
 ];
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Show an interactive adapter selector using Clack's multiselect.
+ * @internal — 内部辅助模块，不属于公共适配器 API。
+ * 使用 Clack 多选菜单展示交互式适配器选择器。
  *
- * Supports ↑↓ navigation, Space to toggle, Enter to confirm, ESC to cancel.
+ * 支持 ↑↓ 导航、空格切换、回车确认、ESC 取消。
  *
- * @param adapters - Available adapters to choose from (default: built-in list)
- * @returns Array of selected adapter keys (never empty — defaults to ['claude'])
+ * @param adapters - 可选的适配器列表（默认：内置列表）
+ * @returns 已选适配器 key 数组（不会为空 — 默认为 ['claude']）
  */
 export async function selectAdapters(
   adapters: MenuAdapter[] = DEFAULT_ADAPTERS,

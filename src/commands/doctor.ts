@@ -8,14 +8,14 @@ import { getCodexStatus, verifyCodexSetup } from '../adapters/codex/adapter.js';
 import { getOpenCodeStatus } from '../adapters/opencode/adapter.js';
 
 export const doctorCommand = new Command('doctor')
-  .description('Verify EvoKit system integrity')
-  .option('--home <path>', 'EvoKit home directory (default: $HOME)')
-  .option('--fix', 'Attempt to fix common issues')
-  .option('--adapter <name>', 'Check specific adapter (claude | codex | opencode | all)', 'all')
+  .description('验证 EvoKit 系统完整性')
+  .option('--home <path>', 'EvoKit 主目录（默认: $HOME）')
+  .option('--fix', '尝试修复常见问题')
+  .option('--adapter <name>', '检查指定适配器（claude | codex | opencode | all）', 'all')
   .action(async (options) => {
     const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
-      console.error(pc.red('Error: Could not determine home directory.'));
+      console.error(pc.red('错误：无法确定主目录。'));
       process.exit(1);
     }
 
@@ -23,50 +23,50 @@ export const doctorCommand = new Command('doctor')
     const adapter = options.adapter || 'all';
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
-    console.log(pc.cyan('║   EvoKit — System Health Check            ║'));
+    console.log(pc.cyan('║   EvoKit — 系统健康检查                  ║'));
     console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
-    console.log(`  Home: ${claudeDir}`);
+    console.log(`  主目录: ${claudeDir}`);
     console.log('');
 
     let allPass = true;
 
-    // Check Claude Code adapter
+    // 检查 Claude Code 适配器
     if (adapter === 'all' || adapter === 'claude') {
       allPass = !(await checkClaude(claudeDir, homeDir, options)) && allPass;
     }
 
-    // Check Codex CLI adapter
+    // 检查 Codex CLI 适配器
     if (adapter === 'all' || adapter === 'codex') {
       allPass = !(await checkCodex(homeDir, options)) && allPass;
     }
 
-    // Check OpenCode CLI adapter
+    // 检查 OpenCode CLI 适配器
     if (adapter === 'all' || adapter === 'opencode') {
       allPass = !(await checkOpenCode()) && allPass;
     }
 
-    // Memory check
+    // 记忆文件检查
     if (adapter === 'all' || adapter === 'claude') {
       allPass = !checkMemory(homeDir, '.claude') && allPass;
     }
 
-    // Summary
+    // 汇总
     console.log('');
     if (allPass) {
-      console.log(pc.green('✅ All checks passed! System is healthy.'));
+      console.log(pc.green('✅ 所有检查通过！系统健康。'));
     } else {
-      console.log(pc.yellow('⚠️  Some checks failed. Run with --fix to attempt repairs.'));
+      console.log(pc.yellow('⚠️  部分检查未通过。使用 --fix 尝试修复。'));
     }
     console.log('');
   });
 
 async function checkClaude(claudeDir: string, homeDir: string, options: any): Promise<boolean> {
   if (!fse.existsSync(claudeDir)) {
-    console.log(pc.yellow(`  ⚠ Claude Code adapter: not installed at ${claudeDir}`));
+    console.log(pc.yellow(`  ⚠ Claude Code 适配器：未安装在 ${claudeDir}`));
     return false;
   }
 
-  console.log(pc.cyan('📁 Claude Code — Directory structure...'));
+  console.log(pc.cyan('📁 Claude Code — 目录结构...'));
   let pass = true;
   const checks = verifyInstallation(homeDir);
   for (const check of checks) {
@@ -75,16 +75,16 @@ async function checkClaude(claudeDir: string, homeDir: string, options: any): Pr
     if (!check.pass) pass = false;
   }
 
-  // File size limits
-  console.log(pc.cyan('\n📏 Claude Code — File size limits...'));
+  // 文件大小限制
+  console.log(pc.cyan('\n📏 Claude Code — 文件大小限制...'));
   const rootClaudeMd = path.join(homeDir, 'CLAUDE.md');
   if (fse.existsSync(rootClaudeMd)) {
     const lines = getFileLineCount(rootClaudeMd);
     if (lines > 150) {
-      console.log(`  ${pc.yellow('⚠️')} CLAUDE.md: ${lines} lines (limit: 150)`);
+      console.log(`  ${pc.yellow('⚠️')} CLAUDE.md：${lines} 行（限制：150）`);
       pass = false;
     } else {
-      console.log(`  ${pc.green('✓')} CLAUDE.md: ${lines}/150 lines`);
+      console.log(`  ${pc.green('✓')} CLAUDE.md：${lines}/150 行`);
     }
   }
 
@@ -95,8 +95,8 @@ async function checkCodex(homeDir: string, options: any): Promise<boolean> {
   const status = getCodexStatus(homeDir);
 
   if (!status.installed) {
-    console.log(pc.yellow(`  ⚠ Codex CLI adapter: not installed at ${status.codexHome}`));
-    console.log(`    Run: evokit init --adapter codex`);
+    console.log(pc.yellow(`  ⚠ Codex CLI 适配器：未安装在 ${status.codexHome}`));
+    console.log(`    运行：evokit init --adapter codex`);
     return false;
   }
 
@@ -115,7 +115,7 @@ async function checkCodex(homeDir: string, options: any): Promise<boolean> {
     if (check.status !== 'pass') pass = false;
   }
 
-  console.log(`  ${pc.green('✓')} Rules installed: ${status.ruleCount}`);
+  console.log(`  ${pc.green('✓')} 已安装规则：${status.ruleCount}`);
 
   return pass;
 }
@@ -125,8 +125,8 @@ async function checkOpenCode(): Promise<boolean> {
   const status = getOpenCodeStatus(projectDir);
 
   if (!status.installed) {
-    console.log(pc.yellow(`  ⚠ OpenCode CLI adapter: not installed`));
-    console.log(`    Run: evokit init --adapter opencode`);
+    console.log(pc.yellow(`  ⚠ OpenCode CLI 适配器：未安装`));
+    console.log(`    运行：evokit init --adapter opencode`);
     return false;
   }
 
@@ -147,7 +147,7 @@ async function checkOpenCode(): Promise<boolean> {
   }
 
   if (status.agentCount > 0) {
-    console.log(`  ${pc.green('✓')} Sub-agents: ${status.agentCount} defined`);
+    console.log(`  ${pc.green('✓')} 子代理：已定义 ${status.agentCount} 个`);
   }
 
   return pass;
@@ -155,10 +155,10 @@ async function checkOpenCode(): Promise<boolean> {
 
 function checkMemory(homeDir: string, subDir: string): boolean {
   const memoryDir = path.join(homeDir, subDir, 'memory');
-  console.log(pc.cyan(`\n💾 Memory (${subDir}/memory/)...`));
+  console.log(pc.cyan(`\n💾 记忆文件 (${subDir}/memory/)...`));
 
   if (!fse.existsSync(memoryDir)) {
-    console.log(`  ${pc.yellow('⚠')} Memory directory not found`);
+    console.log(`  ${pc.yellow('⚠')} 记忆目录未找到`);
     return false;
   }
 
@@ -176,9 +176,7 @@ function checkMemory(homeDir: string, subDir: string): boolean {
   for (const file of memoryFiles) {
     const fp = path.join(memoryDir, file);
     const exists = fse.existsSync(fp);
-    console.log(
-      `  ${exists ? pc.green('✓') : pc.yellow('⚠')} ${file}${!exists ? ' (optional)' : ''}`,
-    );
+    console.log(`  ${exists ? pc.green('✓') : pc.yellow('⚠')} ${file}${!exists ? '（可选）' : ''}`);
     if (!exists && file !== 'README.md') allExist = false;
   }
 

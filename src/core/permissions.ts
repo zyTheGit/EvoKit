@@ -1,11 +1,11 @@
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * EvoKit — File Permission Utilities
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * EvoKit — 文件权限工具
  *
- * Sets standard permissions on installed files:
- *   - Hook scripts → executable (0o755)
- *   - JSONL memory files → 0o600 (personal data)
+ * 为已安装文件设置标准权限：
+ *   - Hook 脚本 → 可执行 (0o755)
+ *   - JSONL 内存文件 → 0o600（个人数据）
  *
  * @packageDocumentation
  */
@@ -16,8 +16,8 @@ import fse from 'fs-extra';
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Set permissions on hook scripts (*.sh) to executable.
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 将 hook 脚本 (*.sh) 设置为可执行。
  */
 export function setHookPermissions(hooksDir: string): string[] {
   const set: string[] = [];
@@ -30,7 +30,7 @@ export function setHookPermissions(hooksDir: string): string[] {
       fs.chmodSync(fp, 0o755);
       set.push(file);
     } catch {
-      // Skip unreadable files
+      // 跳过不可读文件
     }
   }
   return set;
@@ -38,8 +38,8 @@ export function setHookPermissions(hooksDir: string): string[] {
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Set permissions on JSONL memory files to 0o600 (owner read/write only).
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 将 JSONL 内存文件权限设置为 0o600（仅所有者可读写）。
  */
 export function setMemoryPermissions(memoryDir: string): string[] {
   const set: string[] = [];
@@ -52,7 +52,7 @@ export function setMemoryPermissions(memoryDir: string): string[] {
       fs.chmodSync(fp, 0o600);
       set.push(file);
     } catch {
-      // Skip
+      // 跳过
     }
   }
   return set;
@@ -60,8 +60,8 @@ export function setMemoryPermissions(memoryDir: string): string[] {
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Quick check that a file has executable bits.
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 快速检查文件是否具有可执行位。
  */
 export function isExecutable(filePath: string): boolean {
   try {

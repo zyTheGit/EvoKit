@@ -1,11 +1,11 @@
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * EvoKit — Shared Memory Layer
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * EvoKit — 共享内存层
  *
- * Provides cross-adapter access to learning data in ~/.claude/memory/.
- * All adapters (Claude Code, Codex CLI, OpenCode, Pi CLI) share the same
- * canonical data store. Each session record is tagged by assistant name.
+ * 提供跨适配器访问 ~/.claude/memory/ 中的学习数据。
+ * 所有适配器（Claude Code、Codex CLI、OpenCode、Pi CLI）共享同一个
+ * 规范化数据存储。每条会话记录按助手名称标记。
  *
  * @packageDocumentation
  */
@@ -24,12 +24,12 @@ import {
 export const DEFAULT_MEMORY_DIR = '.claude/memory';
 export type AssistantName = 'claude' | 'codex' | 'opencode' | 'pi';
 
-// ─── Read Operations ──────────────────────────────────────────
+// ─── 读取操作 ──────────────────────────────────────────
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Resolve the shared memory directory path.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 解析共享内存目录路径。
  */
 export function getMemoryDir(homeDir: string, memoryDir?: string): string {
   return memoryDir ? path.resolve(memoryDir) : path.resolve(homeDir, DEFAULT_MEMORY_DIR);
@@ -37,8 +37,8 @@ export function getMemoryDir(homeDir: string, memoryDir?: string): string {
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Read all corrections from corrections.jsonl.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 从 corrections.jsonl 读取所有修正记录。
  */
 export function readCorrections(homeDir: string, memoryDir?: string): CorrectionEntry[] {
   const filePath = path.join(getMemoryDir(homeDir, memoryDir), 'corrections.jsonl');
@@ -48,8 +48,8 @@ export function readCorrections(homeDir: string, memoryDir?: string): Correction
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Read all observations from observations.jsonl.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 从 observations.jsonl 读取所有观察记录。
  */
 export function readObservations(homeDir: string, memoryDir?: string): ObservationEntry[] {
   const filePath = path.join(getMemoryDir(homeDir, memoryDir), 'observations.jsonl');
@@ -59,8 +59,8 @@ export function readObservations(homeDir: string, memoryDir?: string): Observati
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Read session records from sessions.jsonl, optionally filtered by assistant.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 从 sessions.jsonl 读取会话记录，可按助手名称过滤。
  */
 export function readSessions(
   homeDir: string,
@@ -77,8 +77,8 @@ export function readSessions(
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Read learned-rules.md and parse its rules.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 读取 learned-rules.md 并解析规则。
  */
 export function readLearnedRules(homeDir: string, memoryDir?: string): LearnedRule[] {
   const filePath = path.join(getMemoryDir(homeDir, memoryDir), 'learned-rules.md');
@@ -89,7 +89,7 @@ export function readLearnedRules(homeDir: string, memoryDir?: string): LearnedRu
   const lines = content.split('\n');
 
   for (const line of lines) {
-    // Match lines like: "- Rule description <!-- verify: command -->"
+    // 匹配形如: "- Rule description <!-- verify: command -->" 的行
     const match = line.match(/^-\s+(.+?)(?:\s+<!--\s*verify:\s*(.+?)\s*-->)?\s*$/);
     if (match) {
       rules.push({
@@ -104,8 +104,8 @@ export function readLearnedRules(homeDir: string, memoryDir?: string): LearnedRu
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Read violations from violations.jsonl.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 从 violations.jsonl 读取违规记录。
  */
 export function readViolations(homeDir: string, memoryDir?: string): ViolationEntry[] {
   const filePath = path.join(getMemoryDir(homeDir, memoryDir), 'violations.jsonl');
@@ -113,12 +113,12 @@ export function readViolations(homeDir: string, memoryDir?: string): ViolationEn
   return parseJsonl<ViolationEntry>(filePath);
 }
 
-// ─── Write Operations ─────────────────────────────────────────
+// ─── 写入操作 ─────────────────────────────────────────
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Append a correction entry (append-only).
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 追加修正记录（仅追加）。
  */
 export function appendCorrection(
   homeDir: string,
@@ -140,8 +140,8 @@ export function appendCorrection(
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Append an observation entry (append-only).
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 追加观察记录（仅追加）。
  */
 export function appendObservation(
   homeDir: string,
@@ -162,8 +162,8 @@ export function appendObservation(
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Record a session entry tagged by assistant name.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 按助手名称记录会话记录。
  */
 export function recordSession(
   homeDir: string,
@@ -184,8 +184,8 @@ export function recordSession(
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Append a violation entry.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 追加违规记录。
  */
 export function appendViolation(
   homeDir: string,
@@ -204,12 +204,12 @@ export function appendViolation(
   appendJsonl(filePath, fullEntry);
 }
 
-// ─── Helpers ──────────────────────────────────────────────────
+// ─── 辅助函数 ──────────────────────────────────────────────────
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Parse a JSONL file into an array of typed objects.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 将 JSONL 文件解析为类型化对象数组。
  */
 function parseJsonl<T>(filePath: string): T[] {
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -228,18 +228,18 @@ function parseJsonl<T>(filePath: string): T[] {
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Append a JSONL entry to a file with secure permissions.
+ * @internal — 内部辅助函数，不属于公开适配器 API。
+ * 将 JSONL 记录以安全权限追加到文件。
  */
 function appendJsonl(filePath: string, entry: unknown): void {
   fs.appendFileSync(filePath, JSON.stringify(entry) + '\n', 'utf-8');
-  // Secure the file after write
+  // 写入后设置安全权限
   try {
     const stats = fs.statSync(filePath);
     if (stats.mode & 0o077) {
       fs.chmodSync(filePath, 0o600);
     }
   } catch {
-    // Best-effort: if file doesn't exist yet, chmod will fail — that's fine
+    // 最佳努力：如果文件不存在，chmod 会失败 — 没关系
   }
 }

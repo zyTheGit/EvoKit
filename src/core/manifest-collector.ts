@@ -1,9 +1,9 @@
 /**
- * EvoKit — Manifest Collector
+ * EvoKit — 清单收集器
  *
- * A push-based collector that records what the layout engine actually
- * installed.  Call `record*()` methods during installation, then
- * `build()` to produce an `AdapterManifest` for the manifest file.
+ * 基于推送的收集器，记录布局引擎实际安装的内容。
+ * 在安装过程中调用 `record*()` 方法，然后调用
+ * `build()` 生成用于清单文件的 `AdapterManifest`。
  *
  * @packageDocumentation
  */

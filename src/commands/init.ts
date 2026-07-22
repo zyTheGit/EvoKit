@@ -1,8 +1,8 @@
 /**
- * EvoKit — Init Command (alias for install, backward compat)
+ * EvoKit — Init 命令（install 的别名，向后兼容）
  *
- * Delegates to the adapter registry for all installation logic.
- * Interactive prompts use @clack/prompts for a modern terminal experience.
+ * 委托适配器注册表执行所有安装逻辑。
+ * 交互式提示使用 @clack/prompts 提供现代化终端体验。
  *
  * @packageDocumentation
  */
@@ -21,8 +21,8 @@ import { intro, outro, multiselect, isCancel, cancel, spinner, note } from '@cla
 import type { AdapterVerifyCheck } from '../adapters/types.js';
 
 /**
- * All known adapters (for the init prompt).
- * Uses the registry to stay in sync with available adapters.
+ * 所有已知适配器（用于 init 提示）。
+ * 使用注册表以与可用适配器保持同步。
  */
 function getAdapterChoices(): Array<{
   id: string;
@@ -39,25 +39,22 @@ function getAdapterChoices(): Array<{
 }
 
 export const initCommand = new Command('init')
-  .description('Initialize EvoKit in a home directory')
-  .argument('[directory]', 'Target home directory (default: $HOME)')
-  .option('--template <path>', 'Path to template directory')
-  .option('--branch <name>', 'GitHub branch to download template from', 'main')
-  .option('--dry-run', 'Preview installation without modifying files')
-  .option('--verify', 'Run boot verification after installation')
-  .option(
-    '--adapter <name>',
-    'Target AI assistant (claude | codex | opencode). Omit for interactive selection.',
-  )
+  .description('在主目录中初始化 EvoKit')
+  .argument('[directory]', '目标主目录（默认：$HOME）')
+  .option('--template <path>', '模板目录路径')
+  .option('--branch <name>', '下载模板使用的 GitHub 分支', 'main')
+  .option('--dry-run', '预览安装，不修改文件')
+  .option('--verify', '安装后运行启动验证')
+  .option('--adapter <name>', '目标 AI 助手（claude | codex | opencode）。省略则交互式选择。')
   .action(async (directory, options) => {
     const homeDir = directory || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
-      console.error(pc.red('Error: Could not determine home directory.'));
-      console.error('  Specify it as an argument: evokit init /path/to/home');
+      console.error(pc.red('错误：无法确定主目录。'));
+      console.error('  请通过参数指定：evokit init /path/to/home');
       process.exit(1);
     }
 
-    // Resolve adapters
+    // 解析适配器
     let adapterIds: string[];
 
     if (options.adapter) {
@@ -73,7 +70,7 @@ export const initCommand = new Command('init')
 
     if (adapterIds.length === 0) adapterIds = ['claude'];
 
-    // Resolve template
+    // 解析模板
     let templateDir: string;
     let cleanup: (() => void) | null = null;
     try {
@@ -85,7 +82,7 @@ export const initCommand = new Command('init')
       process.exit(1);
     }
 
-    // Install each adapter
+    // 安装每个适配器
     let allPass = true;
 
     for (const id of adapterIds) {
@@ -93,7 +90,7 @@ export const initCommand = new Command('init')
       try {
         installer = getInstaller(id);
       } catch {
-        console.error(pc.red(`\n❌ Unknown adapter: "${id}"`));
+        console.error(pc.red(`\n❌ 未知适配器："${id}"`));
         process.exit(1);
         return;
       }
@@ -106,11 +103,11 @@ export const initCommand = new Command('init')
       };
 
       const installSpin = spinner();
-      installSpin.start(`Installing for ${installer.label}...`);
+      installSpin.start(`正在安装 ${installer.label}...`);
 
       try {
         const result = installer.install(config);
-        installSpin.stop(`${installer.label} installed`);
+        installSpin.stop(`${installer.label} 已安装`);
 
         printInitSummary(installer, result, options.dryRun);
 
@@ -121,7 +118,7 @@ export const initCommand = new Command('init')
           if (!checksPass) allPass = false;
         }
       } catch (err: any) {
-        installSpin.stop(`Installation failed: ${err.message}`);
+        installSpin.stop(`安装失败：${err.message}`);
         console.error(pc.red(`\n❌ ${installer.label}: ${err.message}`));
         allPass = false;
       }
@@ -135,15 +132,15 @@ export const initCommand = new Command('init')
   });
 
 /**
- * Show interactive adapter selection menu using Clack multiselect.
+ * 使用 Clack multiselect 显示交互式适配器选择菜单。
  */
 async function promptAdapterSelection(): Promise<string[]> {
   const adapters = getAdapterChoices();
 
-  intro('Select AI assistants to configure');
+  intro('选择要配置的 AI 助手');
 
   const result = await multiselect({
-    message: 'AI assistants',
+    message: 'AI 助手',
     options: adapters.map((a) => ({
       value: a.id,
       label: a.label,
@@ -154,15 +151,15 @@ async function promptAdapterSelection(): Promise<string[]> {
   });
 
   if (isCancel(result)) {
-    cancel('Installation cancelled');
+    cancel('安装已取消');
     process.exit(0);
   }
 
-  outro('Adapters selected');
+  outro('适配器已选择');
   return result as string[];
 }
 
-// ─── Display helpers ─────────────────────────────────────────
+// ─── 显示辅助函数 ─────────────────────────────────────────
 
 function printInitSummary(
   installer: { label: string },
@@ -170,25 +167,25 @@ function printInitSummary(
   dryRun?: boolean,
 ): void {
   note(
-    `Target: ${summary.adapterHome}${dryRun ? ' (DRY RUN)' : ''}\n` +
-      `Created: ${summary.filesCreated} file(s), skipped ${summary.filesSkipped} existing\n` +
-      (summary.hooksInstalled > 0 ? `Hooks:   ${summary.hooksInstalled} installed\n` : '') +
-      (summary.rulesInstalled > 0 ? `Rules:   ${summary.rulesInstalled} installed\n` : '') +
-      (summary.agentsInstalled > 0 ? `Agents:  ${summary.agentsInstalled} installed\n` : '') +
-      (summary.commandsInstalled > 0 ? `Commands: ${summary.commandsInstalled} installed\n` : ''),
-    `EvoKit — Install for ${installer.label}`,
+    `目标：${summary.adapterHome}${dryRun ? '（模拟运行）' : ''}\n` +
+      `已创建：${summary.filesCreated} 个文件，跳过 ${summary.filesSkipped} 个已存在文件\n` +
+      (summary.hooksInstalled > 0 ? `钩子：  ${summary.hooksInstalled} 个已安装\n` : '') +
+      (summary.rulesInstalled > 0 ? `规则：  ${summary.rulesInstalled} 个已安装\n` : '') +
+      (summary.agentsInstalled > 0 ? `代理：  ${summary.agentsInstalled} 个已安装\n` : '') +
+      (summary.commandsInstalled > 0 ? `命令：  ${summary.commandsInstalled} 个已安装\n` : ''),
+    `EvoKit — 安装 ${installer.label}`,
   );
 }
 
 function printInitVerify(checks: AdapterVerifyCheck[]): void {
   const failures = checks.filter((c) => !c.pass);
   if (failures.length > 0) {
-    console.error(pc.yellow(`\n⚠️  ${failures.length} verification check(s) failed:`));
+    console.error(pc.yellow(`\n⚠️  ${failures.length} 项验证检查未通过：`));
     for (const f of failures) {
       console.error(`  ${pc.red('✗')} ${f.name}${f.detail ? pc.yellow(` — ${f.detail}`) : ''}`);
     }
   } else {
-    console.log(pc.green('\n✅ Verification passed'));
+    console.log(pc.green('\n✅ 验证通过'));
   }
 }
 
@@ -196,21 +193,21 @@ function printInitNextSteps(adapterIds: string[]): void {
   for (const id of adapterIds) {
     switch (id) {
       case 'claude':
-        console.log(pc.cyan('  Next steps (Claude Code):'));
-        console.log('  1. Start Claude Code');
-        console.log('  2. Run /boot to verify system health');
+        console.log(pc.cyan('  后续步骤（Claude Code）：'));
+        console.log('  1. 启动 Claude Code');
+        console.log('  2. 运行 /boot 验证系统健康状态');
         console.log('');
         break;
       case 'codex':
-        console.log(pc.cyan('  Next steps (Codex CLI):'));
-        console.log('  1. Start Codex (hooks run automatically)');
-        console.log('  2. Run: evokit doctor --adapter codex');
+        console.log(pc.cyan('  后续步骤（Codex CLI）：'));
+        console.log('  1. 启动 Codex（钩子自动运行）');
+        console.log('  2. 运行：evokit doctor --adapter codex');
         console.log('');
         break;
       case 'opencode':
-        console.log(pc.cyan('  Next steps (OpenCode CLI):'));
-        console.log('  1. cd to project and start OpenCode');
-        console.log('  2. Call evokit-boot tool to verify system health');
+        console.log(pc.cyan('  后续步骤（OpenCode CLI）：'));
+        console.log('  1. 进入项目目录并启动 OpenCode');
+        console.log('  2. 调用 evokit-boot 工具验证系统健康状态');
         console.log('');
         break;
     }

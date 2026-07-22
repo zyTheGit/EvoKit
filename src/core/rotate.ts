@@ -1,6 +1,6 @@
 /**
- * @internal — JSONL rotation and confidence decay for the evolution pipeline.
- * Not part of the public adapter API.
+ * @internal — JSONL 轮换和置信度衰减，用于演化管道。
+ * 不属于公开适配器 API。
  */
 
 import fs from 'node:fs';
@@ -16,9 +16,9 @@ import {
 import { readJsonlFile, writeJsonlFile, getArchiveDir, isOlderThanDays } from './memory.js';
 
 /**
- * Rotate a JSONL file: archive entries older than maxDays.
- * If the active file exceeds maxLines, old entries are moved to archive.
- * If the archive exceeds maxLinesArchive, it is gzip-compressed.
+ * 轮换 JSONL 文件：将超过 maxDays 的记录归档。
+ * 如果活跃文件超过 maxLines，旧记录被移入归档。
+ * 如果归档文件超过 maxLinesArchive，则进行 gzip 压缩。
  */
 export function rotateJsonlFile(config: EvoConfig, filename: string): RotationResult {
   const memoryDir = path.join(config.homeDir, '.claude', 'memory');
@@ -42,7 +42,7 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
   });
 
   if (recent.length === entries.length) {
-    // All entries are recent — no rotation needed despite high line count
+    // 所有记录都是近期的 — 行数高但无需轮换
     return { file: filename, kept: entries.length, archived: 0, gzipped: false };
   }
 
@@ -54,24 +54,24 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
     return { file: filename, kept: recent.length, archived: 0, gzipped: false };
   }
 
-  // Archive old entries
+  // 归档旧记录
   const archiveDir = getArchiveDir(config.homeDir);
   const month = new Date().toISOString().slice(0, 7);
   let archivePath = path.join(archiveDir, `${filename}-${month}`);
 
-  // If archive already exists, merge
+  // 如果归档已存在，合并
   const existingArchive = readJsonlFile<Record<string, unknown>>(archivePath);
   const allArchived = [...existingArchive, ...old];
 
   let gzipped = false;
   if (allArchived.length > maxLinesArchive) {
-    // Gzip the archive
+    // Gzip 压缩归档
     const gzPath = archivePath + '.gz';
     if (!config.dryRun) {
       const jsonContent = allArchived.map((e) => JSON.stringify(e)).join('\n') + '\n';
       const gzippedContent = zlib.gzipSync(jsonContent);
       fs.writeFileSync(gzPath, gzippedContent);
-      // Remove uncompressed archive if it exists
+      // 删除未压缩的归档文件（如果存在）
       if (fs.existsSync(archivePath)) {
         fs.unlinkSync(archivePath);
       }
@@ -94,9 +94,9 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
 }
 
 /**
- * Apply confidence decay to observations.jsonl.
- * Entries older than confidenceDecayDays have confidence halved.
- * Entries below confidenceThreshold are archived.
+ * 对 observations.jsonl 应用置信度衰减。
+ * 超过 confidenceDecayDays 的记录，置信度减半。
+ * 低于 confidenceThreshold 的记录被归档。
  */
 export function applyConfidenceDecay(config: EvoConfig, filename: string): DecayResult {
   const memoryDir = path.join(config.homeDir, '.claude', 'memory');

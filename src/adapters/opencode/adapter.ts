@@ -1,19 +1,19 @@
 /**
- * EvoKit — OpenCode CLI Adapter
+ * EvoKit — OpenCode CLI 适配器
  *
- * @internal — Adapter implementation for OpenCode CLI. The OpenCodeAdapter class implements the public AdapterInstaller interface.
+ * @internal — OpenCode CLI 的适配器实现。OpenCodeAdapter 类实现了公共的 AdapterInstaller 接口。
  *
- * Implements the AgentAdapter interface for OpenCode CLI.
- * OpenCode uses:
- * - AGENTS.md for the L1 cognitive core (global + project)
- * - ~/.config/opencode/opencode.json for global configuration
- * - ~/.config/opencode/agent/ for global sub-agent definitions
- * - ~/.config/opencode/memory/ for global learning data
- * - ~/.config/opencode/skills/ for global skills
- * - .opencode/tools/ for custom tools
- * - .opencode/agent/ for project-level agent overrides
+ * 为 OpenCode CLI 实现 AgentAdapter 接口。
+ * OpenCode 使用：
+ * - AGENTS.md 作为 L1 认知核心（全局 + 项目）
+ * - ~/.config/opencode/opencode.json 作为全局配置
+ * - ~/.config/opencode/agent/ 作为全局子代理定义
+ * - ~/.config/opencode/memory/ 作为全局学习数据
+ * - ~/.config/opencode/skills/ 作为全局技能
+ * - .opencode/tools/ 作为自定义工具
+ * - .opencode/agent/ 作为项目级代理覆盖
  *
- * Uses the declarative `AdapterLayout` + `executeLayout()` engine.
+ * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎。
  *
  * @packageDocumentation
  */
@@ -51,8 +51,8 @@ export function resolveOpenCodeProjectDir(projectDir: string): string {
 }
 
 /**
- * Resolve OpenCode global config directory.
- * Respects XDG_CONFIG_HOME, defaults to ~/.config/opencode/.
+ * 解析 OpenCode 全局配置目录。
+ * 遵循 XDG_CONFIG_HOME，默认为 ~/.config/opencode/。
  */
 export function resolveOpenCodeConfigHome(homeDir: string): string {
   const xdgConfig = process.env.XDG_CONFIG_HOME;
@@ -62,17 +62,17 @@ export function resolveOpenCodeConfigHome(homeDir: string): string {
   return path.join(homeDir, '.config', 'opencode');
 }
 
-// ─── Layout builder ────────────────────────────────────────────
+// ─── 布局构建器 ────────────────────────────────────────────
 
 /**
- * Build the declarative layout for OpenCode CLI adapter installation.
+ * 构建 OpenCode CLI 适配器安装的声明式布局。
  *
- * OpenCode installs to two locations:
- *   1. Global: ~/.config/opencode/
- *   2. Project: .opencode/ + project root files
+ * OpenCode 安装到两个位置：
+ *   1. 全局：~/.config/opencode/
+ *   2. 项目：.opencode/ + 项目根目录文件
  *
- * The layout uses the global directory as targetDir; project-level
- * files use absolute paths in their dst/dstDir fields.
+ * 布局使用全局目录作为 targetDir；项目级
+ * 文件在其 dst/dstDir 字段中使用绝对路径。
  */
 export function getLayout(opts: {
   homeDir: string;

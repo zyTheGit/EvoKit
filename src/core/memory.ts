@@ -3,11 +3,11 @@ import path from 'node:path';
 import { LearnedRule } from './types.js';
 
 /**
- * @internal — Internal JSONL/memory utilities for the evolution pipeline.
- * Not part of the public adapter API.
+ * @internal — 演化管道的内部 JSONL/内存工具。
+ * 不属于公共适配器 API。
  */
 
-// ─── JSONL Operations ───────────────────────────────────────────
+// ─── JSONL 操作 ───────────────────────────────────────────
 
 export function readJsonlFile<T>(filePath: string): T[] {
   try {
@@ -18,7 +18,7 @@ export function readJsonlFile<T>(filePath: string): T[] {
         try {
           return JSON.parse(line) as T;
         } catch {
-          console.warn(`Warning: malformed JSONL entry at line ${i + 1} in ${filePath}`);
+          console.warn(`警告: ${filePath} 第 ${i + 1} 行 JSONL 格式错误`);
           return null;
         }
       })
@@ -42,7 +42,7 @@ export function writeJsonlFile<T>(filePath: string, entries: T[]): void {
   fs.writeFileSync(filePath, content, 'utf-8');
 }
 
-// ─── Learned Rules (.md) ────────────────────────────────────────
+// ─── 已学习规则 (.md) ────────────────────────────────────────
 
 const RULE_REGEX = /^- \*\*(.+?)\*\*(?:\s*\(deprecated\))?\s*$/m;
 const VERIFY_REGEX = /<!--\s*verify:\s*(.+?)\s*-->/;
@@ -90,9 +90,9 @@ export function readLearnedRules(filePath: string): LearnedRule[] {
 
 export function writeLearnedRules(filePath: string, rules: LearnedRule[]): void {
   const lines: string[] = [
-    '# Learned Rules',
+    '# 已学习规则',
     '',
-    'Rules promoted from corrections and observations. Run `/evolve` to audit.',
+    '从纠正和观察中提升的规则。运行 `/evolve` 进行审计。',
     '',
   ];
   for (const rule of rules) {
@@ -109,7 +109,7 @@ export function writeLearnedRules(filePath: string, rules: LearnedRule[]): void 
   fs.writeFileSync(filePath, lines.join('\n'), 'utf-8');
 }
 
-// ─── Evolution Log ──────────────────────────────────────────────
+// ─── 演化日志 ──────────────────────────────────────────────
 
 export function readEvolutionLog(filePath: string): string[] {
   try {
@@ -130,14 +130,14 @@ export function appendToEvolutionLog(filePath: string, entry: string): void {
   fs.appendFileSync(filePath, `[${timestamp}] ${entry}\n`, 'utf-8');
 }
 
-// ─── Utilities ──────────────────────────────────────────────────
+// ─── 工具函数 ──────────────────────────────────────────────
 
 export function getFileLineCount(filePath: string): number {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     if (content === '') return 0;
     const lines = content.split('\n');
-    // Trim trailing empty line from files ending with newline
+    // 去除文件末尾换行符产生的空行
     if (lines[lines.length - 1] === '') lines.pop();
     return lines.length;
   } catch (err: any) {
@@ -162,7 +162,7 @@ export function getArchiveDir(homeDir: string): string {
   return dir;
 }
 
-/** Converts an ISO timestamp string to Date; returns null on invalid input */
+/** 将 ISO 时间戳字符串转换为 Date；输入无效时返回 null */
 export function parseTimestamp(ts: string): Date | null {
   try {
     const d = new Date(ts);
@@ -172,7 +172,7 @@ export function parseTimestamp(ts: string): Date | null {
   }
 }
 
-/** Check if a timestamp is older than N days from now */
+/** 检查时间戳是否距今超过 N 天 */
 export function isOlderThanDays(ts: string, days: number): boolean {
   const date = parseTimestamp(ts);
   if (!date) return false;

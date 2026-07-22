@@ -1,8 +1,8 @@
 /**
- * EvoKit — Adapter Index
+ * EvoKit — 适配器索引
  *
- * Registers all built-in adapters at import time.
- * Import this file once to make all adapters available.
+ * 在导入时注册所有内置适配器。
+ * 只需导入此文件一次即可使所有适配器可用。
  *
  * @packageDocumentation
  */
@@ -13,7 +13,7 @@ import { CodexAdapter } from './codex/adapter.js';
 import { OpenCodeAdapter } from './opencode/adapter.js';
 import { PiAdapter } from './pi/adapter.js';
 
-// Register built-in adapters
+// 注册内置适配器
 registerAdapter(new ClaudeAdapter());
 registerAdapter(new CodexAdapter());
 registerAdapter(new OpenCodeAdapter());

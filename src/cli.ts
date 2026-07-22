@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * EvoKit CLI Entry Point
+ * EvoKit CLI 入口
  *
- * Registers all built-in adapters and exposes commands:
- *   evokit install     — Install EvoKit for one or more AI coding assistants
- *   evokit uninstall   — Uninstall EvoKit for an AI coding assistant
- *   evokit init        — Alias for install (backward compat)
- *   evokit doctor      — System health check
- *   evokit evolve      — Run evolution audit
- *   evokit export      — Export learning data
- *   evokit import      — Import learning data
+ * 注册所有内置适配器并暴露以下命令：
+ *   evokit install     — 为一个或多个 AI 编程助手安装 EvoKit
+ *   evokit uninstall   — 为 AI 编程助手卸载 EvoKit
+ *   evokit init        — install 的别名（向后兼容）
+ *   evokit doctor      — 系统健康检查
+ *   evokit evolve      — 运行演化审计
+ *   evokit export      — 导出学习数据
+ *   evokit import      — 导入学习数据
  *
  * @packageDocumentation
  */
@@ -17,7 +17,7 @@
 import { createRequire } from 'node:module';
 import { Command } from 'commander';
 
-// Register all built-in adapters (side-effect import)
+// 注册所有内置适配器（副作用导入）
 import './adapters/index.js';
 
 import { installCommand } from './install.js';
@@ -33,10 +33,7 @@ const pkg = require('../package.json') as { version: string };
 
 const program = new Command();
 
-program
-  .name('evokit')
-  .description('EvoKit — Self-Evolving System Framework for AI Coding Assistants')
-  .version(pkg.version);
+program.name('evokit').description('EvoKit — AI 编程助手的自演化系统框架').version(pkg.version);
 
 program.addCommand(installCommand);
 program.addCommand(initCommand);
@@ -46,7 +43,7 @@ program.addCommand(importCommand);
 program.addCommand(doctorCommand);
 program.addCommand(uninstallCommand);
 
-// Show help when no args
+// 无参数时显示帮助
 if (process.argv.length <= 2) {
   program.outputHelp();
 } else {

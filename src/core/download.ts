@@ -1,14 +1,14 @@
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * EvoKit — Template Download Utility
+ * @internal — 内部辅助模块，不属于公共适配器 API。
+ * EvoKit — 模板下载工具
  *
- * Resolves the template directory from multiple sources:
- * 1. Explicit --template path
- * 2. Bundled paths (dev, npm global, npm local)
- * 3. GitHub download (fallback for curl|bash installs)
+ * 从多个来源解析模板目录：
+ * 1. 显式 --template 路径
+ * 2. 内置路径（开发环境、npm 全局、npm 本地）
+ * 3. GitHub 下载（curl|bash 安装方式的回退方案）
  *
- * Extracted from template.ts to keep concerns separate.
+ * 从 template.ts 中提取，以保持关注点分离。
  *
  * @packageDocumentation
  */
@@ -31,35 +31,33 @@ export interface TemplateResolution {
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Resolve the template directory.
+ * @internal — 内部辅助模块，不属于公共适配器 API。
+ * 解析模板目录。
  *
- * Priority:
- *   1. Explicit templatePath argument
- *   2. Bundled with the package (dev, npm global, npm local)
- *   3. Download from GitHub
+ * 优先级：
+ *   1. 显式 templatePath 参数
+ *   2. 随包内置（开发环境、npm 全局、npm 本地）
+ *   3. 从 GitHub 下载
  */
 export async function resolveTemplateDir(
   templatePath?: string,
   branch?: string,
 ): Promise<TemplateResolution> {
-  // 1. Explicit path
+  // 1. 显式路径
   if (templatePath) {
     if (!fse.existsSync(path.join(templatePath, 'claude', 'CLAUDE.md'))) {
-      throw new Error(
-        `Template not found at: ${templatePath}\n` + '  Specify the correct path with --template',
-      );
+      throw new Error(`模板未找到于: ${templatePath}\n` + '  请使用 --template 指定正确路径');
     }
     return { templateDir: templatePath, cleanup: null };
   }
 
-  // 2. Bundled paths
+  // 2. 内置路径
   const bundledPaths = [
-    // Development: src/ dir → template/
+    // 开发环境：src/ 目录 → template/
     path.resolve(__dirname, '..', 'template'),
-    // Production: dist/ dir → up to root
+    // 生产环境：dist/ 目录 → 上溯到根目录
     path.resolve(__dirname, '..', '..', 'template'),
-    // npm global: bin/ → ../lib/node_modules/@zythegit/evokit/template
+    // npm 全局：bin/ → ../lib/node_modules/@zythegit/evokit/template
     path.resolve(
       __dirname,
       '..',
@@ -71,7 +69,7 @@ export async function resolveTemplateDir(
       'evokit',
       'template',
     ),
-    // npm local: node_modules/.bin → ../@zythegit/evokit/template
+    // npm 本地：node_modules/.bin → ../@zythegit/evokit/template
     path.resolve(__dirname, '..', '..', '@zythegit', 'evokit', 'template'),
   ];
 
@@ -82,15 +80,15 @@ export async function resolveTemplateDir(
     }
   }
 
-  // 3. Fallback: download from GitHub
-  console.log('📦 Downloading EvoKit template from GitHub...');
+  // 3. 回退方案：从 GitHub 下载
+  console.log('📦 正在从 GitHub 下载 EvoKit 模板...');
   return downloadFromGitHub(branch || 'main');
 }
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Download the EvoKit repo from GitHub and return the template/ path.
+ * @internal — 内部辅助模块，不属于公共适配器 API。
+ * 从 GitHub 下载 EvoKit 仓库并返回 template/ 路径。
  */
 async function downloadFromGitHub(branch: string): Promise<TemplateResolution> {
   const tmpDir = fs.mkdtempSync('evokit-');
@@ -106,8 +104,7 @@ async function downloadFromGitHub(branch: string): Promise<TemplateResolution> {
         if (response.statusCode !== 200) {
           reject(
             new Error(
-              `GitHub download failed (HTTP ${response.statusCode}). ` +
-                'Check the branch name or your internet connection.',
+              `GitHub 下载失败 (HTTP ${response.statusCode})。` + '请检查分支名称或网络连接。',
             ),
           );
           return;
@@ -122,8 +119,7 @@ async function downloadFromGitHub(branch: string): Promise<TemplateResolution> {
           if (result.status !== 0) {
             reject(
               new Error(
-                'Failed to extract template from GitHub archive: ' +
-                  (result.stderr?.toString() || 'unknown error'),
+                '从 GitHub 归档中提取模板失败: ' + (result.stderr?.toString() || '未知错误'),
               ),
             );
             return;
@@ -134,13 +130,13 @@ async function downloadFromGitHub(branch: string): Promise<TemplateResolution> {
             (e) => e !== 'evokit.tar.gz' && fs.statSync(path.join(tmpDir, e)).isDirectory(),
           );
           if (!extracted) {
-            reject(new Error('Failed to find extracted directory in archive.'));
+            reject(new Error('在归档中未找到已解压的目录。'));
             return;
           }
 
           const templateDir = path.join(tmpDir, extracted, 'template');
           if (!fse.existsSync(templateDir)) {
-            reject(new Error('GitHub archive does not contain a template/ directory.'));
+            reject(new Error('GitHub 归档中不包含 template/ 目录。'));
             return;
           }
 

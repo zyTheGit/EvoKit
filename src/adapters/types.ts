@@ -1,17 +1,17 @@
 /**
- * EvoKit — Adapter Installer Interface
+ * EvoKit — 适配器安装器接口
  *
- * @public — Part of the public adapter API. Implement this to add custom adapters.
+ * @public — 公共适配器 API 的一部分。实现此接口即可添加自定义适配器。
  *
- * Every adapter (Claude Code, Codex CLI, OpenCode CLI, etc.) implements
- * this interface for uniform template installation and verification.
+ * 每个适配器（Claude Code、Codex CLI、OpenCode CLI 等）都实现此接口，
+ * 以提供统一的模板安装和验证功能。
  *
  * @packageDocumentation
  */
 
 /**
- * @public — This type is part of the public adapter API.
- * Third-party adapter implementers should use this type.
+ * @public — 此类型是公共适配器 API 的一部分。
+ * 第三方适配器实现者应使用此类型。
  */
 export interface AdapterInstallConfig {
   homeDir: string;
@@ -21,7 +21,7 @@ export interface AdapterInstallConfig {
   dryRun?: boolean;
 }
 
-/** Result summary from an adapter installation */
+/** 适配器安装结果摘要 */
 export interface AdapterInstallResult {
   filesCreated: number;
   filesSkipped: number;
@@ -32,39 +32,39 @@ export interface AdapterInstallResult {
   adapterHome: string;
 }
 
-/** A single verification check */
+/** 单个验证检查项 */
 export interface AdapterVerifyCheck {
   name: string;
   pass: boolean;
   detail?: string;
 }
 
-/** Typed status returned by `AdapterInstaller.status()`. */
+/** `AdapterInstaller.status()` 返回的类型化状态 */
 export interface AdapterStatus {
   installed: boolean;
   adapterHome: string;
   allPass: boolean;
   checks: AdapterVerifyCheck[];
-  /** Project directory (for adapters that install project-level files, e.g. OpenCode) */
+  /** 项目目录（用于安装项目级文件的适配器，如 OpenCode） */
   projectDir?: string;
 }
 
-/** Configuration for an adapter uninstall operation */
+/** 适配器卸载操作的配置 */
 export interface AdapterUninstallConfig {
   homeDir: string;
   projectDir?: string;
   adapterHome?: string;
-  /** Delete user data (memory/, MEMORY.md) in addition to EvoKit-managed files */
+  /** 删除用户数据（memory/、MEMORY.md）以及 EvoKit 管理的文件 */
   purge?: boolean;
-  /** Preview only, no modifications */
+  /** 仅预览，不做实际修改 */
   dryRun?: boolean;
-  /** Skip backup creation */
+  /** 跳过备份创建 */
   noBackup?: boolean;
-  /** Custom backup directory */
+  /** 自定义备份目录 */
   backupDir?: string;
 }
 
-/** Result summary from an adapter uninstallation */
+/** 适配器卸载结果摘要 */
 export interface AdapterUninstallResult {
   filesDeleted: number;
   filesPreserved: number;
@@ -73,33 +73,33 @@ export interface AdapterUninstallResult {
   agentFieldsRemoved: number;
   directoriesRemoved: number;
   backupPath?: string;
-  /** Whether this was a heuristic (no-manifest) uninstall */
+  /** 是否为启发式（无清单）卸载 */
   heuristic: boolean;
   warnings: string[];
 }
 
 /**
- * Every adapter installer must implement this interface.
- * To add a new AI assistant (Cursor, Pi CLI, Windsurf, …),
- * implement this class and call registerAdapter().
+ * 每个适配器安装器必须实现此接口。
+ * 要添加新的 AI 助手（Cursor、Pi CLI、Windsurf 等），
+ * 实现此类并调用 registerAdapter()。
  */
 export interface AdapterInstaller {
   readonly id: string;
   readonly label: string;
   readonly description: string;
   readonly version: string;
-  /** Mark as experimental — not yet fully implemented. */
+  /** 标记为实验性 — 尚未完全实现 */
   readonly experimental?: boolean;
 
-  /** Install template files for this adapter */
+  /** 安装此适配器的模板文件 */
   install(config: AdapterInstallConfig): AdapterInstallResult;
 
-  /** Verify an existing installation */
+  /** 验证现有安装 */
   verify(config: AdapterInstallConfig): AdapterVerifyCheck[];
 
-  /** Return typed status info (for doctor / status checks) */
+  /** 返回类型化状态信息（用于 doctor / 状态检查） */
   status(config: AdapterInstallConfig): AdapterStatus;
 
-  /** Uninstall template files for this adapter. Optional — defaults to manifest-driven uninstall. */
+  /** 卸载此适配器的模板文件。可选 — 默认使用清单驱动的卸载方式。 */
   uninstall?(config: AdapterUninstallConfig): AdapterUninstallResult;
 }

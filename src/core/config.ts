@@ -40,7 +40,7 @@ export function resetConfig(): void {
   getStore().clear();
 }
 
-/** Build an EvoConfig from partial CLI options, merging with stored defaults */
+/** 从部分 CLI 选项构建 EvoConfig，与存储的默认值合并 */
 export function buildConfig(overrides: Partial<EvoConfig> & { homeDir?: string }): EvoConfig {
   const stored = getConfig();
   return {

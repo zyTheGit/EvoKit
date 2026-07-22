@@ -1,12 +1,12 @@
 /**
- * @internal — Internal helper, not part of the public adapter API.
- * EvoKit — Agent File Merge Utility
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * EvoKit — Agent 文件合并工具
  *
- * For each .md file in source_dir:
- *   - target doesn't exist → copy from source
- *   - target exists → merge YAML frontmatter (add missing fields from template)
+ * 对 source_dir 中的每个 .md 文件：
+ *   - 目标不存在 → 从源复制
+ *   - 目标已存在 → 合并 YAML frontmatter（添加模板中缺失的字段）
  *
- * Replaces template/merge/install-agents.cjs
+ * 替代 template/merge/install-agents.cjs
  *
  * @packageDocumentation
  */
@@ -26,9 +26,9 @@ const KEY_ORDER = [
 ];
 
 /**
- * @internal — Internal helper, not part of the public adapter API.
- * Parse YAML frontmatter from markdown content.
- * Returns frontmatter as a flat Record<string, string> plus the body text.
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 从 markdown 内容中解析 YAML frontmatter。
+ * 返回 frontmatter 为扁平 Record<string, string> 以及正文文本。
  */
 export function parseFrontmatter(content: string): {
   frontmatter: Record<string, string>;
@@ -81,9 +81,9 @@ export function serializeFrontmatter(fm: Record<string, string>): string {
 }
 
 /**
- * @internal — Internal helper, not part of the public adapter API.
- * Merge template frontmatter into target frontmatter.
- * Only adds fields absent from target; never overwrites.
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 将模板 frontmatter 合并到目标 frontmatter 中。
+ * 仅添加目标中不存在的字段；不会覆盖已有字段。
  */
 function mergeFrontmatter(
   targetFm: Record<string, string>,
@@ -100,11 +100,11 @@ function mergeFrontmatter(
   return [changed, merged];
 }
 
-/** Write atomically via temp file + rename */
+/** 通过临时文件 + 重命名实现原子写入 */
 function writeAtomic(filePath: string, content: string): boolean {
   const tmp = filePath + '.merge.tmp';
   fs.writeFileSync(tmp, content, 'utf-8');
-  // Validate
+  // 验证
   const back = fs.readFileSync(tmp, 'utf-8');
   if (typeof back !== 'string' || back.length === 0) {
     fse.removeSync(tmp);
@@ -119,15 +119,15 @@ export type AgentFileStatus = 'COPY' | 'MERGED' | 'SKIPPED' | `ERROR:${string}`;
 export interface AgentFileResult {
   name: string;
   status: AgentFileStatus;
-  /** Frontmatter fields that were added by this merge (for manifest) */
+  /** 本次合并添加的 frontmatter 字段（用于清单记录） */
   fieldsAdded?: Record<string, string>;
 }
 
 /**
- * @internal — Internal helper, not part of the public adapter API.
- * Install or merge agent .md files from source into target directory.
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 从源目录安装或合并 agent .md 文件到目标目录。
  *
- * Returns an array of { name, status } results for each file processed.
+ * 返回每个文件处理结果的 { name, status } 数组。
  */
 export function installOrMergeAgents(
   srcDir: string,
@@ -150,7 +150,7 @@ export function installOrMergeAgents(
     const srcPath = path.join(srcDir, file);
     const dstPath = path.join(dstDir, file);
 
-    // Case 1: target doesn't exist → copy
+    // 情况 1：目标不存在 → 复制
     if (!fse.existsSync(dstPath)) {
       if (dryRun) {
         results.push({ name: file, status: 'COPY' });
@@ -170,7 +170,7 @@ export function installOrMergeAgents(
       continue;
     }
 
-    // Case 2: target exists → merge frontmatter
+    // 情况 2：目标已存在 → 合并 frontmatter
     if (dryRun) {
       results.push({ name: file, status: 'SKIPPED' });
       continue;
@@ -184,26 +184,26 @@ export function installOrMergeAgents(
       const dstParsed = parseFrontmatter(dstContent);
 
       if (!dstParsed.hasFrontmatter) {
-        // Target has no frontmatter — prepend template's
+        // 目标没有 frontmatter — 在前面添加模板的 frontmatter
         const newContent =
           '---\n' + serializeFrontmatter(srcParsed.frontmatter) + '\n---\n' + dstParsed.body;
         if (!writeAtomic(dstPath, newContent)) {
           results.push({ name: file, status: 'ERROR:write failed' });
           continue;
         }
-        // All template fields were added
+        // 所有模板字段均已添加
         results.push({ name: file, status: 'MERGED', fieldsAdded: { ...srcParsed.frontmatter } });
         continue;
       }
 
-      // Merge: only add missing fields
+      // 合并：仅添加缺失字段
       const [changed, merged] = mergeFrontmatter(dstParsed.frontmatter, srcParsed.frontmatter);
       if (!changed) {
         results.push({ name: file, status: 'SKIPPED' });
         continue;
       }
 
-      // Record which fields were actually added (present in merged but not in original)
+      // 记录实际添加的字段（存在于合并结果中但不在原始数据中）
       const fieldsAdded: Record<string, string> = {};
       for (const [key, value] of Object.entries(merged)) {
         if (!(key in dstParsed.frontmatter)) {

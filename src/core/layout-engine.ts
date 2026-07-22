@@ -1,9 +1,8 @@
 /**
- * EvoKit — Layout Execution Engine
+ * EvoKit — 布局执行引擎
  *
- * Executes a declarative `AdapterLayout` by processing each section
- * in order.  This is the single shared engine that all adapters use —
- * no per-adapter installation code needed.
+ * 按顺序处理声明式 `AdapterLayout` 中的每个 section 来执行安装。
+ * 这是所有适配器共用的单一引擎 —— 无需为每个适配器编写安装代码。
  *
  * @packageDocumentation
  */
@@ -30,9 +29,8 @@ import type {
 } from './layout-types.js';
 
 /**
- * Execute an `AdapterLayout` — install files, merge configs,
- * set permissions, etc.  Returns an `InstallSummary` describing
- * what happened.
+ * 执行 `AdapterLayout` —— 安装文件、合并配置、设置权限等。
+ * 返回描述操作结果的 `InstallSummary`。
  */
 export function executeLayout(
   layout: AdapterLayout,
@@ -51,7 +49,7 @@ export function executeLayout(
     agentsInstalled: 0,
   };
 
-  // Ensure the target directory exists (even in dry-run for path resolution)
+  // 确保目标目录存在（dry-run 模式下也创建，以便路径解析）
   if (!dryRun) {
     fse.ensureDirSync(targetDir);
   }
@@ -88,7 +86,7 @@ export function executeLayout(
   return summary;
 }
 
-// ─── Section executors ────────────────────────────────────────
+// ─── Section 执行器 ────────────────────────────────────────
 
 function executeDirs(
   section: DirsSection,
@@ -115,10 +113,10 @@ function executeCopy(
 
   if (strategy === 'skip-if-exists' && fse.existsSync(dst)) {
     if (appendMarker) {
-      // Target exists — check if it already contains the marker
+      // 目标已存在 —— 检查是否已包含标记
       const existing = fs.readFileSync(dst, 'utf-8');
       if (!existing.includes(appendMarker)) {
-        // Append source content
+        // 追加源内容
         if (!dryRun) {
           let content = fs.readFileSync(src, 'utf-8');
           if (replaceHome) content = replaceHomeInString(content, homeDir);
@@ -135,7 +133,7 @@ function executeCopy(
     return;
   }
 
-  // 'always' strategy or target doesn't exist
+  // 'always' 策略或目标不存在
   if (!dryRun) {
     let content = fs.readFileSync(src, 'utf-8');
     if (replaceHome) content = replaceHomeInString(content, homeDir);
@@ -181,7 +179,7 @@ function executeCopyDir(
       }
     }
 
-    // Increment the explicit counter, or fall back to filesCreated
+    // 递增显式计数器，若未指定则回退到 filesCreated
     switch (counter) {
       case 'hooksInstalled':
         summary.hooksInstalled++;
@@ -255,20 +253,20 @@ function executeMergeSettings(
   if (!fse.existsSync(srcPath)) return;
 
   if (!fse.existsSync(dstPath)) {
-    // Fresh install — copy template with optional __HOME__ replacement
+    // 全新安装 —— 复制模板，可选替换 __HOME__
     if (!dryRun) {
       const content = fs.readFileSync(srcPath, 'utf-8');
       if (replaceHome) {
-        // Parse JSON first, then replace __HOME__ in the object to avoid
-        // Windows backslash issues (e.g. C:\Users\x → invalid JSON escape)
+        // 先解析 JSON，再在对象中替换 __HOME__，以避免
+        // Windows 反斜杠问题（如 C:\Users\x → 无效的 JSON 转义）
         try {
           const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
           fse.ensureDirSync(path.dirname(dstPath));
           fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
-          // Record all template entries for fresh install
+          // 记录全新安装的所有模板条目
           recordSettingsEntries(parsed, collector);
         } catch {
-          // Fallback: if template is not valid JSON, do string replacement
+          // 回退方案：如果模板不是有效 JSON，执行字符串替换
           fse.ensureDirSync(path.dirname(dstPath));
           fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
         }
@@ -282,7 +280,7 @@ function executeMergeSettings(
     return;
   }
 
-  // Target exists — check if valid JSON, then merge or overwrite
+  // 目标已存在 —— 检查是否为有效 JSON，然后合并或覆盖
   let isValid = true;
   try {
     JSON.parse(fs.readFileSync(dstPath, 'utf-8'));
@@ -291,7 +289,7 @@ function executeMergeSettings(
   }
 
   if (!isValid) {
-    // Corrupt/empty file — overwrite from template
+    // 损坏/空文件 —— 从模板覆盖
     if (!dryRun) {
       const content = fs.readFileSync(srcPath, 'utf-8');
       if (replaceHome) {
@@ -311,13 +309,13 @@ function executeMergeSettings(
     return;
   }
 
-  // Valid JSON — deep-merge (adds missing hooks/env, never overwrites)
+  // 有效 JSON —— 深度合并（添加缺失的 hooks/env，绝不覆盖已有值）
   if (!dryRun) {
     const result = mergeSettings(dstPath, srcPath, homeDir);
     if (result.changed) {
       summary.filesCreated++;
       collector?.recordFile({ path: dstPath, source: 'merge-settings', mode: 'created' });
-      // Record what was actually merged from the detail
+      // 记录实际合并的内容详情
       if (result.detail) {
         for (const h of result.detail.hooksAdded) {
           collector?.recordHook(h.event, h.entry);
@@ -364,7 +362,7 @@ function executeMergeAgents(
     (r) => r.status === 'COPY' || r.status === 'MERGED',
   ).length;
 
-  // Record agent operations for manifest
+  // 记录代理操作到清单
   for (const r of results) {
     if (r.status === 'COPY') {
       collector?.recordFile({
@@ -394,7 +392,7 @@ function executeSeedMemory(
   if (!fse.existsSync(srcDir)) return;
   if (!dryRun) fse.ensureDirSync(dstDir);
 
-  // If a specific file list is given, only seed those; otherwise seed all
+  // 如果指定了文件列表，仅初始化这些文件；否则初始化全部
   const files = seedFiles ?? fs.readdirSync(srcDir);
   for (const file of files) {
     const target = path.join(dstDir, file);
@@ -426,17 +424,17 @@ function executePermissions(section: PermissionsSection, dryRun: boolean): void 
     try {
       fs.chmodSync(fp, mode);
     } catch {
-      // Skip unreadable files
+      // 跳过不可读文件
     }
   }
 }
 
-// ─── Manifest helpers ──────────────────────────────────────────
+// ─── 清单辅助函数 ──────────────────────────────────────────
 
 /**
- * Record all settings entries from a freshly-written settings object
- * (fresh install or overwrite of corrupt file).  For a fresh install,
- * all hooks/env/autoMemoryEnabled come from the template.
+ * 记录全新写入的 settings 对象中的所有条目
+ * （全新安装或覆盖损坏文件时调用）。对于全新安装，
+ * 所有 hooks/env/autoMemoryEnabled 均来自模板。
  */
 function recordSettingsEntries(
   settings: Record<string, unknown>,
@@ -444,7 +442,7 @@ function recordSettingsEntries(
 ): void {
   if (!collector) return;
 
-  // Record hooks
+  // 记录 hooks
   const hooks = settings.hooks as Record<string, unknown> | undefined;
   if (hooks && typeof hooks === 'object') {
     for (const [event, hooksList] of Object.entries(hooks)) {
@@ -456,7 +454,7 @@ function recordSettingsEntries(
     }
   }
 
-  // Record env vars
+  // 记录环境变量
   const env = settings.env as Record<string, string> | undefined;
   if (env && typeof env === 'object') {
     for (const [key, value] of Object.entries(env)) {
@@ -464,12 +462,12 @@ function recordSettingsEntries(
     }
   }
 
-  // Record autoMemoryEnabled
+  // 记录 autoMemoryEnabled
   if ('autoMemoryEnabled' in settings) {
     collector.recordAutoMemoryEnabled();
   }
 
-  // Record permissions
+  // 记录权限
   const perms = settings.permissions as Record<string, unknown> | undefined;
   if (perms && typeof perms === 'object') {
     if (Array.isArray(perms.allow)) {

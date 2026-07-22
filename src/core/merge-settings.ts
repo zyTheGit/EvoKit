@@ -1,13 +1,13 @@
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * EvoKit — settings.json Merge Utility
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * EvoKit — settings.json 合并工具
  *
- * Deep-merges hook configurations from a template settings.json into an
- * existing user settings.json.  Only adds missing hook events — never
- * overwrites existing hooks or user preferences.
+ * 将模板 settings.json 中的 hook 配置深度合并到
+ * 现有用户 settings.json 中。仅添加缺失的 hook 事件——
+ * 不会覆盖已有的 hook 或用户偏好。
  *
- * Replaces template/merge/merge-settings.js
+ * 替代 template/merge/merge-settings.js
  *
  * @packageDocumentation
  */
@@ -19,7 +19,7 @@ import { replaceHomeInObject } from './replace-home.js';
 export interface SettingsMergeResult {
   changed: boolean;
   reason?: string;
-  /** Detailed record of what was merged (for manifest collection) */
+  /** 合并详情记录（用于清单收集） */
   detail?: {
     hooksAdded: Array<{ event: string; entry: Record<string, unknown> }>;
     envVarsAdded: Array<{ key: string; value: string }>;
@@ -31,40 +31,40 @@ export interface SettingsMergeResult {
 
 /**
  *
- * @internal — Internal helper, not part of the public adapter API.
- * Deep-merge template settings into an existing settings.json.
+ * @internal — 内部辅助工具，不属于公共适配器 API。
+ * 将模板配置深度合并到现有 settings.json 中。
  *
- * Strategy:
- * 1. Hooks — only add hook events NOT already present in user settings
- * 2. autoMemoryEnabled — set if missing from user config
- * 3. env — add env vars not already set (does NOT overwrite existing values)
+ * 策略：
+ * 1. Hooks — 仅添加用户设置中不存在的 hook 事件
+ * 2. autoMemoryEnabled — 用户配置中缺失时设置
+ * 3. env — 添加未设置的 env 变量（不会覆盖已有值）
  *
- * Writes atomically via temp file + rename, with a .bak.evokit backup.
+ * 通过临时文件 + 重命名实现原子写入，并创建 .bak.evokit 备份。
  */
 export function mergeSettings(
   settingsPath: string,
   templatePath: string,
   homeDir: string = process.env.HOME || '',
 ): SettingsMergeResult {
-  // 1. Read existing settings
+  // 1. 读取现有设置
   let settings: Record<string, unknown>;
   try {
     settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
   } catch (e: any) {
     if (e.code === 'ENOENT') {
-      return { changed: false, reason: `File not found: ${settingsPath}` };
+      return { changed: false, reason: `文件未找到: ${settingsPath}` };
     }
-    return { changed: false, reason: `Invalid JSON: ${e.message}` };
+    return { changed: false, reason: `无效 JSON: ${e.message}` };
   }
 
-  // 2. Read and parse template (before __HOME__ replacement to avoid
-  //    Windows backslash issues — e.g. C:\Users\x produces invalid
-  //    JSON escape sequences like \U when replaced in raw strings)
+  // 2. 读取并解析模板（在 __HOME__ 替换之前解析，
+  //    以避免 Windows 反斜杠问题——例如 C:\Users\x 在原始
+  //    字符串中替换后会产生 \U 等无效 JSON 转义序列）
   let templateRaw: string;
   try {
     templateRaw = fs.readFileSync(templatePath, 'utf-8');
   } catch {
-    return { changed: false, reason: `Template not found: ${templatePath}` };
+    return { changed: false, reason: `模板未找到: ${templatePath}` };
   }
 
   let template: Record<string, unknown>;
@@ -73,17 +73,17 @@ export function mergeSettings(
   } catch (e: any) {
     return {
       changed: false,
-      reason: `Invalid template JSON: ${e.message}`,
+      reason: `无效的模板 JSON: ${e.message}`,
     };
   }
 
-  // Replace __HOME__ in parsed object — JSON.stringify will escape
-  // backslashes automatically when writing, producing valid JSON.
+  // 在已解析的对象中替换 __HOME__ — JSON.stringify 写入时
+  // 会自动转义反斜杠，生成有效的 JSON。
   template = replaceHomeInObject(template, homeDir);
 
   let changed = false;
 
-  // Detail tracking for manifest collection
+  // 清单收集的详情跟踪
   const detail: NonNullable<SettingsMergeResult['detail']> = {
     hooksAdded: [],
     envVarsAdded: [],
@@ -92,7 +92,7 @@ export function mergeSettings(
     permissionsDeny: [],
   };
 
-  // 3. Merge hooks — add only missing hook events
+  // 3. 合并 hooks — 仅添加缺失的 hook 事件
   const tHooks = (template.hooks as Record<string, unknown>) || {};
   if (Object.keys(tHooks).length > 0) {
     const eHooks = (
@@ -105,7 +105,7 @@ export function mergeSettings(
       if (!(event in eHooks)) {
         mHooks[event] = hooksList;
         changed = true;
-        // Record each matcher group in the added event
+        // 记录添加事件中的每个匹配器组
         if (Array.isArray(hooksList)) {
           for (const entry of hooksList) {
             detail.hooksAdded.push({ event, entry: entry as Record<string, unknown> });
@@ -126,7 +126,7 @@ export function mergeSettings(
     detail.autoMemoryEnabledSet = true;
   }
 
-  // 5. Env vars — add missing, never overwrite
+  // 5. 环境变量 — 添加缺失项，不覆盖
   const tEnv = (template.env as Record<string, string>) || {};
   const eEnv = (
     settings.env && typeof settings.env === 'object'
@@ -143,9 +143,9 @@ export function mergeSettings(
   }
   settings.env = mEnv;
 
-  // 6. Record permissions from template for manifest tracking
-  //    (permissions are not merged — they're only set on fresh install —
-  //    but we record them in the detail so the manifest knows what EvoKit owns)
+  // 6. 从模板记录权限信息，用于清单跟踪
+  //    （权限不会被合并——它们仅在全新安装时设置——
+  //    但记录在详情中，以便清单知道 EvoKit 拥有哪些内容）
   const tPerms = template.permissions as Record<string, unknown> | undefined;
   if (tPerms && typeof tPerms === 'object') {
     if (Array.isArray(tPerms.allow)) {
@@ -160,16 +160,16 @@ export function mergeSettings(
     return { changed: false, reason: 'SKIPPED' };
   }
 
-  // 6. Write atomically: tmp → backup → rename
+  // 6. 原子写入：临时文件 → 备份 → 重命名
   const tmpPath = settingsPath + '.merge.tmp';
   fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
 
-  // Validate written JSON
+  // 验证写入的 JSON
   try {
     JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
   } catch {
     fse.removeSync(tmpPath);
-    return { changed: false, reason: 'Write validation failed' };
+    return { changed: false, reason: '写入验证失败' };
   }
 
   const backupPath = settingsPath + '.bak.evokit';
@@ -178,20 +178,20 @@ export function mergeSettings(
     fs.renameSync(settingsPath, backupPath);
   } catch (e: any) {
     fse.removeSync(tmpPath);
-    return { changed: false, reason: `Cannot backup: ${e.message}` };
+    return { changed: false, reason: `无法备份: ${e.message}` };
   }
 
   try {
     fs.renameSync(tmpPath, settingsPath);
   } catch (e: any) {
-    // Rollback
+    // 回滚
     try {
       fs.renameSync(backupPath, settingsPath);
     } catch {
-      // Backup also failed — catastrophic
+      // 备份也失败——灾难性错误
     }
     fse.removeSync(tmpPath);
-    return { changed: false, reason: `Cannot write: ${e.message}` };
+    return { changed: false, reason: `无法写入: ${e.message}` };
   }
 
   fse.removeSync(settingsPath + '.bak.merge');

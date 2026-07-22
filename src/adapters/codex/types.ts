@@ -1,13 +1,13 @@
 /**
- * EvoKit — Codex Adapter Types
+ * EvoKit — Codex 适配器类型
  *
- * Codex-specific types that are only used by the Codex adapter.
- * Core/shared types remain in `src/core/types.ts`.
+ * 仅由 Codex 适配器使用的 Codex 专用类型。
+ * 核心/共享类型位于 `src/core/types.ts`。
  *
  * @packageDocumentation
  */
 
-/** Supported Codex CLI hook event names */
+/** 支持的 Codex CLI 钩子事件名称 */
 export type CodexHookEventName =
   | 'SessionStart'
   | 'SubagentStart'
@@ -20,10 +20,10 @@ export type CodexHookEventName =
   | 'SubagentStop'
   | 'Stop';
 
-/** Scope of a Codex hook event */
+/** Codex 钩子事件的作用域 */
 export type CodexHookScope = 'thread' | 'turn' | 'subagent';
 
-/** Configuration for a single Codex hook handler */
+/** 单个 Codex 钩子处理器的配置 */
 export interface CodexHookHandler {
   type: 'command';
   command: string;
@@ -33,18 +33,18 @@ export interface CodexHookHandler {
   async?: boolean;
 }
 
-/** A matcher group with hooks for a Codex event */
+/** Codex 事件的匹配器分组（含钩子） */
 export interface CodexHookMatcherGroup {
   matcher: string;
   hooks: CodexHookHandler[];
 }
 
-/** Full hooks.json structure */
+/** 完整的 hooks.json 结构 */
 export interface CodexHooksJson {
   hooks: Partial<Record<CodexHookEventName, CodexHookMatcherGroup[]>>;
 }
 
-/** Options for the Codex adapter */
+/** Codex 适配器选项 */
 export interface CodexAdapterOptions {
   codexHome?: string;
   sharedMemoryDir?: string;
@@ -52,7 +52,7 @@ export interface CodexAdapterOptions {
   verify?: boolean;
 }
 
-/** Codex-specific installation config */
+/** Codex 专用安装配置 */
 export interface CodexInstallConfig {
   homeDir: string;
   templateDir: string;
@@ -60,7 +60,7 @@ export interface CodexInstallConfig {
   dryRun?: boolean;
 }
 
-/** Result from a Codex hook script execution */
+/** Codex 钩子脚本执行结果 */
 export interface CodexHookResult {
   continue: boolean;
   stopReason?: string;

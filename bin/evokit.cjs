@@ -1,37 +1,37 @@
 #!/usr/bin/env node
-// EvoKit CLI — Self-Evolving System Framework
-// Priority: dist/ (production) → tsx (development)
+// EvoKit CLI — 自演化系统框架
+// 优先级: dist/（生产） → tsx（开发）
 
 const { resolve } = require('path');
 const { pathToFileURL } = require('url');
 const { existsSync } = require('fs');
 
 async function resolveCLI() {
-  // Try production build first
+  // 优先尝试生产构建
   const distPath = resolve(__dirname, '../dist/cli.js');
 
   if (existsSync(distPath)) {
     try {
-      // pathToFileURL is required on Windows: import() only accepts
-      // file:// URLs, but resolve() returns bare paths (e.g. C:\…)
-      // which ESM interprets as a protocol, causing
+      // pathToFileURL 在 Windows 上是必需的：import() 只接受
+      // file:// URL，但 resolve() 返回裸路径（如 C:\…）
+      // ESM 会将其解释为协议，导致
       // "Only URLs with a scheme in: file, data, and node are supported"
       await import(pathToFileURL(distPath).href);
       return;
     } catch (err) {
       if (err instanceof Error) {
-        console.error('EvoKit: Failed to load CLI —', err.message);
+        console.error('EvoKit: 无法加载 CLI —', err.message);
       }
     }
   }
 
-  // Development fallback via tsx
+  // 通过 tsx 的开发回退
   try {
     require('tsx/cli');
     const tsxPath = resolve(__dirname, '../src/cli.ts');
     require(tsxPath);
   } catch {
-    // Distinguish between actual version issues and other failures
+    // 区分实际的版本问题与其他故障
     const nodeVersion = process.versions.node;
     const [major, minor] = nodeVersion.split('.').map(Number);
     const tooOld = major < 20 || (major === 20 && minor < 12);

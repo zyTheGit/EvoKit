@@ -1,7 +1,7 @@
 /**
- * EvoKit — Branch Name Input
+ * EvoKit — 分支名称输入
  *
- * Uses @clack/prompts text() for Git branch input.
+ * 使用 @clack/prompts text() 进行 Git 分支输入。
  *
  * @packageDocumentation
  */
@@ -9,14 +9,14 @@
 import { text, isCancel, cancel } from '@clack/prompts';
 
 /**
- * Prompt the user for a Git branch name.
+ * 提示用户输入 Git 分支名称。
  *
- * @param message - The prompt message (default: "Git branch")
- * @param defaultValue - Default branch name (default: "main")
- * @returns The branch name string
+ * @param message - 提示消息（默认: "Git 分支"）
+ * @param defaultValue - 默认分支名称（默认: "main"）
+ * @returns 分支名称字符串
  */
 export async function inputBranch(
-  message: string = 'Git branch',
+  message: string = 'Git 分支',
   defaultValue: string = 'main',
 ): Promise<string> {
   const result = await text({
@@ -25,16 +25,16 @@ export async function inputBranch(
     defaultValue,
     validate: (value) => {
       if (!value || value.trim().length === 0) {
-        return 'Branch name cannot be empty';
+        return '分支名称不能为空';
       }
       if (/[^a-zA-Z0-9._\-/]/.test(value)) {
-        return 'Branch name contains invalid characters';
+        return '分支名称包含无效字符';
       }
     },
   });
 
   if (isCancel(result)) {
-    cancel('Installation cancelled');
+    cancel('安装已取消');
     process.exit(0);
   }
 

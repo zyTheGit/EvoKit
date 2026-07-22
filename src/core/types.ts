@@ -1,4 +1,4 @@
-/** A correction entry from corrections.jsonl */
+/** 来自 corrections.jsonl 的修正记录 */
 export interface CorrectionEntry {
   timestamp: string;
   pattern: string;
@@ -6,7 +6,7 @@ export interface CorrectionEntry {
   count: number;
 }
 
-/** An observation entry from observations.jsonl */
+/** 来自 observations.jsonl 的观察记录 */
 export interface ObservationEntry {
   timestamp: string;
   pattern: string;
@@ -14,7 +14,7 @@ export interface ObservationEntry {
   source: string;
 }
 
-/** A session record from sessions.jsonl */
+/** 来自 sessions.jsonl 的会话记录 */
 export interface SessionEntry {
   timestamp: string;
   duration_seconds: number;
@@ -26,7 +26,7 @@ export interface SessionEntry {
   model?: string;
 }
 
-/** A violation entry from violations.jsonl */
+/** 来自 violations.jsonl 的违规记录 */
 export interface ViolationEntry {
   timestamp: string;
   rule: string;
@@ -34,7 +34,7 @@ export interface ViolationEntry {
   detail: string;
 }
 
-/** A promoted rule parsed from learned-rules.md */
+/** 从 learned-rules.md 解析出的已提升规则 */
 export interface LearnedRule {
   description: string;
   verify?: string;
@@ -42,7 +42,7 @@ export interface LearnedRule {
   deprecated?: boolean;
 }
 
-/** A rotation/archiving decision */
+/** 轮换/归档结果 */
 export interface RotationResult {
   file: string;
   kept: number;
@@ -51,7 +51,7 @@ export interface RotationResult {
   gzipped: boolean;
 }
 
-/** A confidence decay result */
+/** 置信度衰减结果 */
 export interface DecayResult {
   file: string;
   kept: number;
@@ -59,14 +59,14 @@ export interface DecayResult {
   archivePath?: string;
 }
 
-/** Grouped correction patterns */
+/** 分组后的修正模式 */
 export interface CorrectionGroup {
   pattern: string;
   entries: CorrectionEntry[];
   count: number;
 }
 
-/** A promotion decision from the evolution audit */
+/** 演化审计的提升决策 */
 export interface PromotionResult {
   pattern: string;
   decision: 'promoted' | 'pruned' | 'rejected' | 'deferred';
@@ -74,7 +74,7 @@ export interface PromotionResult {
   reason: string;
 }
 
-/** Configuration for the evolution pipeline */
+/** 演化管道的配置 */
 export interface EvoConfig {
   homeDir: string;
   maxLines?: number;
@@ -89,14 +89,14 @@ export interface EvoConfig {
   dryRun?: boolean;
 }
 
-/** Boot verification result */
+/** 启动验证结果 */
 export interface VerifyResult {
   check: string;
   status: 'pass' | 'fail' | 'warn';
   detail?: string;
 }
 
-/** Installation summary */
+/** 安装摘要 */
 export interface InstallSummary {
   homeDir: string;
   filesCreated: number;
@@ -107,7 +107,7 @@ export interface InstallSummary {
   agentsInstalled: number;
 }
 
-/** Shared memory entry tagged by assistant */
+/** 按助手标记的共享内存记录 */
 export interface SharedMemoryEntry {
   assistant: 'claude' | 'codex' | 'opencode' | 'pi';
   timestamp: string;

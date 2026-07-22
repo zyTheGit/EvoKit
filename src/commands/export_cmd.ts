@@ -9,11 +9,11 @@ import { rotateJsonlFile, applyConfidenceDecay } from '../core/rotate.js';
 import { readJsonlFile } from '../core/memory.js';
 
 export const exportCommand = new Command('export')
-  .description('Export EvoKit system state for migration')
-  .option('--home <path>', 'Source home directory (default: $HOME)')
-  .option('--output <path>', 'Output directory for the tarball (default: ~/Desktop)')
-  .option('--dry-run', 'Preview what would be exported')
-  .option('--no-rotate', 'Skip rotation of learning files during export')
+  .description('导出 EvoKit 系统状态用于迁移')
+  .option('--home <path>', '源主目录（默认: $HOME）')
+  .option('--output <path>', '输出目录（默认: ~/Desktop）')
+  .option('--dry-run', '预览导出内容')
+  .option('--no-rotate', '导出时跳过学习文件轮转')
   .action(async (options) => {
     const config = buildConfig({
       ...options,
@@ -23,7 +23,7 @@ export const exportCommand = new Command('export')
 
     const claudeDir = path.join(config.homeDir, '.claude');
     if (!fse.existsSync(claudeDir)) {
-      console.error(pc.red(`Error: EvoKit not initialized at ${claudeDir}`));
+      console.error(pc.red(`错误：EvoKit 未在 ${claudeDir} 初始化`));
       process.exit(1);
     }
 
@@ -33,19 +33,19 @@ export const exportCommand = new Command('export')
     const tarballPath = path.resolve(outDir, tarballName);
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
-    console.log(pc.cyan('║   EvoKit — System Export                  ║'));
+    console.log(pc.cyan('║   EvoKit — 系统导出                      ║'));
     console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
-    console.log(`  Source: ${claudeDir}`);
-    console.log(`  Output: ${tarballPath}${config.dryRun ? pc.yellow(' (DRY RUN)') : ''}`);
+    console.log(`  源目录: ${claudeDir}`);
+    console.log(`  输出: ${tarballPath}${config.dryRun ? pc.yellow('（试运行）') : ''}`);
     console.log('');
 
-    // Staging directory
+    // 临时暂存目录
     const stagingDir = fs.mkdtempSync(path.join(fs.realpathSync('/tmp'), 'evokit-export-'));
     const exportDir = path.join(stagingDir, 'claude-evolution');
 
     try {
-      // 1. Copy system files
-      console.log(pc.cyan('📁 Copying system files...'));
+      // 1. 复制系统文件
+      console.log(pc.cyan('📁 复制系统文件...'));
       const itemsToCopy = [
         'rules',
         'agents',
@@ -63,7 +63,7 @@ export const exportCommand = new Command('export')
           if (!config.dryRun) {
             fse.copySync(src, dst, {
               filter: (srcPath) => {
-                // Skip archive directory in export
+                // 跳过归档目录
                 return !srcPath.includes('/archive/');
               },
             });
@@ -71,14 +71,14 @@ export const exportCommand = new Command('export')
         }
       }
 
-      // Copy root CLAUDE.md
+      // 复制根目录 CLAUDE.md
       const rootClaudeMd = path.join(config.homeDir, 'CLAUDE.md');
       if (fse.existsSync(rootClaudeMd) && !config.dryRun) {
         fse.copySync(rootClaudeMd, path.join(exportDir, '..', 'CLAUDE.md'));
       }
 
-      // 2. Data summary
-      console.log(pc.cyan('\n📊 Data summary...'));
+      // 2. 数据摘要
+      console.log(pc.cyan('\n📊 数据摘要...'));
       const memDir = path.join(claudeDir, 'memory');
       const jsonlFiles = [
         'corrections.jsonl',
@@ -90,22 +90,22 @@ export const exportCommand = new Command('export')
         const fp = path.join(memDir, file);
         if (fse.existsSync(fp)) {
           const entries = readJsonlFile(fp);
-          console.log(`  ${pc.green('✓')} ${file}: ${entries.length} entries`);
+          console.log(`  ${pc.green('✓')} ${file}：${entries.length} 条`);
         }
       }
 
-      // 3. Rotation (optional, default: on)
+      // 3. 轮转（可选，默认开启）
       if (options.rotate !== false) {
-        console.log(pc.cyan('\n🔄 Rotating learning files (on staging copy)...'));
+        console.log(pc.cyan('\n🔄 轮转学习文件（在暂存副本上）...'));
         const exportMemDir = path.join(exportDir, 'memory');
         if (fse.existsSync(exportMemDir)) {
-          // Temporarily override homeDir for rotation to act on staging
+          // 临时覆盖 homeDir，使轮转作用于暂存目录
           const stagingConfig = { ...config, homeDir: stagingDir, dryRun: config.dryRun };
-          // Manually construct staging .claude path
+          // 手动构建暂存 .claude 路径
           const stagingClaudeDir = path.join(stagingDir, 'claude-evolution');
           const origClaudeDir = claudeDir;
 
-          // Override memory.ts getClaudeDir behavior by directly operating on files
+          // 覆盖 memory.ts getClaudeDir 行为，直接操作文件
           for (const file of ['corrections.jsonl', 'observations.jsonl']) {
             const srcFile = path.join(exportMemDir, file);
             if (fse.existsSync(srcFile)) {
@@ -124,7 +124,7 @@ export const exportCommand = new Command('export')
                 });
                 fs.writeFileSync(srcFile, recent.join('\n') + '\n', 'utf-8');
                 console.log(
-                  `  ${pc.green('✓')} Rotated ${file}: ${lines.length} → ${recent.length} entries`,
+                  `  ${pc.green('✓')} 已轮转 ${file}：${lines.length} → ${recent.length} 条`,
                 );
               }
             }
@@ -132,21 +132,21 @@ export const exportCommand = new Command('export')
         }
       }
 
-      // 4. Generate install.sh for the export package
-      console.log(pc.cyan('\n📄 Generating install scripts...'));
+      // 4. 生成安装脚本
+      console.log(pc.cyan('\n📄 生成安装脚本...'));
       const installShPath = path.join(stagingDir, 'install.sh');
       const installScript = generateInstallScript(config.homeDir);
       if (!config.dryRun) {
         fs.writeFileSync(installShPath, installScript, 'utf-8');
         fs.chmodSync(installShPath, 0o755);
-        // Generate install.bat as well
+        // 同时生成 install.bat
         const installBatPath = path.join(stagingDir, 'install.bat');
         fs.writeFileSync(installBatPath, generateInstallBat(), 'utf-8');
       }
-      console.log(`  ${pc.green('✓')} install.sh generated`);
+      console.log(`  ${pc.green('✓')} install.sh 已生成`);
 
-      // 5. Package tarball
-      console.log(pc.cyan('\n📦 Packaging tarball...'));
+      // 5. 打包
+      console.log(pc.cyan('\n📦 打包中...'));
       if (!config.dryRun) {
         fse.ensureDirSync(outDir);
         const tarResult = spawnSync(
@@ -156,41 +156,41 @@ export const exportCommand = new Command('export')
         );
 
         if (tarResult.status !== 0) {
-          console.error(pc.red(`Error creating tarball: ${tarResult.stderr.toString()}`));
+          console.error(pc.red(`错误：创建压缩包失败：${tarResult.stderr.toString()}`));
           process.exit(1);
         }
 
         const stats = fs.statSync(tarballPath);
         const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-        console.log(`  ${pc.green('✓')} Exported: ${tarballPath} (${sizeMB} MB)`);
+        console.log(`  ${pc.green('✓')} 已导出：${tarballPath}（${sizeMB} MB）`);
       } else {
-        console.log(`  ${pc.green('✓')} (dry run) Tarball would be created at: ${tarballPath}`);
+        console.log(`  ${pc.green('✓')}（试运行）压缩包将创建于：${tarballPath}`);
       }
 
-      // Cleanup
+      // 清理
       fse.removeSync(stagingDir);
 
       console.log('');
       if (config.dryRun) {
-        console.log(pc.green('✅ Dry run complete — no files were modified'));
+        console.log(pc.green('✅ 试运行完成 — 未修改任何文件'));
       } else {
-        console.log(pc.green('✅ Export complete!'));
-        console.log(`  Transfer the tarball to the target machine and run:`);
+        console.log(pc.green('✅ 导出完成！'));
+        console.log(`  将压缩包传输到目标机器后运行：`);
         console.log(`  ${pc.cyan(`  evokit import ${tarballPath}`)}`);
-        console.log(`  Or extract and run: tar xzf ${tarballName} && bash install.sh`);
+        console.log(`  或解压后运行：tar xzf ${tarballName} && bash install.sh`);
       }
       console.log('');
     } catch (err: any) {
       fse.removeSync(stagingDir);
-      console.error(pc.red(`\n❌ Export failed: ${err.message}`));
+      console.error(pc.red(`\n❌ 导出失败：${err.message}`));
       process.exit(1);
     }
   });
 
 function generateInstallScript(oldHome: string): string {
   return `#!/bin/bash
-# EvoKit — Migration Installer
-# Generated by evokit export
+# EvoKit — 迁移安装脚本
+# 由 evokit export 生成
 set -e
 
 OLD_HOME="${oldHome}"
@@ -198,23 +198,23 @@ CLAUDE_DIR="\${HOME}/.claude"
 BACKUP_DIR="\${CLAUDE_DIR}/backups/migration-$(date +%Y%m%d_%H%M%S)"
 
 echo "╔═══════════════════════════════════════════╗"
-echo "║   EvoKit — Migration Import               ║"
+echo "║   EvoKit — 迁移导入                       ║"
 echo "╚═══════════════════════════════════════════╝"
 echo ""
-echo "  Source: \${OLD_HOME}"
-echo "  Target: \${HOME}"
+echo "  源目录: \${OLD_HOME}"
+echo "  目标: \${HOME}"
 echo ""
 
-# Backup existing config
+# 备份现有配置
 if [ -d "\${CLAUDE_DIR}" ]; then
-  echo "📦 Backing up existing configuration..."
+  echo "📦 备份现有配置..."
   mkdir -p "\${BACKUP_DIR}"
   cp -r "\${CLAUDE_DIR}" "\${BACKUP_DIR}/"
-  echo "  ✓ Backed up to \${BACKUP_DIR}"
+  echo "  ✓ 已备份至 \${BACKUP_DIR}"
 fi
 
-# Copy files
-echo "📁 Installing system files..."
+# 复制文件
+echo "📁 安装系统文件..."
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 for dir in rules agents commands memory hooks; do
   if [ -d "\${SCRIPT_DIR}/claude-evolution/\${dir}" ]; then
@@ -224,7 +224,7 @@ for dir in rules agents commands memory hooks; do
   fi
 done
 
-# Copy key files
+# 复制关键文件
 for f in settings.json settings.local.json MEMORY.md; do
   if [ -f "\${SCRIPT_DIR}/claude-evolution/\${f}" ]; then
     cp "\${SCRIPT_DIR}/claude-evolution/\${f}" "\${CLAUDE_DIR}/"
@@ -232,7 +232,7 @@ for f in settings.json settings.local.json MEMORY.md; do
   fi
 done
 
-# Fix paths
+# 修复路径
 if command -v python3 &>/dev/null; then
   python3 -c "
 import os, re
@@ -248,29 +248,29 @@ for root, dirs, files in os.walk(os.path.expanduser('~/.claude')):
                 if old_home in content:
                     content = content.replace(old_home, home)
                     open(fp, 'w').write(content)
-                    print(f'  ✓ Fixed paths in: {f}')
+                    print(f'  ✓ 已修复路径: {f}')
             except:
                 pass
 "
 fi
 
-# Permissions
+# 权限
 chmod +x \${CLAUDE_DIR}/hooks/*.sh 2>/dev/null || true
 chmod 600 \${CLAUDE_DIR}/memory/*.jsonl 2>/dev/null || true
 
 echo ""
-echo "✅ Migration complete!"
-echo "  Start Claude Code and run /boot to verify."
+echo "✅ 迁移完成！"
+echo "  启动 Claude Code 并运行 /boot 验证。"
 echo ""
 `;
 }
 
 function generateInstallBat(): string {
   return `@echo off
-REM EvoKit — Migration Installer (Windows)
-echo EvoKit Migration Import
+REM EvoKit — 迁移安装脚本（Windows）
+echo EvoKit 迁移导入
 echo.
-echo Please run install.sh in WSL or Git Bash.
-echo For native Windows, manually copy the claude-evolution/ directory to %%USERPROFILE%%\\.claude\\
+echo 请在 WSL 或 Git Bash 中运行 install.sh。
+echo 原生 Windows 请手动将 claude-evolution/ 目录复制到 %%USERPROFILE%%\\.claude\\
 `;
 }

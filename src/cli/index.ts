@@ -1,8 +1,8 @@
 /**
- * EvoKit — CLI Entry
+ * EvoKit — CLI 入口
  *
- * Re-exports all Clack-based interactive components from a single module.
- * Import from here instead of the individual files when using multiple components.
+ * 从单一模块重新导出所有基于 Clack 的交互组件。
+ * 当需要使用多个组件时，请从此处导入，而非单独的文件。
  *
  * @packageDocumentation
  */

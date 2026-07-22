@@ -1,11 +1,11 @@
 /**
- * EvoKit — Remove CLAUDE.md Section
+ * EvoKit — 移除 CLAUDE.md 区段
  *
- * Removes the EvoKit-appended section from a CLAUDE.md file.
- * If EvoKit created the entire file (marker at line 1 with no
- * user content before it), the file is deleted entirely.
- * If EvoKit appended to an existing file, only the appended
- * section (from the marker line to EOF) is removed.
+ * 从 CLAUDE.md 文件中移除 EvoKit 追加的区段。
+ * 如果 EvoKit 创建了整个文件（标记在第 1 行且之前
+ * 没有用户内容），则直接删除文件。
+ * 如果 EvoKit 追加到已有文件，则仅移除追加的
+ * 区段（从标记行到文件末尾）。
  *
  * @packageDocumentation
  */
@@ -13,32 +13,30 @@
 import fs from 'node:fs';
 import fse from 'fs-extra';
 
-/** Result of removing a CLAUDE.md section */
+/** 移除 CLAUDE.md 区段的结果 */
 export interface RemoveClaudeMdResult {
-  /** What happened: section-removed, file-deleted, or skipped */
+  /** 执行结果：section-removed（区段已移除）、file-deleted（文件已删除）或 skipped（已跳过） */
   action: 'section-removed' | 'file-deleted' | 'skipped';
-  /** Warning if content was found that might be user's */
+  /** 如果发现可能属于用户的内容时发出的警告 */
   warning?: string;
 }
 
 /**
- * Remove the EvoKit section from a CLAUDE.md file.
+ * 从 CLAUDE.md 文件中移除 EvoKit 区段。
  *
- * Searches for `appendMarker` in the file content.  If the marker
- * is found at the very beginning (no real user content before it),
- * the entire file is deleted.  If user content exists before the
- * marker, only the section from the marker to EOF is removed,
- * along with any `---` separator and trailing blank lines.
+ * 在文件内容中搜索 `appendMarker`。如果标记位于文件最开头
+ * （前面没有实际用户内容），则删除整个文件。如果标记前
+ * 存在用户内容，则仅移除从标记到文件末尾的区段，
+ * 同时清理 `---` 分隔符和末尾空行。
  *
- * If the marker is not found, or the file doesn't exist, returns
- * `action: 'skipped'`.
+ * 如果未找到标记或文件不存在，返回 `action: 'skipped'`。
  */
 export function removeClaudeMdSection(
   claudeMdPath: string,
   appendMarker: string,
   dryRun = false,
 ): RemoveClaudeMdResult {
-  // File doesn't exist → skip
+  // 文件不存在 → 跳过
   if (!fse.existsSync(claudeMdPath)) {
     return { action: 'skipped' };
   }
@@ -47,43 +45,43 @@ export function removeClaudeMdSection(
   try {
     content = fs.readFileSync(claudeMdPath, 'utf-8');
   } catch {
-    /* file unreadable (permissions or encoding) — skip */
+    /* 文件不可读（权限或编码问题）— 跳过 */
     return { action: 'skipped' };
   }
 
-  // Marker not found → skip
+  // 未找到标记 → 跳过
   const markerIdx = content.indexOf(appendMarker);
   if (markerIdx === -1) {
     return { action: 'skipped' };
   }
 
-  // Content before the marker
+  // 标记之前的内容
   const beforeMarker = content.slice(0, markerIdx);
 
-  // Check if EvoKit created the entire file:
-  // - beforeMarker is only whitespace, markdown heading prefixes (#), and/or --- separators
+  // 检查 EvoKit 是否创建了整个文件：
+  // - beforeMarker 仅包含空白、markdown 标题前缀（#）和/或 --- 分隔符
   const cleanedBefore = beforeMarker.replace(/---/g, '').replace(/#+/g, '').trim();
 
   if (cleanedBefore === '') {
-    // EvoKit created the entire file → delete it
+    // EvoKit 创建了整个文件 → 删除它
     if (!dryRun) {
       fse.removeSync(claudeMdPath);
     }
     return { action: 'file-deleted' };
   }
 
-  // EvoKit appended to existing file → remove from marker to EOF
-  // Also clean up the --- separator, heading markers, and trailing blank lines before the marker
+  // EvoKit 追加到已有文件 → 移除从标记到文件末尾的区段
+  // 同时清理标记前的 --- 分隔符、标题标记和末尾空行
   let trimmed = beforeMarker;
 
-  // Remove trailing --- separator(s) and blank lines
+  // 移除末尾的 --- 分隔符和空行
   trimmed = trimmed.replace(/\n*---\s*\n*$/, '');
-  // Remove trailing heading markers (#) and blank lines
+  // 移除末尾的标题标记（#）和空行
   trimmed = trimmed.replace(/\n*#+\s*$/, '');
-  // Remove trailing blank lines
+  // 移除末尾空行
   trimmed = trimmed.replace(/\n+$/, '');
 
-  // If after cleanup the file is empty → delete it
+  // 清理后文件为空 → 删除它
   if (trimmed.trim() === '') {
     if (!dryRun) {
       fse.removeSync(claudeMdPath);
@@ -91,17 +89,17 @@ export function removeClaudeMdSection(
     return { action: 'file-deleted' };
   }
 
-  // Ensure file ends with a single newline
+  // 确保文件以单个换行符结尾
   const newContent = trimmed + '\n';
 
   if (!dryRun) {
-    // Write atomically
+    // 原子写入
     const tmpPath = claudeMdPath + '.reverse.tmp';
     fs.writeFileSync(tmpPath, newContent, 'utf-8');
     try {
       fs.renameSync(tmpPath, claudeMdPath);
     } catch {
-      /* atomic rename failed (cross-device or permissions) — discard temp file */
+      /* 原子重命名失败（跨设备或权限问题）— 丢弃临时文件 */
       fse.removeSync(tmpPath);
     }
   }

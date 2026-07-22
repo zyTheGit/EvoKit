@@ -1,39 +1,37 @@
 /**
- * EvoKit — __HOME__ Placeholder Replacement Utilities
+ * EvoKit — __HOME__ 占位符替换工具
  *
- * Provides two strategies for replacing `__HOME__` placeholders
- * in template content:
+ * 提供两种策略来替换模板内容中的 `__HOME__` 占位符：
  *
- * - `replaceHomeInString` — plain-text replacement for non-JSON files
- *   (shell scripts, markdown, etc.)
- * - `replaceHomeInObject` — recursive replacement inside parsed JSON
- *   objects.  This avoids the Windows-path-backslash bug that occurs
- *   when replacing `__HOME__` in a raw JSON string before parsing
- *   (e.g. `C:\Users\x` produces invalid escape sequences like `\U`).
+ * - `replaceHomeInString` — 纯文本替换，用于非 JSON 文件
+ *   （shell 脚本、markdown 等）
+ * - `replaceHomeInObject` — 在已解析的 JSON 对象中递归替换。
+ *   这避免了在解析原始 JSON 字符串之前替换 `__HOME__` 时
+ *   出现的 Windows 反斜杠路径 bug（例如 `C:\Users\x` 会产生
+ *   `\U` 等无效转义序列）。
  *
- * On Windows, both functions convert backslashes to forward slashes
- * in strings that contained `__HOME__`.  This ensures that hook
- * commands like `bash C:/Users/x/.claude/hooks/...` work correctly
- * in Git Bash / MSYS2, where backslashes would be interpreted as
- * escape characters.
+ * 在 Windows 上，两个函数都会将包含 `__HOME__` 的字符串中的
+ * 反斜杠转换为正斜杠。这确保了 hook 命令如
+ * `bash C:/Users/x/.claude/hooks/...` 在 Git Bash / MSYS2 中
+ * 正常工作，因为反斜杠会被解释为转义字符。
  *
  * @packageDocumentation
  */
 
 /**
- * Replace all `__HOME__` placeholders in a plain-text string.
+ * 替换纯文本字符串中所有 `__HOME__` 占位符。
  *
- * On Windows, converts backslashes to forward slashes in the
- * replacement result, since bash treats `\` as an escape character.
+ * 在 Windows 上，将替换结果中的反斜杠转换为正斜杠，
+ * 因为 bash 将 `\` 视为转义字符。
  *
- * Safe for shell scripts, markdown, and other non-JSON content.
- * For JSON content, use `replaceHomeInObject` instead to avoid
- * backslash-escaping issues on Windows.
+ * 适用于 shell 脚本、markdown 及其他非 JSON 内容。
+ * 对于 JSON 内容，请使用 `replaceHomeInObject` 以避免
+ * Windows 上的反斜杠转义问题。
  */
 export function replaceHomeInString(content: string, homeDir: string): string {
   const result = content.replace(/__HOME__/g, homeDir);
-  // On Windows, convert backslashes to forward slashes in strings
-  // that contained __HOME__ — bash interprets \ as escape char.
+  // 在 Windows 上，将包含 __HOME__ 的字符串中的反斜杠转换为正斜杠
+  // — bash 将 \ 视为转义字符
   if (process.platform === 'win32' && content.includes('__HOME__')) {
     return result.replace(/\\/g, '/');
   }
@@ -41,31 +39,25 @@ export function replaceHomeInString(content: string, homeDir: string): string {
 }
 
 /**
- * Recursively replace all `__HOME__` placeholders in string values
- * within a parsed JSON object.
+ * 在已解析的 JSON 对象的字符串值中递归替换所有 `__HOME__` 占位符。
  *
- * This is the correct approach for JSON content because:
- * 1. The template is parsed as JSON *before* replacement (no raw-string
- *    backslash issues on Windows).
- * 2. `JSON.stringify` will automatically escape backslashes in the
- *    final output, producing valid JSON regardless of platform.
- * 3. On Windows, backslashes in replaced strings are converted to
- *    forward slashes, ensuring hook commands work in Git Bash.
+ * 这是处理 JSON 内容的正确方式，因为：
+ * 1. 模板在替换之前先解析为 JSON（避免 Windows 上的原始字符串反斜杠问题）。
+ * 2. `JSON.stringify` 会自动转义最终输出中的反斜杠，无论平台如何都能生成有效 JSON。
+ * 3. 在 Windows 上，替换后字符串中的反斜杠会转换为正斜杠，确保 hook 命令在 Git Bash 中正常工作。
  *
- * Only strings that originally contained `__HOME__` are converted —
- * other string values (e.g. glob patterns in permissions) are left
- * untouched.
+ * 仅转换原本包含 `__HOME__` 的字符串 — 其他字符串值（如权限中的 glob 模式）保持不变。
  *
- * @param obj - A value parsed from JSON (object, array, string, etc.)
- * @param homeDir - The path to substitute for `__HOME__`
- * @returns A new value with all `__HOME__` placeholders replaced
+ * @param obj - 从 JSON 解析的值（对象、数组、字符串等）
+ * @param homeDir - 用于替换 `__HOME__` 的路径
+ * @returns 替换所有 `__HOME__` 占位符后的新值
  */
 export function replaceHomeInObject<T>(obj: T, homeDir: string): T {
   if (typeof obj === 'string') {
     if (!obj.includes('__HOME__')) return obj;
     const replaced = obj.replace(/__HOME__/g, homeDir);
-    // On Windows, convert backslashes to forward slashes in strings
-    // that contained __HOME__ — bash interprets \ as escape char.
+    // 在 Windows 上，将包含 __HOME__ 的字符串中的反斜杠转换为正斜杠
+    // — bash 将 \ 视为转义字符
     if (process.platform === 'win32') {
       return replaced.replace(/\\/g, '/') as T;
     }
@@ -84,6 +76,6 @@ export function replaceHomeInObject<T>(obj: T, homeDir: string): T {
     return result as T;
   }
 
-  // Primitives (number, boolean, null) — return as-is
+  // 原始类型（number、boolean、null）— 原样返回
   return obj;
 }

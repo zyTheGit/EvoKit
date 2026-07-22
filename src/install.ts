@@ -1,13 +1,13 @@
 /**
- * EvoKit — Install Command
+ * EvoKit — 安装命令
  *
- * The `evokit install` command:
- * 1. Resolves adapters to install (from --adapter flag or Clack interactive menu)
- * 2. Resolves the template directory (bundled, local path, or GitHub)
- * 3. Calls each adapter's install() method with spinner progress
- * 4. Optionally runs verification
+ * `evokit install` 命令执行以下步骤：
+ * 1. 解析要安装的适配器（通过 --adapter 标志或 Clack 交互菜单）
+ * 2. 解析模板目录（内置、本地路径或 GitHub）
+ * 3. 调用每个适配器的 install() 方法并显示进度
+ * 4. 可选地运行验证
  *
- * Uses @clack/prompts for all user interaction.
+ * 使用 @clack/prompts 处理所有用户交互。
  *
  * @packageDocumentation
  */
@@ -22,50 +22,50 @@ import { spinner, intro, outro, note, log } from '@clack/prompts';
 import type { AdapterInstallResult, AdapterVerifyCheck } from './adapters/types.js';
 
 /**
- * Try to make stdin interactive when running in a piped context (e.g. curl | bash).
+ * 在管道上下文（如 curl | bash）中尝试让 stdin 变为交互模式。
  *
- * On Unix, /dev/tty is the controlling terminal — if it exists, we can
- * reopen stdin from it regardless of how the individual fds are redirected.
- * Falls back silently when no TTY is available (CI, Docker, etc.).
+ * 在 Unix 上，/dev/tty 是控制终端——如果存在，无论各个文件描述符
+ * 如何被重定向，我们都可以从中重新打开 stdin。
+ * 当没有可用的 TTY 时（CI、Docker 等）静默回退。
  *
- * @returns true if stdin is now interactive, false otherwise.
+ * @returns stdin 已变为交互模式则返回 true，否则返回 false。
  */
 function ensureInteractive(): boolean {
   if (process.stdin.isTTY) return true;
 
-  // stdin is piped (e.g. curl | bash) — try /dev/tty directly.
-  // This works even when npx/npm redirects stdout/stderr.
+  // stdin 被管道重定向（如 curl | bash）——尝试直接使用 /dev/tty。
+  // 即使 npx/npm 重定向了 stdout/stderr 也能正常工作。
   try {
     const fd = fs.openSync('/dev/tty', 'r');
     process.stdin = new ReadStream(fd) as typeof process.stdin;
     return true;
   } catch {
-    // No TTY available (CI, Docker, etc.)
+    // 没有 TTY 可用（CI、Docker 等）
   }
 
   return false;
 }
 
 export const installCommand = new Command('install')
-  .description('Install EvoKit for one or more AI coding assistants')
+  .description('为一个或多个 AI 编程助手安装 EvoKit')
   .option(
     '--adapter <names>',
-    'Comma-separated adapter names (claude, codex, opencode). Omit for interactive selection.',
+    '逗号分隔的适配器名称（claude, codex, opencode）。省略则以交互方式选择。',
   )
-  .option('--template <path>', 'Path to template directory (for development)')
-  .option('--branch <name>', 'GitHub branch to download template from', 'main')
-  .option('--dry-run', 'Preview installation without modifying files')
-  .option('--verify', 'Run boot verification after installation')
-  .option('--project-dir <path>', 'Project directory (for project-local adapters like OpenCode)')
+  .option('--template <path>', '模板目录路径（用于开发）')
+  .option('--branch <name>', '下载模板的 GitHub 分支', 'main')
+  .option('--dry-run', '预览安装，不修改文件')
+  .option('--verify', '安装后运行启动验证')
+  .option('--project-dir <path>', '项目目录（用于 OpenCode 等项目级适配器）')
   .action(async (options) => {
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
-      log.error('Error: Could not determine home directory.');
-      log.error('Set $HOME and try again.');
+      log.error('错误：无法确定主目录。');
+      log.error('请设置 $HOME 环境变量后重试。');
       process.exit(1);
     }
 
-    // ── Resolve adapters ───────────────────────────────────
+    // ── 解析适配器 ───────────────────────────────────
     let adapterIds: string[];
 
     if (options.adapter) {
@@ -82,14 +82,14 @@ export const installCommand = new Command('install')
         })),
       );
     } else {
-      log.info('Non-interactive terminal detected — defaulting to Claude Code.');
-      log.info('Use --adapter to specify assistants: --adapter claude,codex,opencode');
+      log.info('检测到非交互终端——默认使用 Claude Code。');
+      log.info('使用 --adapter 指定助手：--adapter claude,codex,opencode');
       adapterIds = ['claude'];
     }
 
     if (adapterIds.length === 0) adapterIds = ['claude'];
 
-    // ── Resolve template ──────────────────────────────────
+    // ── 解析模板 ──────────────────────────────────
     let templateDir: string;
     let cleanup: (() => void) | null = null;
     try {
@@ -101,7 +101,7 @@ export const installCommand = new Command('install')
       process.exit(1);
     }
 
-    // ── Install each adapter ──────────────────────────────
+    // ── 安装各适配器 ──────────────────────────────
     let allPass = true;
 
     for (const id of adapterIds) {
@@ -109,9 +109,9 @@ export const installCommand = new Command('install')
       try {
         installer = getInstaller(id);
       } catch {
-        log.error(`Unknown adapter: "${id}"`);
+        log.error(`未知适配器："${id}"`);
         log.error(
-          `Available: ${listAdapters()
+          `可用适配器：${listAdapters()
             .map((a) => a.id)
             .join(', ')}`,
         );
@@ -127,11 +127,11 @@ export const installCommand = new Command('install')
       };
 
       const s = spinner();
-      s.start(`Installing for ${installer.label}...`);
+      s.start(`正在为 ${installer.label} 安装...`);
 
       try {
         const result = installer.install(config);
-        s.stop(`${installer.label} installed`);
+        s.stop(`${installer.label} 安装完成`);
         printResult(installer, result);
 
         if (options.verify && !options.dryRun) {
@@ -141,47 +141,47 @@ export const installCommand = new Command('install')
           if (!pass) allPass = false;
         }
       } catch (err: any) {
-        s.stop(`Installation failed`);
+        s.stop(`安装失败`);
         log.error(`${installer.label}: ${err.message}`);
         allPass = false;
       }
     }
 
-    // Cleanup temp download
+    // 清理临时下载
     if (cleanup) cleanup();
 
-    // Summary
+    // 摘要
     if (options.dryRun) {
-      outro('Dry run complete — no files were modified');
+      outro('预演完成——未修改任何文件');
     } else if (allPass) {
-      outro('EvoKit installed successfully!');
+      outro('EvoKit 安装成功！');
     } else {
-      log.warning('Install completed with warnings — see above');
+      log.warning('安装完成但有警告——请查看上方输出');
     }
 
-    // Post-install guidance for first adapter
+    // 首个适配器安装后的指引
     if (adapterIds.length > 0 && !options.dryRun) {
       printNextSteps(adapterIds);
     }
   });
 
-// ─── Display helpers ─────────────────────────────────────────
+// ─── 显示辅助函数 ─────────────────────────────────────────
 
 function printResult(installer: { label: string }, result: AdapterInstallResult): void {
   const lines = [
-    `Target: ${result.adapterHome}`,
-    `Created: ${result.filesCreated} file(s), skipped ${result.filesSkipped}`,
+    `目标路径：${result.adapterHome}`,
+    `已创建：${result.filesCreated} 个文件，跳过 ${result.filesSkipped} 个`,
   ];
-  if (result.hooksInstalled > 0) lines.push(`Hooks: ${result.hooksInstalled} installed`);
-  if (result.rulesInstalled > 0) lines.push(`Rules: ${result.rulesInstalled} installed`);
-  if (result.agentsInstalled > 0) lines.push(`Agents: ${result.agentsInstalled} installed`);
-  if (result.commandsInstalled > 0) lines.push(`Commands: ${result.commandsInstalled} installed`);
+  if (result.hooksInstalled > 0) lines.push(`钩子：已安装 ${result.hooksInstalled} 个`);
+  if (result.rulesInstalled > 0) lines.push(`规则：已安装 ${result.rulesInstalled} 个`);
+  if (result.agentsInstalled > 0) lines.push(`代理：已安装 ${result.agentsInstalled} 个`);
+  if (result.commandsInstalled > 0) lines.push(`命令：已安装 ${result.commandsInstalled} 个`);
 
-  note(lines.join('\n'), `EvoKit — Install for ${installer.label}`);
+  note(lines.join('\n'), `EvoKit — ${installer.label} 安装结果`);
 }
 
 function printVerification(installer: { label: string }, checks: AdapterVerifyCheck[]): void {
-  log.step(`Verifying ${installer.label}...`);
+  log.step(`正在验证 ${installer.label}...`);
   for (const check of checks) {
     if (check.pass) {
       log.success(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
@@ -197,30 +197,30 @@ function printNextSteps(adapterIds: string[]): void {
   for (const id of adapterIds) {
     switch (id) {
       case 'claude':
-        steps.push('📖 Claude Code:\n' + '  1. Start Claude Code\n' + '  2. Run /boot to verify');
+        steps.push('📖 Claude Code：\n' + '  1. 启动 Claude Code\n' + '  2. 运行 /boot 进行验证');
         break;
       case 'codex':
         steps.push(
-          '📖 Codex CLI:\n' +
-            '  1. Start Codex (hooks run automatically)\n' +
-            '  2. Run: npx evokit doctor --adapter codex',
+          '📖 Codex CLI：\n' +
+            '  1. 启动 Codex（钩子自动运行）\n' +
+            '  2. 运行：npx evokit doctor --adapter codex',
         );
         break;
       case 'opencode':
         steps.push(
-          '📖 OpenCode CLI:\n' +
-            '  1. cd to project and start OpenCode\n' +
-            '  2. Run evokit-boot tool to verify',
+          '📖 OpenCode CLI：\n' +
+            '  1. 进入项目目录并启动 OpenCode\n' +
+            '  2. 运行 evokit-boot 工具进行验证',
         );
         break;
       default:
-        steps.push(`📖 ${id}: ready`);
+        steps.push(`📖 ${id}：已就绪`);
     }
   }
 
-  steps.push('💡 CLI usage: npx evokit doctor');
-  steps.push('   Or install globally: npm install -g @zythegit/evokit');
-  steps.push('📚 Docs: https://github.com/zyTheGit/EvoKit');
+  steps.push('💡 命令行用法：npx evokit doctor');
+  steps.push('   或全局安装：npm install -g @zythegit/evokit');
+  steps.push('📚 文档：https://github.com/zyTheGit/EvoKit');
 
-  note(steps.join('\n\n'), 'Next steps');
+  note(steps.join('\n\n'), '后续步骤');
 }

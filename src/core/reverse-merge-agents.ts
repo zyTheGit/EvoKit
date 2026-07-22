@@ -1,10 +1,9 @@
 /**
- * EvoKit — Reverse Agent Frontmatter Merge
+ * EvoKit — 反向合并 Agent Frontmatter
  *
- * Reverses the agent .md file frontmatter merge performed during
- * installation.  Removes EvoKit-added frontmatter fields while
- * preserving any user-added fields.  If all frontmatter is removed
- * and the body is empty, the file is deleted.
+ * 撤销安装时执行的 agent .md 文件 frontmatter 合并操作。
+ * 移除 EvoKit 添加的 frontmatter 字段，同时保留用户添加的字段。
+ * 如果所有 frontmatter 被移除且正文为空，则删除该文件。
  *
  * @packageDocumentation
  */
@@ -15,23 +14,22 @@ import fse from 'fs-extra';
 import { parseFrontmatter, serializeFrontmatter } from './merge-agents.js';
 import type { ManifestAgentFrontmatter } from './manifest.js';
 
-/** Result of reversing frontmatter on a single agent file */
+/** 单个 agent 文件的反向 frontmatter 结果 */
 export interface ReverseAgentResult {
-  /** Agent filename (e.g. 'architect.md') */
+  /** Agent 文件名（如 'architect.md'） */
   file: string;
-  /** What happened: cleaned = fields removed, deleted = file removed, skipped = no changes */
+  /** 执行结果：cleaned = 字段已移除，deleted = 文件已删除，skipped = 无变更 */
   action: 'cleaned' | 'deleted' | 'skipped';
-  /** Number of frontmatter fields removed */
+  /** 移除的 frontmatter 字段数 */
   fieldsRemoved: number;
 }
 
 /**
- * Reverse the agent frontmatter merge — remove EvoKit-added fields.
+ * 反向合并 agent frontmatter — 移除 EvoKit 添加的字段。
  *
- * For each agent file recorded in the manifest, reads the file, parses
- * frontmatter, removes fields that match the recorded key+value pairs,
- * and rewrites the file.  If all frontmatter is removed and the body is
- * empty/whitespace, the file is deleted.
+ * 对于清单中记录的每个 agent 文件，读取文件、解析 frontmatter、
+ * 移除与记录的键值对匹配的字段，然后重写文件。如果所有
+ * frontmatter 被移除且正文为空/仅空白，则删除该文件。
  */
 export function reverseMergeAgents(
   agentsDir: string,
@@ -43,7 +41,7 @@ export function reverseMergeAgents(
   for (const record of agentRecords) {
     const filePath = path.join(agentsDir, record.file);
 
-    // Skip if file doesn't exist
+    // 文件不存在则跳过
     if (!fse.existsSync(filePath)) {
       results.push({ file: record.file, action: 'skipped', fieldsRemoved: 0 });
       continue;
@@ -53,20 +51,20 @@ export function reverseMergeAgents(
     try {
       content = fs.readFileSync(filePath, 'utf-8');
     } catch {
-      /* file unreadable (permissions or encoding) — skip this agent */
+      /* 文件不可读（权限或编码问题）— 跳过此 agent */
       results.push({ file: record.file, action: 'skipped', fieldsRemoved: 0 });
       continue;
     }
 
     const parsed = parseFrontmatter(content);
 
-    // Skip if no frontmatter
+    // 无 frontmatter 则跳过
     if (!parsed.hasFrontmatter) {
       results.push({ file: record.file, action: 'skipped', fieldsRemoved: 0 });
       continue;
     }
 
-    // Remove matching fields
+    // 移除匹配的字段
     let fieldsRemoved = 0;
     for (const [key, value] of Object.entries(record.fields)) {
       if (parsed.frontmatter[key] === value) {
@@ -80,7 +78,7 @@ export function reverseMergeAgents(
       continue;
     }
 
-    // If all frontmatter removed and body is empty/whitespace → delete file
+    // 如果所有 frontmatter 被移除且正文为空/仅空白 → 删除文件
     const remainingKeys = Object.keys(parsed.frontmatter);
     if (remainingKeys.length === 0 && parsed.body.trim() === '') {
       if (!dryRun) {
@@ -90,23 +88,23 @@ export function reverseMergeAgents(
       continue;
     }
 
-    // Otherwise rewrite with cleaned frontmatter
+    // 否则用清理后的 frontmatter 重写
     if (!dryRun) {
       let newContent: string;
       if (remainingKeys.length === 0) {
-        // No frontmatter left — just write the body
+        // 没有剩余的 frontmatter — 只写入正文
         newContent = parsed.body;
       } else {
         newContent = '---\n' + serializeFrontmatter(parsed.frontmatter) + '\n---\n' + parsed.body;
       }
 
-      // Write atomically
+      // 原子写入
       const tmpPath = filePath + '.reverse.tmp';
       fs.writeFileSync(tmpPath, newContent, 'utf-8');
       try {
         fs.renameSync(tmpPath, filePath);
       } catch {
-        /* atomic rename failed (cross-device or permissions) — discard temp file */
+        /* 原子重命名失败（跨设备或权限问题）— 丢弃临时文件 */
         fse.removeSync(tmpPath);
       }
     }

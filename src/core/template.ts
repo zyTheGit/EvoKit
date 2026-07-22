@@ -1,16 +1,16 @@
 /**
- * EvoKit — Template Installation Pipeline
+ * EvoKit — 模板安装管道
  *
- * Core engine for installing EvoKit templates.  Provides a unified
- * `installPipeline()` that handles directories, files, __HOME__ replacement,
- * settings merge, agent frontmatter merge, memory seeding, and permissions.
+ * EvoKit 模板的安装引擎。提供统一的
+ * `installPipeline()` 处理目录、文件、__HOME__ 替换、
+ * settings 合并、agent frontmatter 合并、内存种子和权限设置。
  *
- * Internally, `installPipeline()` builds a declarative `AdapterLayout`
- * from the profile/exclude options and delegates to `executeLayout()`.
- * Future adapters can build their own layout directly, skipping the flags.
+ * 内部地，`installPipeline()` 从 profile/exclude 选项构建声明式
+ * `AdapterLayout` 并委托给 `executeLayout()`。
+ * 未来的适配器可以直接构建自己的布局，跳过标志位。
  *
- * This file also retains `installTemplate()` and `verifyInstallation()`
- * for backward compatibility.
+ * 此文件还保留了 `installTemplate()` 和 `verifyInstallation()`
+ * 以保持向后兼容。
  *
  * @packageDocumentation
  */
@@ -29,12 +29,12 @@ export interface BootCheck {
   detail?: string;
 }
 
-// ─── Profile types ─────────────────────────────────────────────
+// ─── 配置文件类型 ─────────────────────────────────────────────
 
-/** Installation profile presets. */
+/** 安装配置文件预设。 */
 export type InstallProfile = 'full' | 'minimal' | 'upgrade';
 
-/** Installable component names — used with `exclude` to opt out. */
+/** 可安装的组件名称 — 与 `exclude` 配合使用以排除某项。 */
 export type InstallComponent =
   | 'claude-md'
   | 'memory-md'
@@ -51,14 +51,14 @@ export interface InstallPipelineOptions {
   templateDir: string;
   targetDir: string;
   dryRun?: boolean;
-  /** Installation profile — defaults to 'full'. */
+  /** 安装配置文件 — 默认为 'full'。 */
   profile?: InstallProfile;
-  /** Components to exclude from the profile. */
+  /** 要从配置文件中排除的组件。 */
   exclude?: InstallComponent[];
   /**
-   * @deprecated Use `profile` + `exclude` instead.
-   * Legacy boolean flags are preserved for backward compatibility.
-   * If any legacy flag is explicitly set, it overrides the profile.
+   * @deprecated 请使用 `profile` + `exclude` 替代。
+   * 保留旧布尔标志用于向后兼容。
+   * 如果显式设置了任何旧标志，将覆盖配置文件。
    */
   installClaudeMd?: boolean;
   installMemoryMd?: boolean;
@@ -73,7 +73,7 @@ export interface InstallPipelineOptions {
 
 // ─── Profile resolution ────────────────────────────────────────
 
-/** Full profile: install everything. */
+/** 完整配置文件：安装所有内容。 */
 const FULL_COMPONENTS: Set<InstallComponent> = new Set([
   'claude-md',
   'memory-md',
@@ -86,7 +86,7 @@ const FULL_COMPONENTS: Set<InstallComponent> = new Set([
   'seed-memory',
 ]);
 
-/** Minimal profile: only core files needed for basic operation. */
+/** 最小配置文件：仅安装基本运行所需的核心文件。 */
 const MINIMAL_COMPONENTS: Set<InstallComponent> = new Set([
   'claude-md',
   'settings',
@@ -94,7 +94,7 @@ const MINIMAL_COMPONENTS: Set<InstallComponent> = new Set([
   'seed-memory',
 ]);
 
-/** Upgrade profile: always overwrite hooks/settings, skip-if-exists the rest. */
+/** 升级配置文件：始终覆盖 hooks/settings，其余内容跳过已存在的。 */
 const UPGRADE_COMPONENTS: Set<InstallComponent> = new Set([
   'claude-md',
   'memory-md',
@@ -114,18 +114,18 @@ const PROFILE_MAP: Record<InstallProfile, Set<InstallComponent>> = {
 };
 
 /**
- * Resolve the effective set of components from profile + exclude + legacy flags.
+ * 从 profile + exclude + 旧标志中解析有效组件集。
  *
- * Priority:
- * 1. If any legacy boolean flag is explicitly set (not undefined), use legacy mode.
- * 2. Otherwise, use profile (default 'full') minus exclude list.
+ * 优先级：
+ * 1. 如果显式设置了任何旧布尔标志（不是 undefined），使用旧模式。
+ * 2. 否则使用 profile（默认 'full'）减去 exclude 列表。
  */
 function resolveComponents(opts: InstallPipelineOptions): {
   components: Set<InstallComponent>;
-  /** Whether to use 'upgrade' strategy for hooks/settings (always overwrite). */
+  /** 是否对 hooks/settings 使用 'upgrade' 策略（始终覆盖）。 */
   upgradeMode: boolean;
 } {
-  // Check if any legacy flag is explicitly set
+  // 检查是否有显式设置的旧标志
   const hasLegacyFlags =
     opts.installClaudeMd !== undefined ||
     opts.installMemoryMd !== undefined ||
@@ -138,7 +138,7 @@ function resolveComponents(opts: InstallPipelineOptions): {
     opts.seedMemory !== undefined;
 
   if (hasLegacyFlags) {
-    // Legacy mode: each flag controls its component directly
+    // 旧模式：每个标志直接控制其组件
     const components = new Set<InstallComponent>();
     if (opts.installClaudeMd !== false) components.add('claude-md');
     if (opts.installMemoryMd !== false) components.add('memory-md');
@@ -152,7 +152,7 @@ function resolveComponents(opts: InstallPipelineOptions): {
     return { components, upgradeMode: false };
   }
 
-  // Profile mode
+  // 配置文件模式
   const profile = opts.profile ?? 'full';
   const base = PROFILE_MAP[profile];
   const exclude = opts.exclude ?? [];
@@ -164,7 +164,7 @@ function resolveComponents(opts: InstallPipelineOptions): {
   return { components, upgradeMode: profile === 'upgrade' };
 }
 
-// ─── Constants ─────────────────────────────────────────────────
+// ─── 常量 ─────────────────────────────────────────────────
 
 const MEMORY_SEED_FILES = [
   'README.md',
@@ -179,14 +179,13 @@ const MEMORY_SEED_FILES = [
 const CLAUDE_SUBDIRS = ['rules', 'agents', 'commands', 'memory', 'hooks'] as const;
 const HOOK_FILES = ['session-start.sh', 'stop.sh', 'export-system.sh'] as const;
 
-// ─── Pipeline ─────────────────────────────────────────────────
+// ─── 管道 ─────────────────────────────────────────────────
 
 /**
- * Build an `AdapterLayout` from profile/exclude or legacy boolean-flag options.
+ * 从 profile/exclude 或旧式布尔标志选项构建 `AdapterLayout`。
  *
- * This is the bridge between the `InstallPipelineOptions` interface
- * and the declarative layout engine.  Each component maps to
- * one or more `AdapterSection` entries.
+ * 这是 `InstallPipelineOptions` 接口与声明式布局引擎之间的桥梁。
+ * 每个组件映射到一个或多个 `AdapterSection` 条目。
  */
 function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
   const { homeDir, templateDir, targetDir } = opts;
@@ -195,7 +194,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
 
   const sections: AdapterSection[] = [];
 
-  // ── 1. Directories ──────────────────────────────────────────
+  // ── 1. 目录 ──────────────────────────────────────────
   const dirs: string[] = [];
   if (components.has('rules')) dirs.push('rules');
   if (components.has('commands')) dirs.push('commands');
@@ -207,7 +206,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     sections.push({ type: 'dirs', paths: dirs });
   }
 
-  // ── 2. CLAUDE.md (copy or append protocol section) ──────────
+  // ── 2. CLAUDE.md（复制或追加协议节） ──────────
   if (components.has('claude-md')) {
     sections.push({
       type: 'copy',
@@ -228,7 +227,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 4. settings.json (merge or fresh) ───────────────────────
+  // ── 4. settings.json（合并或全新） ───────────────────────
   if (components.has('settings')) {
     sections.push({
       type: 'merge-settings',
@@ -238,7 +237,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 5. Hooks (copy with __HOME__ replacement, always overwrite) ─
+  // ── 5. 钩子（带 __HOME__ 替换的复制，始终覆盖） ─
   if (components.has('hooks')) {
     sections.push({
       type: 'copy-dir',
@@ -251,7 +250,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 6. Rules (copy, overwrite — upgrade path) ───────────────
+  // ── 6. 规则（复制，覆盖 — 升级路径） ───────────────
   if (components.has('rules')) {
     sections.push({
       type: 'copy-dir',
@@ -263,7 +262,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 7. Commands (copy, overwrite) ───────────────────────────
+  // ── 7. 命令（复制，覆盖） ───────────────────────────
   if (components.has('commands')) {
     sections.push({
       type: 'copy-dir',
@@ -275,7 +274,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 8. Agents (frontmatter merge) ───────────────────────────
+  // ── 8. 代理（frontmatter 合并） ───────────────────────────
   if (components.has('agents')) {
     sections.push({
       type: 'merge-agents',
@@ -284,7 +283,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 9. Skills ───────────────────────────────────────────────
+  // ── 9. 技能 ───────────────────────────────────────────────
   if (components.has('skills')) {
     sections.push({
       type: 'copy-skills',
@@ -293,7 +292,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 10. Memory seed (only if not exist) ─────────────────────
+  // ── 10. 内存种子（仅当不存在时） ─────────────────────
   if (components.has('seed-memory')) {
     sections.push({
       type: 'seed-memory',
@@ -303,7 +302,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
     });
   }
 
-  // ── 11. Permissions ─────────────────────────────────────────
+  // ── 11. 权限 ─────────────────────────────────────────
   sections.push({
     type: 'permissions',
     dir: path.join(targetDir, 'hooks'),
@@ -321,10 +320,10 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
 }
 
 /**
- * Install EvoKit template files using profile/exclude or legacy boolean-flag options.
+ * 使用 profile/exclude 或旧式布尔标志选项安装 EvoKit 模板文件。
  *
- * Internally builds an `AdapterLayout` and delegates to `executeLayout()`.
- * The boolean flags are preserved for backward compatibility.
+ * 内部构建 `AdapterLayout` 并委托给 `executeLayout()`。
+ * 布尔标志保留用于向后兼容。
  */
 export function installPipeline(opts: InstallPipelineOptions): InstallSummary {
   const layout = buildClaudeLayout(opts);
@@ -334,12 +333,12 @@ export function installPipeline(opts: InstallPipelineOptions): InstallSummary {
   });
 }
 
-// ─── Legacy installTemplate (backward compat) ─────────────────
+// ─── 旧式 installTemplate（向后兼容） ─────────────────
 
 /**
- * Install the full Claude Code template.
+ * 安装完整 Claude Code 模板。
  *
- * Wraps installPipeline for backward compatibility.
+ * 包装 installPipeline 以保持向后兼容。
  */
 export function installTemplate(
   homeDir: string,
@@ -357,10 +356,10 @@ export function installTemplate(
   });
 }
 
-// ─── Permissions (legacy) ─────────────────────────────────────
+// ─── 权限（旧式） ─────────────────────────────────────
 
 /**
- * Set permissions on all template files.
+ * 设置所有模板文件的权限。
  */
 export function setPermissions(claudeDir: string): void {
   const hooksDir = path.join(claudeDir, 'hooks');
@@ -370,26 +369,26 @@ export function setPermissions(claudeDir: string): void {
   if (fse.existsSync(memDir)) setMemoryPermissions(memDir);
 }
 
-// ─── Verification ─────────────────────────────────────────────
+// ─── 验证 ─────────────────────────────────────────────
 
 /**
- * Verify a Claude Code EvoKit installation.
+ * 验证 Claude Code EvoKit 安装。
  */
 export function verifyInstallation(homeDir: string): BootCheck[] {
   const checks: BootCheck[] = [];
   const claudeDir = path.join(homeDir, '.claude');
 
-  // Directory structure
+  // 目录结构
   for (const subdir of CLAUDE_SUBDIRS) {
     const exists = fse.existsSync(path.join(claudeDir, subdir));
     checks.push({
       name: `.claude/${subdir}/`,
       pass: exists,
-      detail: exists ? undefined : 'Missing directory',
+      detail: exists ? undefined : '目录不存在',
     });
   }
 
-  // Key files
+  // 关键文件
   const keyFiles = [
     { name: 'CLAUDE.md', path: path.join(homeDir, 'CLAUDE.md') },
     { name: '.claude/MEMORY.md', path: path.join(claudeDir, 'MEMORY.md') },
@@ -400,11 +399,11 @@ export function verifyInstallation(homeDir: string): BootCheck[] {
     checks.push({
       name,
       pass: exists,
-      detail: exists ? undefined : 'Missing file',
+      detail: exists ? undefined : '文件缺失',
     });
   }
 
-  // Hook executables
+  // Hook 可执行文件
   const hooksDir = path.join(claudeDir, 'hooks');
   if (fse.existsSync(hooksDir)) {
     for (const hook of HOOK_FILES) {
@@ -416,13 +415,13 @@ export function verifyInstallation(homeDir: string): BootCheck[] {
         checks.push({
           name: `.claude/hooks/${hook}`,
           pass: executable,
-          detail: executable ? undefined : 'Not executable',
+          detail: executable ? undefined : '不可执行',
         });
       }
     }
   }
 
-  // JSONL permissions (600)
+  // JSONL 文件权限（600）
   const memDir = path.join(claudeDir, 'memory');
   if (fse.existsSync(memDir)) {
     const jsonls = fs.readdirSync(memDir).filter((f) => f.endsWith('.jsonl'));
@@ -434,7 +433,7 @@ export function verifyInstallation(homeDir: string): BootCheck[] {
       checks.push({
         name: `.claude/memory/${j} (${mode.toString(8)})`,
         pass: secure,
-        detail: secure ? undefined : `Expected 600, got ${mode.toString(8)}`,
+        detail: secure ? undefined : `期望 600，实际为 ${mode.toString(8)}`,
       });
     }
   }

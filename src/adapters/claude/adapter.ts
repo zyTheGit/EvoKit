@@ -1,14 +1,14 @@
 /**
- * EvoKit — Claude Code Adapter Installer
+ * EvoKit — Claude Code 适配器安装器
  *
- * @internal — Adapter implementation for Claude Code. The ClaudeAdapter class implements the public AdapterInstaller interface.
+ * @internal — Claude Code 的适配器实现。ClaudeAdapter 类实现了公共 AdapterInstaller 接口。
  *
- * Installs EvoKit template files into ~/.claude/ with full pipeline:
- * CLAUDE.md, settings.json merge, hooks, rules, commands, agents,
- * skills, and memory seeding.
+ * 将 EvoKit 模板文件安装到 ~/.claude/，包含完整流水线：
+ * CLAUDE.md、settings.json 合并、hooks、rules、commands、agents、
+ * skills 以及 memory 初始化。
  *
- * Uses the declarative `AdapterLayout` + `executeLayout()` engine
- * instead of the legacy boolean-flag `installPipeline()`.
+ * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎，
+ * 而非旧版布尔标志的 `installPipeline()`。
  *
  * @packageDocumentation
  */
@@ -30,7 +30,7 @@ import { updateAdapterManifest } from '../../core/manifest.js';
 
 export const CLAUDE_ADAPTER_VERSION = '0.2.0';
 
-// ─── Constants ─────────────────────────────────────────────────
+// ─── 常量 ─────────────────────────────────────────────────
 
 const MEMORY_SEED_FILES = [
   'README.md',
@@ -42,13 +42,13 @@ const MEMORY_SEED_FILES = [
   'sessions.jsonl',
 ] as const;
 
-// ─── Layout builder ────────────────────────────────────────────
+// ─── 布局构建器 ────────────────────────────────────────────
 
 /**
- * Build the declarative layout for Claude Code adapter installation.
+ * 构建 Claude Code 适配器安装的声明式布局。
  *
- * This replaces the old `buildClaudeLayout()` in template.ts — each
- * adapter now owns its layout definition.
+ * 替代旧版 template.ts 中的 `buildClaudeLayout()` —
+ * 每个适配器现在拥有自己的布局定义。
  */
 export function getLayout(opts: {
   homeDir: string;
@@ -60,13 +60,13 @@ export function getLayout(opts: {
 
   const sections: AdapterSection[] = [];
 
-  // ── 1. Directories ──────────────────────────────────────────
+  // ── 1. 目录 ──────────────────────────────────────────
   sections.push({
     type: 'dirs',
     paths: ['rules', 'commands', 'agents', 'hooks', 'memory', 'skills'],
   });
 
-  // ── 2. CLAUDE.md (copy or append protocol section) ──────────
+  // ── 2. CLAUDE.md（复制或追加协议段落）──────────
   sections.push({
     type: 'copy',
     src: path.join(claudeTemplateDir, 'CLAUDE.md'),
@@ -75,7 +75,7 @@ export function getLayout(opts: {
     appendMarker: 'Self-Evolving System Protocol',
   });
 
-  // ── 3. MEMORY.md ────────────────────────────────────────────
+  // ── 3. MEMORY.md ────────────────────────────────────
   sections.push({
     type: 'copy',
     src: path.join(claudeTemplateDir, 'MEMORY.md'),
@@ -83,7 +83,7 @@ export function getLayout(opts: {
     strategy: 'always',
   });
 
-  // ── 4. settings.json (merge or fresh) ───────────────────────
+  // ── 4. settings.json（合并或新建）───────────
   sections.push({
     type: 'merge-settings',
     srcPath: path.join(claudeTemplateDir, 'settings.json'),
@@ -91,7 +91,7 @@ export function getLayout(opts: {
     replaceHome: true,
   });
 
-  // ── 5. Hooks (copy with __HOME__ replacement, always overwrite) ─
+  // ── 5. Hooks（复制并替换 __HOME__，始终覆盖）──
   sections.push({
     type: 'copy-dir',
     srcDir: path.join(claudeTemplateDir, 'hooks'),
@@ -102,7 +102,7 @@ export function getLayout(opts: {
     counter: 'hooksInstalled',
   });
 
-  // ── 6. Rules (copy, overwrite — upgrade path) ───────────────
+  // ── 6. Rules（复制，覆盖 — 升级路径）──────────
   sections.push({
     type: 'copy-dir',
     srcDir: path.join(claudeTemplateDir, 'rules'),
@@ -112,7 +112,7 @@ export function getLayout(opts: {
     counter: 'rulesInstalled',
   });
 
-  // ── 7. Commands (copy, overwrite) ───────────────────────────
+  // ── 7. Commands（复制，覆盖）──────────────────
   sections.push({
     type: 'copy-dir',
     srcDir: path.join(claudeTemplateDir, 'commands'),
@@ -122,21 +122,21 @@ export function getLayout(opts: {
     counter: 'commandsInstalled',
   });
 
-  // ── 8. Agents (frontmatter merge) ───────────────────────────
+  // ── 8. Agents（frontmatter 合并）──────────────
   sections.push({
     type: 'merge-agents',
     srcDir: path.join(claudeTemplateDir, 'agents'),
     dstDir: path.join(targetDir, 'agents'),
   });
 
-  // ── 9. Skills ───────────────────────────────────────────────
+  // ── 9. Skills ───────────────────────────────────────
   sections.push({
     type: 'copy-skills',
     srcDir: path.join(claudeTemplateDir, 'skills'),
     dstDir: path.join(targetDir, 'skills'),
   });
 
-  // ── 10. Memory seed (only if not exist) ─────────────────────
+  // ── 10. Memory 初始化（仅在不存在时）────────
   sections.push({
     type: 'seed-memory',
     srcDir: path.join(claudeTemplateDir, 'memory'),
@@ -144,7 +144,7 @@ export function getLayout(opts: {
     files: [...MEMORY_SEED_FILES],
   });
 
-  // ── 11. Permissions ─────────────────────────────────────────
+  // ── 11. 权限 ─────────────────────────────────────
   sections.push({
     type: 'permissions',
     dir: path.join(targetDir, 'hooks'),
@@ -161,7 +161,7 @@ export function getLayout(opts: {
   return { targetDir, sections };
 }
 
-// ─── AdapterInstaller Implementation ───────────────────────────
+// ─── AdapterInstaller 实现 ───────────────────────────
 
 export class ClaudeAdapter implements AdapterInstaller {
   readonly id = 'claude';
@@ -184,7 +184,7 @@ export class ClaudeAdapter implements AdapterInstaller {
       collector,
     });
 
-    // Write manifest after install completes (not in dry-run)
+    // 安装完成后写入清单（非 dry-run 模式）
     if (!config.dryRun) {
       const adapterManifest = collector.build({
         adapterId: this.id,
@@ -192,7 +192,7 @@ export class ClaudeAdapter implements AdapterInstaller {
         homeDir: config.homeDir,
         adapterHome: claudeDir,
       });
-      // Read evokitVersion from package.json
+      // 从 package.json 读取 evokitVersion
       const pkgVersion = getEvokitVersion();
       updateAdapterManifest(config.homeDir, adapterManifest, pkgVersion);
     }
@@ -230,9 +230,9 @@ export class ClaudeAdapter implements AdapterInstaller {
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────
+// ─── 辅助函数 ──────────────────────────────────────────
 
-/** Read EvoKit version from package.json */
+/** 从 package.json 读取 EvoKit 版本 */
 function getEvokitVersion(): string {
   try {
     const require2 = createRequire(import.meta.url);

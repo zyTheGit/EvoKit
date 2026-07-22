@@ -1,8 +1,8 @@
 /**
- * EvoKit — Installation Source Selector
+ * EvoKit — 安装来源选择器
  *
- * Uses @clack/prompts select() to choose how to install
- * the template: GitHub release, npm, or local path.
+ * 使用 @clack/prompts select() 选择模板安装方式：
+ * GitHub release、npm 或本地路径。
  *
  * @packageDocumentation
  */
@@ -18,28 +18,28 @@ export interface SourceOption {
 }
 
 const SOURCES: SourceOption[] = [
-  { value: 'github', label: 'GitHub Release', hint: 'Latest stable from GitHub' },
-  { value: 'npm', label: 'npm Registry', hint: 'Published npm package' },
-  { value: 'local', label: 'Local Template', hint: 'Local directory path' },
+  { value: 'github', label: 'GitHub Release', hint: '从 GitHub 获取最新稳定版' },
+  { value: 'npm', label: 'npm Registry', hint: '已发布的 npm 包' },
+  { value: 'local', label: '本地模板', hint: '本地目录路径' },
 ];
 
 /**
- * Prompt the user to choose an installation source.
+ * 提示用户选择安装来源。
  *
- * @param options - Optional custom source list (default: GitHub / npm / Local)
- * @returns The selected InstallSource
+ * @param options - 可选的自定义来源列表（默认: GitHub / npm / 本地）
+ * @returns 选中的 InstallSource
  */
 export async function selectInstallSource(
   options: SourceOption[] = SOURCES,
 ): Promise<InstallSource> {
   const result = await select({
-    message: 'Installation source',
+    message: '安装来源',
     options,
     initialValue: 'github' as InstallSource,
   });
 
   if (isCancel(result)) {
-    cancel('Installation cancelled');
+    cancel('安装已取消');
     process.exit(0);
   }
 

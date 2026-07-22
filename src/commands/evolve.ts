@@ -15,12 +15,12 @@ import { readJsonlFile, getFileLineCount, getMemoryDir } from '../core/memory.js
 import { SessionEntry } from '../core/types.js';
 
 export const evolveCommand = new Command('evolve')
-  .description('Run evolution audit — promote corrections, prune stale rules')
-  .option('--home <path>', 'EvoKit home directory (default: $HOME)')
-  .option('--dry-run', 'Preview changes without writing')
-  .option('--force', 'Skip confirmation prompts')
-  .option('--max-lines <number>', 'Rotation trigger threshold', '500')
-  .option('--max-days <number>', 'Archive entries older than N days', '30')
+  .description('运行演化审计 — 提升纠正、清理过期规则')
+  .option('--home <path>', 'EvoKit 主目录（默认: $HOME）')
+  .option('--dry-run', '预览变更但不写入')
+  .option('--force', '跳过确认提示')
+  .option('--max-lines <number>', '轮转触发阈值', '500')
+  .option('--max-days <number>', '归档超过 N 天的条目', '30')
   .action(async (options) => {
     const config = buildConfig({
       ...options,
@@ -32,49 +32,49 @@ export const evolveCommand = new Command('evolve')
 
     const memoryDir = getMemoryDir(config.homeDir);
     if (!fse.existsSync(memoryDir)) {
-      console.error(pc.red(`Error: EvoKit not initialized at ${config.homeDir}`));
-      console.error('  Run "evokit init" first.');
+      console.error(pc.red(`错误：EvoKit 未在 ${config.homeDir} 初始化`));
+      console.error('  请先运行 "evokit init"。');
       process.exit(1);
     }
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
-    console.log(pc.cyan('║   EvoKit — Evolution Audit                ║'));
+    console.log(pc.cyan('║   EvoKit — 演化审计                      ║'));
     console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
-    console.log(`  Home: ${config.homeDir}${config.dryRun ? pc.yellow(' (DRY RUN)') : ''}`);
+    console.log(`  主目录: ${config.homeDir}${config.dryRun ? pc.yellow('（试运行）') : ''}`);
     console.log('');
 
-    // Step 1: Rotation
-    console.log(pc.cyan('📊 Auto-rotate files...'));
+    // 步骤 1：轮转
+    console.log(pc.cyan('📊 自动轮转文件...'));
     for (const file of ['corrections.jsonl', 'observations.jsonl']) {
       const result = rotateJsonlFile(config, file);
       const details = [];
-      if (result.archived > 0) details.push(`archived ${result.archived}`);
-      if (result.gzipped) details.push('gzipped');
+      if (result.archived > 0) details.push(`已归档 ${result.archived}`);
+      if (result.gzipped) details.push('已压缩');
       console.log(
-        `  ${pc.green('✓')} ${file}: ${result.kept} kept${details.length ? pc.yellow(' (' + details.join(', ') + ')') : ' (no rotation needed)'}`,
+        `  ${pc.green('✓')} ${file}：保留 ${result.kept} 条${details.length ? pc.yellow('（' + details.join('、') + '）') : '（无需轮转）'}`,
       );
     }
 
-    // Step 2: Confidence decay
-    console.log(pc.cyan('\n📉 Applying confidence decay...'));
+    // 步骤 2：置信度衰减
+    console.log(pc.cyan('\n📉 应用置信度衰减...'));
     const decayResult = applyConfidenceDecay(config, 'observations.jsonl');
     if (decayResult.archived > 0) {
       console.log(
-        `  ${pc.green('✓')} observations: ${decayResult.kept} kept, ${pc.yellow(`${decayResult.archived} archived (confidence < 0.3)`)}`,
+        `  ${pc.green('✓')} observations：保留 ${decayResult.kept} 条，${pc.yellow(`已归档 ${decayResult.archived} 条（置信度 < 0.3）`)}`,
       );
     } else {
-      console.log(`  ${pc.green('✓')} observations: ${decayResult.kept} entries (no decay needed)`);
+      console.log(`  ${pc.green('✓')} observations：${decayResult.kept} 条（无需衰减）`);
     }
 
-    // Step 3: Analyze corrections
-    console.log(pc.cyan('\n🔍 Analyzing corrections...'));
+    // 步骤 3：分析纠正
+    console.log(pc.cyan('\n🔍 分析纠正...'));
     const groups = analyzeCorrections(config);
     console.log(
-      `  Found ${groups.length} unique pattern(s) across ${groups.reduce((s, g) => s + g.count, 0)} total corrections`,
+      `  发现 ${groups.length} 个唯一模式，共 ${groups.reduce((s, g) => s + g.count, 0)} 条纠正`,
     );
 
-    // Step 4: Promote patterns
-    console.log(pc.cyan('\n⬆️  Promoting patterns...'));
+    // 步骤 4：提升模式
+    console.log(pc.cyan('\n⬆️  提升模式...'));
     const promoteResults = promotePatterns(config, groups);
     for (const r of promoteResults) {
       const icon =
@@ -86,45 +86,45 @@ export const evolveCommand = new Command('evolve')
       console.log(`  ${icon} "${r.pattern}" — ${r.reason}`);
     }
 
-    // Step 5: Stale rules
+    // 步骤 5：过期规则
     const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
     const sessions = readJsonlFile<SessionEntry>(sessionsPath);
 
-    // Show per-assistant breakdown
+    // 显示各助手明细
     const claudeSessions = sessions.filter((s) => !s.assistant || s.assistant === 'claude').length;
     const codexSessions = sessions.filter((s) => s.assistant === 'codex').length;
     const otherSessions = sessions.length - claudeSessions - codexSessions;
-    let sessionDetail = `${sessions.length} total`;
+    let sessionDetail = `共 ${sessions.length} 次`;
     if (codexSessions > 0 || otherSessions > 0) {
-      sessionDetail += ` (Claude: ${claudeSessions}`;
-      if (codexSessions > 0) sessionDetail += `, Codex: ${codexSessions}`;
-      if (otherSessions > 0) sessionDetail += `, other: ${otherSessions}`;
-      sessionDetail += ')';
+      sessionDetail += `（Claude: ${claudeSessions}`;
+      if (codexSessions > 0) sessionDetail += `，Codex: ${codexSessions}`;
+      if (otherSessions > 0) sessionDetail += `，其他: ${otherSessions}`;
+      sessionDetail += '）';
     }
-    console.log(pc.cyan(`\n🗑️  Pruning stale rules (${sessionDetail})...`));
+    console.log(pc.cyan(`\n🗑️  清理过期规则（${sessionDetail}）...`));
     const pruneResults = pruneStaleRules(config, sessions);
     if (pruneResults.length === 0) {
-      console.log(`  ${pc.green('✓')} No stale rules found`);
+      console.log(`  ${pc.green('✓')} 未发现过期规则`);
     } else {
       for (const r of pruneResults) {
         console.log(`  ${pc.yellow('🗑️')} "${r.pattern}" — ${r.reason}`);
       }
     }
 
-    // Step 6: Check limits
-    console.log(pc.cyan('\n📏 Checking limits...'));
+    // 步骤 6：检查限制
+    console.log(pc.cyan('\n📏 检查限制...'));
     const rulesPath = path.join(memoryDir, 'learned-rules.md');
     const rulesLines = getFileLineCount(rulesPath);
     const learnedRulesMax = config.learnedRulesMax ?? 50;
     if (rulesLines > learnedRulesMax) {
       console.log(
-        `  ${pc.yellow('⚠️')} learned-rules.md: ${rulesLines} lines (limit: ${learnedRulesMax}) — run --dry-run with --max-lines to prune`,
+        `  ${pc.yellow('⚠️')} learned-rules.md：${rulesLines} 行（限制：${learnedRulesMax}）— 使用 --dry-run --max-lines 进行清理`,
       );
     } else {
-      console.log(`  ${pc.green('✓')} learned-rules.md: ${rulesLines}/${learnedRulesMax} lines`);
+      console.log(`  ${pc.green('✓')} learned-rules.md：${rulesLines}/${learnedRulesMax} 行`);
     }
 
-    // Step 7: Log decisions
+    // 步骤 7：记录决策
     const allResults = [...promoteResults, ...pruneResults];
     if (allResults.length > 0) {
       logDecisions(config, allResults);
@@ -133,10 +133,10 @@ export const evolveCommand = new Command('evolve')
 
     console.log('');
     if (config.dryRun) {
-      console.log(pc.green('✅ Dry run complete — no files were modified'));
+      console.log(pc.green('✅ 试运行完成 — 未修改任何文件'));
     } else {
-      console.log(pc.green('✅ Evolution audit complete!'));
-      console.log(`  Run ${pc.cyan('evokit doctor')} to verify system health.`);
+      console.log(pc.green('✅ 演化审计完成！'));
+      console.log(`  运行 ${pc.cyan('evokit doctor')} 验证系统健康。`);
     }
     console.log('');
   });

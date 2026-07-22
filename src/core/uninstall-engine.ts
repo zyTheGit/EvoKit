@@ -1,13 +1,12 @@
 /**
- * EvoKit — Uninstall Engine
+ * EvoKit — 卸载引擎
  *
- * Coordinates the full uninstall process: reads the manifest, backs up
- * files, reverses settings/agent/CLAUDE.md merges, deletes installed
- * files, cleans up empty directories, and removes the adapter from
- * the manifest.
+ * 协调完整卸载过程：读取清单、备份文件、
+ * 撤销 settings/agent/CLAUDE.md 合并、删除已安装
+ * 文件、清理空目录，并从清单中移除适配器。
  *
- * When no manifest exists, falls back to heuristic uninstall based
- * on the adapter's known template structure.
+ * 当清单不存在时，根据适配器已知模板结构
+ * 回退到启发式卸载。
  *
  * @packageDocumentation
  */
@@ -26,51 +25,51 @@ import { reverseMergeSettings } from './reverse-merge-settings.js';
 import { reverseMergeAgents } from './reverse-merge-agents.js';
 import { removeClaudeMdSection } from './remove-claude-md.js';
 
-/** Options for the uninstall operation */
+/** 卸载操作的选项 */
 export interface UninstallOptions {
-  /** User's home directory */
+  /** 用户的家目录 */
   homeDir: string;
-  /** Adapter ID to uninstall (e.g. 'claude', 'codex') */
+  /** 要卸载的适配器 ID（例如 'claude', 'codex'） */
   adapterId: string;
-  /** Force uninstall even if warnings occur */
+  /** 即使出现警告也强制卸载 */
   force: boolean;
-  /** Delete user data files (MEMORY.md, memory/*.jsonl, etc.) */
+  /** 删除用户数据文件（MEMORY.md, memory/*.jsonl 等） */
   purge: boolean;
-  /** Dry-run mode — compute changes but don't write */
+  /** 试运行模式 — 计算变更但不写入 */
   dryRun: boolean;
-  /** Skip backup creation */
+  /** 跳过备份创建 */
   noBackup: boolean;
-  /** Custom backup directory (default: ~/.evokit/backup/uninstall-YYYYMMDD/) */
+  /** 自定义备份目录（默认：~/.evokit/backup/uninstall-YYYYMMDD/） */
   backupDir?: string;
-  /** Project directory (for project-level adapters) */
+  /** 项目目录（用于项目级适配器） */
   projectDir?: string;
 }
 
-/** Result of the uninstall operation */
+/** 卸载操作的结果 */
 export interface UninstallResult {
-  /** Adapter ID that was uninstalled */
+  /** 已卸载的适配器 ID */
   adapterId: string;
-  /** Number of files deleted */
+  /** 删除的文件数 */
   filesDeleted: number;
-  /** Number of files preserved (user data, non-purge mode) */
+  /** 保留的文件数（非清除模式下的用户数据） */
   filesPreserved: number;
-  /** Number of hook entries removed from settings.json */
+  /** 从 settings.json 移除的钩子条目数 */
   hooksRemoved: number;
-  /** Number of env vars removed from settings.json */
+  /** 从 settings.json 移除的环境变量数 */
   envVarsRemoved: number;
-  /** Number of agent frontmatter fields removed */
+  /** 移除的 agent frontmatter 字段数 */
   agentFieldsRemoved: number;
-  /** Number of empty directories removed */
+  /** 移除的空目录数 */
   directoriesRemoved: number;
-  /** Path to the backup directory, if created */
+  /** 备份目录路径（如已创建） */
   backupPath?: string;
-  /** Whether heuristic (no-manifest) mode was used */
+  /** 是否使用了启发式（无清单）模式 */
   heuristic: boolean;
-  /** Warnings encountered during uninstall */
+  /** 卸载过程中遇到的警告 */
   warnings: string[];
 }
 
-/** User data files that are preserved by default (not purged) */
+/** 默认保留的用户数据文件（非清除模式下） */
 const PRESERVED_FILE_NAMES = new Set([
   'MEMORY.md',
   'corrections.jsonl',
@@ -81,16 +80,15 @@ const PRESERVED_FILE_NAMES = new Set([
   'violations.jsonl',
 ]);
 
-/** EvoKit seed file — always deleted even without purge */
+/** EvoKit 种子文件 — 即使没有 purge 也会删除 */
 const SEED_FILE_NAMES = new Set(['README.md']);
 
 /**
- * Execute the full uninstall process for an adapter.
+ * 执行适配器的完整卸载过程。
  *
- * Reads the manifest, backs up files, reverses all merges, deletes
- * installed files, cleans up empty directories, and removes the
- * adapter from the manifest.  Falls back to heuristic uninstall
- * if no manifest exists.
+ * 读取清单、备份文件、撤销所有合并、删除已安装
+ * 文件、清理空目录，并从清单中移除适配器。
+ * 如果清单不存在，回退到启发式卸载。
  */
 export function executeUninstall(options: UninstallOptions): UninstallResult {
   const { homeDir, adapterId, force, purge, dryRun, noBackup, backupDir, projectDir } = options;
@@ -107,18 +105,18 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     warnings: [],
   };
 
-  // 1. Read manifest
+  // 1. 读取清单
   const manifest = readManifest(homeDir);
   const adapterRecord = manifest?.adapters?.[adapterId];
 
   if (!manifest || !adapterRecord) {
-    // No manifest or adapter not found → heuristic uninstall
+    // 清单不存在或适配器未找到 → 启发式卸载
     return executeHeuristicUninstall(options);
   }
 
   const adapterHome = adapterRecord.adapterHome;
 
-  // 2. Collect files to backup
+  // 2. 收集要备份的文件
   const filesToBackup: string[] = [];
 
   // Settings.json
@@ -133,7 +131,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     filesToBackup.push(claudeMdPath);
   }
 
-  // Agent files
+  // 代理文件
   const agentsDir = path.join(adapterHome, 'agents');
   for (const af of adapterRecord.agentFrontmatter) {
     const agentPath = path.join(agentsDir, af.file);
@@ -142,14 +140,14 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  // All files that will be deleted
+  // 所有将被删除的文件
   for (const fileRecord of adapterRecord.files) {
     if (fse.existsSync(fileRecord.path)) {
       filesToBackup.push(fileRecord.path);
     }
   }
 
-  // 3. Create backup (unless noBackup)
+  // 3. 创建备份（除非 noBackup）
   if (!noBackup && filesToBackup.length > 0) {
     const bkDir =
       backupDir ||
@@ -166,16 +164,16 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  // 4. Reverse merge settings.json
+  // 4. 撤销 settings.json 合并
   if (fse.existsSync(settingsPath)) {
     const reverseResult = reverseMergeSettings(settingsPath, adapterRecord, dryRun);
     result.hooksRemoved = reverseResult.hooksRemoved;
     result.envVarsRemoved = reverseResult.envVarsRemoved;
   }
 
-  // 5. Remove CLAUDE.md section
+  // 5. 移除 CLAUDE.md 节
   if (fse.existsSync(claudeMdPath)) {
-    // Find the appendMarker from the manifest files
+    // 从清单文件中查找 appendMarker
     const claudeMdRecord = adapterRecord.files.find(
       (f) => f.path === claudeMdPath && f.mode === 'appended',
     );
@@ -183,15 +181,15 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     removeClaudeMdSection(claudeMdPath, marker, dryRun);
   }
 
-  // 6. Reverse merge agents
+  // 6. 撤销 agents 合并
   if (adapterRecord.agentFrontmatter.length > 0 && fse.existsSync(agentsDir)) {
     const agentResults = reverseMergeAgents(agentsDir, adapterRecord.agentFrontmatter, dryRun);
     result.agentFieldsRemoved = agentResults.reduce((sum, r) => sum + r.fieldsRemoved, 0);
-    // Count deleted agent files
+    // 统计已删除的代理文件
     result.filesDeleted += agentResults.filter((r) => r.action === 'deleted').length;
   }
 
-  // 7. Delete EvoKit-managed files
+  // 7. 删除 EvoKit 管理的文件
   for (const fileRecord of adapterRecord.files) {
     const filePath = fileRecord.path;
     if (!fse.existsSync(filePath)) continue;
@@ -199,18 +197,18 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     const basename = path.basename(filePath);
     const dirName = path.basename(path.dirname(filePath));
 
-    // Skip user data files unless purge
+    // 跳过用户数据文件，除非 purge
     if (!purge) {
       if (PRESERVED_FILE_NAMES.has(basename)) {
         result.filesPreserved++;
         continue;
       }
-      // Preserve memory/*.jsonl files
+      // 保留 memory/*.jsonl 文件
       if (dirName === 'memory' && basename.endsWith('.jsonl')) {
         result.filesPreserved++;
         continue;
       }
-      // Preserve memory/learned-rules.md and memory/evolution-log.md
+      // 保留 memory/learned-rules.md 和 memory/evolution-log.md
       if (
         dirName === 'memory' &&
         (basename === 'learned-rules.md' || basename === 'evolution-log.md')
@@ -220,15 +218,15 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
       }
     }
 
-    // Always delete memory/README.md (EvoKit seed)
-    // Delete the file
+    // 始终删除 memory/README.md（EvoKit 种子）
+    // 删除文件
     if (!dryRun) {
       fse.removeSync(filePath);
     }
     result.filesDeleted++;
   }
 
-  // Delete skills directories
+  // 删除技能目录
   for (const skillDir of adapterRecord.skillDirs) {
     const skillPath = path.isAbsolute(skillDir) ? skillDir : path.join(adapterHome, skillDir);
     if (fse.existsSync(skillPath)) {
@@ -239,30 +237,30 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  // 8. Clean up empty directories (deepest first)
+  // 8. 清理空目录（最深优先）
   result.directoriesRemoved = cleanupEmptyDirs(
     adapterRecord.directories.map((d) => (path.isAbsolute(d) ? d : path.join(adapterHome, d))),
     dryRun,
   );
 
-  // 9. Remove adapter from manifest
+  // 9. 从清单中移除适配器
   if (!dryRun) {
     removeAdapterFromManifest(homeDir, adapterId);
 
-    // If no adapters remain, clean up ~/.evokit/manifest.json
+    // 如果没有适配器剩余，清理 ~/.evokit/manifest.json
     if (!hasRemainingAdapters(homeDir)) {
       const mPath = manifestPath(homeDir);
       if (fse.existsSync(mPath)) {
         fse.removeSync(mPath);
       }
-      // Try to remove ~/.evokit/ if empty
+      // 尝试移除 ~/.evokit/（如果为空）
       const evokitDir = path.join(homeDir, '.evokit');
       try {
         if (fs.readdirSync(evokitDir).length === 0) {
           fse.removeSync(evokitDir);
         }
       } catch {
-        // Directory not empty or doesn't exist — ignore
+        // 目录非空或不存在 — 忽略
       }
     }
   }
@@ -270,16 +268,16 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   return result;
 }
 
-// ─── Heuristic uninstall ──────────────────────────────────────
+// ─── 启发式卸载 ──────────────────────────────────────
 
 /**
- * Heuristic uninstall when no manifest exists.
+ * 清单不存在时的启发式卸载。
  *
- * Uses known patterns to find and remove EvoKit-installed content:
- * - settings.json: remove hooks containing `.claude/hooks/`, autoMemoryEnabled, known env vars
- * - CLAUDE.md: remove section starting with 'Self-Evolving System Protocol'
- * - Known file names: hooks/*.sh, rules/*.md, commands/*.md, skills/ subdirs, memory/README.md
- * - Agents: remove known EvoKit frontmatter fields with template default values
+ * 使用已知模式查找并删除 EvoKit 安装的内容：
+ * - settings.json：移除包含 `.claude/hooks/` 的钩子、autoMemoryEnabled、已知环境变量
+ * - CLAUDE.md：移除从 'Self-Evolving System Protocol' 开始的节
+ * - 已知文件名：hooks/*.sh, rules/*.md, commands/*.md, skills/ 子目录, memory/README.md
+ * - 代理：移除具有模板默认值的已知 EvoKit frontmatter 字段
  */
 function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   const { homeDir, adapterId, purge, dryRun, noBackup, backupDir } = options;
@@ -293,13 +291,13 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     agentFieldsRemoved: 0,
     directoriesRemoved: 0,
     heuristic: true,
-    warnings: ['No manifest found — using heuristic uninstall. Some files may be missed.'],
+    warnings: ['未找到清单文件 — 使用启发式卸载。部分文件可能被遗漏。'],
   };
 
-  // Determine adapter home based on adapter ID
+  // 根据适配器 ID 确定适配器家目录
   const adapterHome = getAdapterHome(homeDir, adapterId);
 
-  // ── Phase 1: Collect files to backup ─────────────────────
+  // ── 阶段 1: 收集要备份的文件 ─────────────────────
   const filesToBackup: string[] = [];
 
   const settingsPath = path.join(adapterHome, 'settings.json');
@@ -330,7 +328,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
         filesToBackup.push(path.join(dirPath, file));
       }
     } catch {
-      // Skip unreadable directories
+      // 跳过不可读的目录
     }
   }
 
@@ -344,7 +342,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     filesToBackup.push(memoryReadme);
   }
 
-  // ── Phase 2: Create backup BEFORE any modifications ──────
+  // ── 阶段 2: 在任何修改前创建备份 ──────
   if (!noBackup && filesToBackup.length > 0) {
     const bkDir =
       backupDir ||
@@ -361,21 +359,21 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  // ── Phase 3: Perform modifications ───────────────────────
+  // ── 阶段 3: 执行修改 ───────────────────────
 
-  // 1. Settings.json heuristic
+  // 1. Settings.json 启发式
   if (fse.existsSync(settingsPath) && !dryRun) {
     const heuristicResult = heuristicReverseSettings(settingsPath, homeDir, adapterHome);
     result.hooksRemoved = heuristicResult.hooksRemoved;
     result.envVarsRemoved = heuristicResult.envVarsRemoved;
   }
 
-  // 2. CLAUDE.md heuristic
+  // 2. CLAUDE.md 启发式
   if (fse.existsSync(claudeMdPath)) {
     removeClaudeMdSection(claudeMdPath, 'Self-Evolving System Protocol', dryRun);
   }
 
-  // 3. Known file names — delete
+  // 3. 已知文件名 — 删除
   for (const dirName of knownDirs) {
     const dirPath = path.join(adapterHome, dirName);
     if (!fse.existsSync(dirPath)) continue;
@@ -391,11 +389,11 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
         result.filesDeleted++;
       }
     } catch {
-      // Skip unreadable directories
+      // 跳过不可读的目录
     }
   }
 
-  // Skills directories
+  // Skills 目录
   if (fse.existsSync(skillsDir)) {
     if (!dryRun) {
       fse.removeSync(skillsDir);
@@ -403,7 +401,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     result.filesDeleted++;
   }
 
-  // Memory/README.md (EvoKit seed)
+  // Memory/README.md（EvoKit 种子）
   if (fse.existsSync(memoryReadme)) {
     if (!dryRun) {
       fse.removeSync(memoryReadme);
@@ -411,7 +409,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     result.filesDeleted++;
   }
 
-  // 4. Agent frontmatter heuristic
+  // 4. Agent frontmatter 启发式
   const agentsDir = path.join(adapterHome, 'agents');
   if (fse.existsSync(agentsDir)) {
     const heuristicAgentRecords: ManifestAgentFrontmatter[] = [];
@@ -430,7 +428,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
         });
       }
     } catch {
-      // Skip unreadable agent directories
+      // 跳过不可读的代理目录
     }
 
     if (heuristicAgentRecords.length > 0) {
@@ -440,22 +438,20 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  // 5. Clean up empty directories
+  // 5. 清理空目录
   const dirsToClean = knownDirs
     .map((d) => path.join(adapterHome, d))
     .concat([path.join(adapterHome, 'memory'), adapterHome]);
   result.directoriesRemoved = cleanupEmptyDirs(dirsToClean, dryRun);
 
-  result.warnings.push(
-    'Heuristic uninstall completed. Verify that no user data was accidentally removed.',
-  );
+  result.warnings.push('启发式卸载已完成。请验证没有用户数据被意外删除。');
 
   return result;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────
+// ─── 辅助函数 ──────────────────────────────────────────────────
 
-/** Get adapter home directory based on adapter ID */
+/** 根据适配器 ID 获取适配器家目录 */
 function getAdapterHome(homeDir: string, adapterId: string): string {
   const adapterHomes: Record<string, string> = {
     claude: '.claude',
@@ -467,7 +463,7 @@ function getAdapterHome(homeDir: string, adapterId: string): string {
   return path.join(homeDir, subDir);
 }
 
-/** Heuristic reverse of settings.json when no manifest exists */
+/** 清单不存在时对 settings.json 的启发式撤销 */
 function heuristicReverseSettings(
   settingsPath: string,
   homeDir: string,
@@ -477,7 +473,7 @@ function heuristicReverseSettings(
   try {
     settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
   } catch {
-    /* file missing or invalid JSON — nothing to reverse */
+    /* 文件缺失或 JSON 无效 — 无需撤销 */
     return { hooksRemoved: 0, envVarsRemoved: 0 };
   }
 
@@ -485,8 +481,8 @@ function heuristicReverseSettings(
   let envVarsRemoved = 0;
   let changed = false;
 
-  // Remove hook entries whose command references the adapter's hooks directory
-  // Use adapterHome to avoid matching unrelated hooks (e.g. /home/user/my-hooks/)
+  // 移除钩子条目，其命令引用适配器的 hooks 目录
+  // 使用 adapterHome 避免匹配不相关的钩子（例如 /home/user/my-hooks/）
   const hooksMarker = adapterHome.replace(/\\/g, '/') + '/hooks/';
   if (settings.hooks && typeof settings.hooks === 'object') {
     const hooks = settings.hooks as Record<string, unknown>;
@@ -495,7 +491,7 @@ function heuristicReverseSettings(
 
       const filtered = eventArr.filter((group) => {
         const str = JSON.stringify(group).replace(/\\\\/g, '/');
-        // Only match hooks that reference THIS adapter's hooks directory
+        // 仅匹配引用此适配器 hooks 目录的钩子
         if (str.includes(hooksMarker)) {
           hooksRemoved++;
           return false;
@@ -518,13 +514,13 @@ function heuristicReverseSettings(
     }
   }
 
-  // Remove autoMemoryEnabled if set to true
+  // 如果 autoMemoryEnabled 为 true，则移除
   if (settings.autoMemoryEnabled === true) {
     delete settings.autoMemoryEnabled;
     changed = true;
   }
 
-  // Remove known EvoKit env vars
+  // 移除已知的 EvoKit 环境变量
   const knownEnvVars = ['CLAUDE_CODE_DISABLE_AUTO_MEMORY'];
   if (settings.env && typeof settings.env === 'object') {
     const env = settings.env as Record<string, string>;
@@ -542,18 +538,18 @@ function heuristicReverseSettings(
   }
 
   if (changed) {
-    // Check if effectively empty
+    // 检查是否实际为空
     const keysWithoutSchema = Object.keys(settings).filter((k) => k !== '$schema');
     if (keysWithoutSchema.length === 0) {
       fse.removeSync(settingsPath);
     } else {
-      // Write atomically
+      // 原子写入
       const tmpPath = settingsPath + '.reverse.tmp';
       fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
       try {
         fs.renameSync(tmpPath, settingsPath);
       } catch {
-        /* atomic rename failed (cross-device or permissions) — discard temp file */
+        /* 原子重命名失败（跨设备或权限问题）— 丢弃临时文件 */
         fse.removeSync(tmpPath);
       }
     }
@@ -563,8 +559,8 @@ function heuristicReverseSettings(
 }
 
 /**
- * Create a backup of files that will be modified or deleted.
- * Preserves relative paths from homeDir.
+ * 创建将要修改或删除的文件的备份。
+ * 保留相对于 homeDir 的路径。
  */
 function createUninstallBackup(
   filesToBackup: string[],
@@ -579,26 +575,26 @@ function createUninstallBackup(
   for (const filePath of filesToBackup) {
     if (!fse.existsSync(filePath)) continue;
 
-    // Compute relative path from homeDir
+    // 计算相对于 homeDir 的路径
     const relPath = path.relative(homeDir, filePath);
     const backupPath = path.join(backupDir, relPath);
 
     try {
       fse.copySync(filePath, backupPath);
     } catch {
-      // Skip files that can't be backed up (permissions, etc.)
+      // 跳过无法备份的文件（权限等）
     }
   }
 }
 
 /**
- * Clean up empty directories, processing deepest first.
- * Returns the number of directories removed.
+ * 清理空目录，优先处理最深层的目录。
+ * 返回已移除的目录数。
  */
 function cleanupEmptyDirs(dirs: string[], dryRun: boolean): number {
   let removed = 0;
 
-  // Sort by depth (deepest first) — more path separators = deeper
+  // 按深度排序（最深优先）— 更多路径分隔符 = 更深
   const sorted = [...dirs].sort((a, b) => {
     const depthA = a.split(path.sep).length;
     const depthB = b.split(path.sep).length;
@@ -617,7 +613,7 @@ function cleanupEmptyDirs(dirs: string[], dryRun: boolean): number {
         removed++;
       }
     } catch {
-      // Directory not accessible — skip
+      // 目录不可访问 — 跳过
     }
   }
 
