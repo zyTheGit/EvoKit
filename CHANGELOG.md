@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.6.0 (2026-07-23)
+
+### Major
+
+- 🤖 **Pi CLI 适配器完整集成（v0.6.0）** — TypeScript 扩展系统（evokit-lifecycle/evokit-boot/evokit-evolve/evokit-memory/evokit-session）、Agent Skills 标准、模板文件（AGENTS.md、settings.json、skills/、agent/）
+- 📋 **双语 ADAPTER_SPEC 规范文档** — 四个 CLI 适配器的官方规格摘要（版本号、目录结构、生命周期事件、扩展机制）
+- 🏗️ **BaseAdapter 基类** — 抽象安装管线，供子类继承
+- 🔧 **共享版本工具** — `src/core/version.ts` 提取 `getEvokitVersion()` 为统一入口
+
+### Documentation
+
+- 📖 **FAQ 更新** — 新增 Pi CLI 和 OpenCode 支持条目，移除"计划中"描述
+- 📖 **INSTALL 更新** — 前置要求新增 Pi CLI 条目
+- 📖 **MULTI_AGENT 更新** — 状态从"计划中"改为"已实现"，章节标题改为"已实现的适配器"
+- 📖 **README 路线图更新** — Pi CLI 状态从存根改为完整支持，新增 v0.5.0/v0.6.0 里程碑
+- 📖 **PLAN_OPENCODE_ADAPTER 标注完成** — 状态标记为已发布
+
+### Internal
+
+- 🔌 **Codex 适配器增强** — 项目级目录支持、hooks 类型扩展、测试覆盖
+- 🔌 **Pi 适配器** — 扩展尊重 `PI_CODING_AGENT_DIR` 环境变量
+- 🔌 **Claude 适配器** — `CLAUDE_HOOK_FILES` 补充完整 Hook 列表（session-start/pre-tool-use/post-tool-use/pre-compact/stop/export-system）
+- 🧪 **测试新增** — claude-adapter.test.ts、codex-adapter.test.ts 扩展、pi-adapter.test.ts 扩展（265 个测试全通过）
+
+### Fix
+
+- 🐛 **Pi 扩展路径硬编码** — 5 个 TypeScript 扩展使用 `resolvePiHome()` 替代硬编码 `homedir() + '.pi/agent'`，尊重 `PI_CODING_AGENT_DIR` 环境变量
+- 🐛 **Claude Hook 脚本列表不完整** — `CLAUDE_HOOK_FILES` 缺少 pre-tool-use.sh、post-tool-use.sh、pre-compact.sh
+
 ## v0.4.2 (2026-06-18)
 
 ### Major

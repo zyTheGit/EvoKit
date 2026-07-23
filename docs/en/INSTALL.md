@@ -6,6 +6,7 @@
   - **Claude Code** (via `~/.claude/`) — ✅ v0.4+
   - **Codex CLI** (via `~/.codex/`) — ✅ v0.3.0+
   - **OpenCode** (via `~/.config/opencode/` + `.opencode/`) — ✅ v0.5.0+
+  - **Pi CLI** (via `~/.pi/agent/` + `.pi/`) — ✅ v0.6.0+
 - **OS:** Linux, macOS, or Windows (WSL/Git Bash)
 - **Shell:** bash 4.0+
 - **Tools:** `curl` or `wget` (for remote install)
@@ -166,14 +167,14 @@ After installation, start OpenCode and call the `evokit-boot` tool to verify.
 
 ## Installer Options
 
-| Flag | Description |
-|------|-------------|
-| `--adapter <names>` | Comma-separated adapter names: `claude`, `codex`, `opencode`. Omit for interactive selection. |
-| `--dry-run` | Preview what would be installed without modifying any files |
-| `--template <path>` | Install from a local template directory instead of GitHub |
-| `--branch <name>` | Download from a specific branch or tag (e.g. `main`, `v0.1.0`) |
-| `--verify` | Run boot verification after installation |
-| `--project-dir <path>` | Project directory (used by OpenCode for `.opencode/`) |
+| Flag                   | Description                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `--adapter <names>`    | Comma-separated adapter names: `claude`, `codex`, `opencode`. Omit for interactive selection. |
+| `--dry-run`            | Preview what would be installed without modifying any files                                   |
+| `--template <path>`    | Install from a local template directory instead of GitHub                                     |
+| `--branch <name>`      | Download from a specific branch or tag (e.g. `main`, `v0.1.0`)                                |
+| `--verify`             | Run boot verification after installation                                                      |
+| `--project-dir <path>` | Project directory (used by OpenCode for `.opencode/`)                                         |
 
 ### Interactive vs Non-Interactive
 
@@ -271,6 +272,7 @@ Start Claude Code and run:
 ```
 
 Expected output:
+
 ```
 [EVOLUTION BOOT] ═══════════════════════
   ✓ .claude/rules/
@@ -291,12 +293,15 @@ the status of global config, project files, and memory data.
 ## Platform-Specific Notes
 
 ### Linux
+
 Everything works out of the box.
 
 ### macOS
+
 Everything works out of the box.
 
 ### Windows (WSL)
+
 1. Install WSL: `wsl --install` (Admin PowerShell)
 2. Install Node.js and the AI coding assistant inside WSL
 3. Run the installer inside WSL
@@ -316,6 +321,7 @@ bash /tmp/evokit.sh
 ```
 
 ### Windows (Git Bash)
+
 1. Install Git Bash from https://git-scm.com
 2. Open Git Bash
 3. Run the installer
@@ -324,6 +330,7 @@ bash /tmp/evokit.sh
 ## Troubleshooting
 
 ### "hooks must be an array of matchers"
+
 **Problem:** Old format hooks in `settings.json` (pre-v0.1.0 format).
 **Fix:** Use the template's `settings.json` or re-run the installer:
 
@@ -332,6 +339,7 @@ bash bin/install.sh --template template --adapter claude
 ```
 
 ### "Permission denied" on hooks
+
 **Problem:** Hook scripts not executable.
 **Fix:**
 
@@ -340,6 +348,7 @@ chmod +x ~/.claude/hooks/*.sh
 ```
 
 ### /boot command not found
+
 **Problem:** Commands not installed correctly.
 **Fix:** Verify the command file exists, then restart Claude Code:
 
@@ -348,6 +357,7 @@ ls -la ~/.claude/commands/boot.md   # should exist
 ```
 
 ### SessionStart hook not running
+
 **Problem:** Hook path in `settings.json` doesn't match the actual file location.
 **Fix:** Check that `~/.claude/settings.json` has the correct `__HOME__` resolved to your actual home directory:
 
@@ -358,6 +368,7 @@ grep hooks ~/.claude/settings.json
 The command path should look like `/home/user/.claude/hooks/session-start.sh`, not `__HOME__/.claude/hooks/...`.
 
 ### Hooks use `uv` but it's not installed
+
 **Problem:** The `stop.sh` hook tries `uv run --isolated python3` first for JSON processing, falling back to `python3`.
 **Fix:** Either install `uv` (recommended) or ensure `python3` is available:
 
@@ -367,6 +378,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ### `evokit: command not found` after npm install
+
 **Problem:** The `evokit` binary is installed but not on your system PATH.
 
 **Fix:** Check your install type:

@@ -1,6 +1,6 @@
 # 多智能体适配器架构
 
-> **状态：** 计划中（v0.3+ / v0.4+）
+> **状态：** ✅ 已实现 — Claude Code、Codex CLI、OpenCode CLI、Pi CLI 四个适配器均已完成
 > 本文档定义了用于与其他 AI 编码助手集成的适配器接口。
 
 ## 动机
@@ -81,7 +81,7 @@ interface CommandResult {
 }
 ```
 
-## 已规划的适配器
+## 已实现的适配器
 
 ### Claude Code 适配器（v0.1 — ✅ 当前版本）
 

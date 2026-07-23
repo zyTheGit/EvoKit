@@ -6,6 +6,7 @@
   - **Claude Code**（通过 `~/.claude/`）— ✅ v0.4+
   - **Codex CLI**（通过 `~/.codex/`）— ✅ v0.3.0+
   - **OpenCode**（通过 `~/.config/opencode/` + `.opencode/`）— ✅ v0.5.0+
+  - **Pi CLI**（通过 `~/.pi/agent/` + `.pi/`）— ✅ v0.6.0+
 - **操作系统：** Linux、macOS 或 Windows（WSL/Git Bash）
 - **Shell：** bash 4.0+
 - **工具：** `curl` 或 `wget`（用于远程安装）
@@ -166,14 +167,14 @@ evokit install --adapter opencode --project-dir /path/to/project
 
 ## 安装选项
 
-| 标志 | 描述 |
-|------|------|
-| `--adapter <names>` | 逗号分隔的适配器名称：`claude`、`codex`、`opencode`。省略则进入交互式选择。 |
-| `--dry-run` | 预览将要安装的内容，不修改任何文件 |
-| `--template <path>` | 从本地模板目录安装，而非 GitHub |
-| `--branch <name>` | 从指定分支或标签下载（如 `main`、`v0.1.0`） |
-| `--verify` | 安装后运行启动验证 |
-| `--project-dir <path>` | 项目目录（OpenCode 用于创建 `.opencode/`） |
+| 标志                   | 描述                                                                        |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `--adapter <names>`    | 逗号分隔的适配器名称：`claude`、`codex`、`opencode`。省略则进入交互式选择。 |
+| `--dry-run`            | 预览将要安装的内容，不修改任何文件                                          |
+| `--template <path>`    | 从本地模板目录安装，而非 GitHub                                             |
+| `--branch <name>`      | 从指定分支或标签下载（如 `main`、`v0.1.0`）                                 |
+| `--verify`             | 安装后运行启动验证                                                          |
+| `--project-dir <path>` | 项目目录（OpenCode 用于创建 `.opencode/`）                                  |
 
 ### 交互式 vs 非交互式
 
@@ -289,12 +290,15 @@ sed -i 's|__HOME__|'"$HOME"'|g' opencode.json
 ## 平台特定说明
 
 ### Linux
+
 一切开箱即用。
 
 ### macOS
+
 一切开箱即用。
 
 ### Windows（WSL）
+
 1. 安装 WSL：`wsl --install`（管理员 PowerShell）
 2. 在 WSL 内安装 Node.js 和 AI 编码助手
 3. 在 WSL 内运行安装程序
@@ -314,6 +318,7 @@ bash /tmp/evokit.sh
 ```
 
 ### Windows（Git Bash）
+
 1. 从 https://git-scm.com 安装 Git Bash
 2. 打开 Git Bash
 3. 运行安装程序
@@ -322,6 +327,7 @@ bash /tmp/evokit.sh
 ## 故障排除
 
 ### "hooks must be an array of matchers"
+
 **问题：** `settings.json` 中的 hooks 使用了旧格式（v0.1.0 之前的版本）。
 **修复：** 使用模板中的 `settings.json` 或重新运行安装程序：
 
@@ -330,6 +336,7 @@ bash bin/install.sh --template template --adapter claude
 ```
 
 ### "Permission denied" 钩子无执行权限
+
 **问题：** 钩子脚本没有可执行权限。
 **修复：**
 
@@ -338,6 +345,7 @@ chmod +x ~/.claude/hooks/*.sh
 ```
 
 ### /boot 命令未找到
+
 **问题：** 命令未正确安装。
 **修复：** 确认命令文件存在，然后重启 Claude Code：
 
@@ -346,6 +354,7 @@ ls -la ~/.claude/commands/boot.md   # 应存在
 ```
 
 ### SessionStart 钩子未运行
+
 **问题：** `settings.json` 中的钩子路径与实际文件位置不匹配。
 **修复：** 检查 `~/.claude/settings.json` 中的 `__HOME__` 是否已正确解析为你的实际主目录：
 
@@ -356,6 +365,7 @@ grep hooks ~/.claude/settings.json
 命令路径应类似于 `/home/user/.claude/hooks/session-start.sh`，而不是 `__HOME__/.claude/hooks/...`。
 
 ### 钩子使用 `uv` 但未安装
+
 **问题：** `stop.sh` 钩子优先尝试 `uv run --isolated python3` 进行 JSON 处理，失败时回退到 `python3`。
 **修复：** 安装 `uv`（推荐）或确保 `python3` 可用：
 
@@ -365,6 +375,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ### npm 安装后提示 `evokit: command not found`
+
 **问题：** `evokit` 二进制文件已安装但不在系统 PATH 中。
 
 **修复：** 检查你的安装类型：

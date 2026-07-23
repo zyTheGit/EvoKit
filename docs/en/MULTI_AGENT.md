@@ -1,6 +1,6 @@
 # Multi-Agent Adapter Architecture
 
-> **Status:** Planned for v0.3+ / v0.4+
+> **Status:** ✅ Implemented — All four adapters (Claude Code, Codex CLI, OpenCode CLI, Pi CLI) are complete
 > This document defines the adapter interface for integrating with other AI coding assistants.
 
 ## Motivation
@@ -81,7 +81,7 @@ interface CommandResult {
 }
 ```
 
-## Planned Adapters
+## Implemented Adapters
 
 ### Claude Code Adapter (v0.1 — ✅ Current)
 
