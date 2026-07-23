@@ -1,6 +1,6 @@
 # 多智能体适配器架构
 
-> **状态：** 计划中（v0.3+ / v0.4+）
+> **状态：** ✅ 已实现 — Claude Code、Codex CLI、OpenCode CLI、Pi CLI 四个适配器均已完成
 > 本文档定义了用于与其他 AI 编码助手集成的适配器接口。
 
 ## 动机
@@ -81,31 +81,75 @@ interface CommandResult {
 }
 ```
 
-## 已规划的适配器
+## 已实现的适配器
 
 ### Claude Code 适配器（v0.1 — ✅ 当前版本）
 
-| 方面   | 实现方式                           |
-| ------ | ---------------------------------- |
-| 安装   | 将模板复制到 `~/.claude/`          |
-| 钩子   | `settings.json` 钩子配置           |
-| 记忆   | 基于文件，存储在 `.claude/memory/` |
-| 命令   | `.claude/commands/` 中的斜杠命令   |
-| 智能体 | `.claude/agents/` 中的子智能体定义 |
-| 状态   | ✅ 已完成                          |
+| 方面   | 实现方式                                                      |
+| ------ | ------------------------------------------------------------- |
+| 安装   | 将模板复制到 `~/.claude/`（全局）+ `.claude/`（项目级，可选） |
+| 钩子   | `settings.json` 钩子配置                                      |
+| 记忆   | 基于文件，存储在 `.claude/memory/`                            |
+| 命令   | `.claude/commands/` 中的斜杠命令                              |
+| 智能体 | `.claude/agents/` 中的子智能体定义                            |
+| 状态   | ✅ 已完成                                                     |
+
+#### 项目级安装
+
+Claude Code 同时支持全局（`~/.claude/`）和项目级（项目根目录下的 `.claude/`）配置。项目级设置非常适合团队共享的规则、命令和智能体，可随仓库一起版本管理。
+
+**项目级目录结构：**
+
+| 路径                    | 用途                                    |
+| ----------------------- | --------------------------------------- |
+| `.claude/settings.json` | 团队共享设置（hooks、permissions、env） |
+| `CLAUDE.md`             | 项目级认知核心（项目根目录）            |
+| `.claude/rules/`        | 项目级路径规则                          |
+| `.claude/commands/`     | 项目级斜杠命令                          |
+| `.claude/agents/`       | 项目级子智能体定义                      |
+| `.claude/skills/`       | 项目级技能                              |
+| `.claude/memory/`       | 项目级学习数据                          |
+
+#### EvoKit → Claude Code 项目级映射
+
+| EvoKit 概念（全局）        | Claude Code 项目级对应项           |
+| -------------------------- | ---------------------------------- |
+| `~/.claude/` + `CLAUDE.md` | `<project>/.claude/` + `CLAUDE.md` |
+| `~/.claude/settings.json`  | `<project>/.claude/settings.json`  |
+| `~/.claude/rules/`         | `<project>/.claude/rules/`         |
+| `~/.claude/commands/`      | `<project>/.claude/commands/`      |
+| `~/.claude/agents/`        | `<project>/.claude/agents/`        |
+| `~/.claude/memory/`        | `<project>/.claude/memory/`        |
+| —                          | `<project>/.claude/skills/`        |
 
 ### Codex CLI 适配器（v0.3 — ✅ 已实现）
 
-| 方面     | 实现方式                                                      |
-| -------- | ------------------------------------------------------------- |
-| 安装     | `evokit init --adapter codex` — 复制到 `~/.codex/`            |
-| 钩子     | `hooks.json` — SessionStart、Stop、PreToolUse 事件            |
-| 规则     | `~/.codex/rules/` 中的 Starlark `.rules` 文件                 |
-| 记忆     | `~/.codex/memory/`（按适配器独立，标记 `assistant: "codex"`） |
-| 认知核心 | `~/.codex/AGENTS.md`（类似于 CLAUDE.md）                      |
-| 配置     | `~/.codex/config.toml`（功能开关、模型、权限）                |
-| 命令     | `evokit evolve`、`evokit doctor`、基于 shell 的 `/boot`       |
-| 状态     | ✅ v0.4.0 — 已完成（清单写入 + 卸载支持）                     |
+| 方面     | 实现方式                                                                              |
+| -------- | ------------------------------------------------------------------------------------- |
+| 安装     | `evokit init --adapter codex` — 复制到 `~/.codex/`（全局）+ `.codex/`（项目级，可选） |
+| 钩子     | `hooks.json` — SessionStart、Stop、PreToolUse 事件                                    |
+| 规则     | `~/.codex/rules/` 中的 Starlark `.rules` 文件                                         |
+| 记忆     | `~/.codex/memory/`（按适配器独立，标记 `assistant: "codex"`）                         |
+| 认知核心 | `~/.codex/AGENTS.md`（类似于 CLAUDE.md）                                              |
+| 配置     | `~/.codex/config.toml`（功能开关、模型、权限）                                        |
+| 命令     | `evokit evolve`、`evokit doctor`、基于 shell 的 `/boot`                               |
+| 状态     | ✅ v0.4.0 — 已完成（清单写入 + 卸载支持）                                             |
+
+#### 项目级安装
+
+Codex CLI 同时支持全局（`~/.codex/`）和项目级（项目根目录下的 `.codex/`）配置。项目级设置允许团队在仓库内共享规则、智能体和钩子。
+
+**项目级目录结构：**
+
+| 路径                 | 用途                         |
+| -------------------- | ---------------------------- |
+| `.codex/config.toml` | 项目级配置                   |
+| `AGENTS.md`          | 项目级开发规范（项目根目录） |
+| `.codex/rules/`      | 项目级 Starlark 权限规则     |
+| `.codex/agents/`     | 项目级子智能体               |
+| `.codex/skills/`     | 项目级技能                   |
+| `.codex/hooks/`      | 项目级生命周期 hook 脚本     |
+| `.codex/memory/`     | 项目级学习数据               |
 
 #### EvoKit → Codex CLI 映射
 
@@ -117,6 +161,18 @@ interface CommandResult {
 | `.claude/agents/`              | 子智能体 + 技能                      |
 | `.claude/commands/`（`/boot`） | SessionStart 钩子 + `codex exec`     |
 | `.claude/memory/`（JSONL）     | `~/.codex/memory/`（按适配器独立）   |
+
+#### EvoKit → Codex CLI 项目级映射
+
+| EvoKit 概念（全局）       | Codex CLI 项目级对应项            |
+| ------------------------- | --------------------------------- |
+| `~/.codex/` + `AGENTS.md` | `<project>/.codex/` + `AGENTS.md` |
+| `~/.codex/config.toml`    | `<project>/.codex/config.toml`    |
+| `~/.codex/rules/`         | `<project>/.codex/rules/`         |
+| `~/.codex/agents/`        | `<project>/.codex/agents/`        |
+| `~/.codex/memory/`        | `<project>/.codex/memory/`        |
+| —                         | `<project>/.codex/skills/`        |
+| —                         | `<project>/.codex/hooks/`         |
 
 #### 安装后结构
 
@@ -254,12 +310,12 @@ Pi CLI 使用 TypeScript 扩展处理生命周期事件，而非基于 shell 的
 
 每个适配器将其学习数据存储在自己的目录中：
 
-| 适配器       | 记忆路径                      |
-| ------------ | ----------------------------- |
-| Claude Code  | `~/.claude/memory/`           |
-| Codex CLI    | `~/.codex/memory/`            |
-| OpenCode CLI | `<project>/.opencode/memory/` |
-| Pi CLI       | `~/.pi/agent/memory/`         |
+| 适配器       | 记忆路径（全局）             | 记忆路径（项目级）            |
+| ------------ | ---------------------------- | ----------------------------- |
+| Claude Code  | `~/.claude/memory/`          | `<project>/.claude/memory/`   |
+| Codex CLI    | `~/.codex/memory/`           | `<project>/.codex/memory/`    |
+| OpenCode CLI | `~/.config/opencode/memory/` | `<project>/.opencode/memory/` |
+| Pi CLI       | `~/.pi/agent/memory/`        | `<project>/.pi/memory/`       |
 
 每条会话记录使用标签标识助手：
 

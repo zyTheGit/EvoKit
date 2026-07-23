@@ -48,11 +48,11 @@ _Make AI coding assistants learn and evolve across sessions_
   ├─────────────────────────────────────────────┤
   │                                             │
   │  [1] Claude Code (recommended)  ~/.claude/  │
-  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │
-  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │
+  │  [2] Codex CLI (v0.4.0)         ~/.codex/   │
+  │  [3] OpenCode CLI (v0.5.0)      .opencode/  │
+  │  [4] Pi CLI (v0.6.0)            ~/.pi/      │
   │                                             │
-  │  [4] All of the above                       │
-  │  [5] Codex CLI + OpenCode                   │
+  │  [5] All of the above                       │
   │                                             │
   │  Enter numbers separated by spaces.          │
   │  Press ENTER for default: [1] Claude Code    │
@@ -175,8 +175,6 @@ After installation, use the `evokit` command to manage your system:
 | `evokit export`           | Export system state for cross-machine migration      |
 | `evokit import <package>` | Import a migration package                           |
 | `evokit doctor`           | System health check and integrity verification       |
-| `evokit uninstall`        | Uninstall EvoKit (manifest-driven precise rollback)  |
-| `evokit project`          | Generate project-level AI assistant spec files       |
 
 ```bash
 # View all commands
@@ -249,12 +247,12 @@ See the [examples/](examples/) directory for full customization samples:
 
 EvoKit supports multiple AI coding assistants through a unified adapter interface. Each adapter is versioned independently, matching the supported assistant's milestone.
 
-| Adapter          | Version | Status                | Install Target               | Assistant Compatibility     |
-| ---------------- | ------- | --------------------- | ---------------------------- | --------------------------- |
-| **Claude Code**  | v0.2.0  | ✅ **Full support**   | `~/.claude/`                 | Claude Code ≥ v0.1.0 (CLI)  |
-| **Codex CLI**    | v0.3.0  | ✅ **Full support**   | `~/.codex/`                  | Codex CLI ≥ v0.3.0 (OpenAI) |
-| **OpenCode CLI** | v0.4.0  | ✅ **Full support**   | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0       |
-| **Pi CLI**       | —       | 🚧 **Stub / Planned** | —                            | Pi CLI (planned)            |
+| Adapter          | Version | Status              | Install Target               | Assistant Compatibility     |
+| ---------------- | ------- | ------------------- | ---------------------------- | --------------------------- |
+| **Claude Code**  | v0.2.0  | ✅ **Full support** | `~/.claude/`                 | Claude Code ≥ v0.1.0 (CLI)  |
+| **Codex CLI**    | v0.4.0  | ✅ **Full support** | `~/.codex/`                  | Codex CLI ≥ v0.3.0 (OpenAI) |
+| **OpenCode CLI** | v0.5.0  | ✅ **Full support** | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0       |
+| **Pi CLI**       | v0.6.0  | ✅ **Full support** | `~/.pi/agent/`               | Pi CLI ≥ 0.81.0             |
 
 > **Adapter versioning**: Each adapter's `version` field is defined in its source (`src/adapters/*/adapter.ts`) and corresponds to the EvoKit milestone where that assistant first received full support. Subsequent iterations ship with the main EvoKit release cycle.
 
@@ -348,7 +346,7 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ npm package (`@zythegit/evokit`) + Homebrew support
 - ✅ 41 vitest test cases
 
-**v0.3.0 — Codex Adapter**
+**v0.3.0 — Codex Adapter** 🆕
 
 - ✅ Codex CLI integration adapter (`~/.codex/` templates, AGENTS.md, hooks.json, config.toml)
 - ✅ Codex hook mechanism mapping (SessionStart / Stop / PreToolUse)
@@ -356,36 +354,37 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ Interactive adapter selection menu (box-drawing UI, multi-select support, default-on-Enter)
 - ✅ 29 new tests (adapter + shared memory)
 
+### In Development 🚧
+
 **v0.4.0 ~ v0.4.2 — Adapter Interface Refactor + Multi-assistant Support**
 
 - ✅ **Unified adapter interface** — Extracted `AdapterInstaller` interface (`src/adapters/types.ts`) + registry (`registry.ts`), shared contract across all assistants
 - ✅ **Claude Code Adapter v0.2.0** — Modular refactor, pluggable installation pipeline
-- ✅ **Codex CLI Adapter v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark rules
-- ✅ **OpenCode CLI Adapter v0.4.0** — AGENTS.md / opencode.json / custom tools / project-level install
-- ✅ **Pi CLI Adapter** — Stub created (`src/adapters/pi/adapter.ts`), pending implementation
+- ✅ **Codex CLI Adapter v0.4.0** — AGENTS.md / hooks.json / config.toml / Starlark rules
+- ✅ **OpenCode CLI Adapter v0.5.0** — AGENTS.md / opencode.json / custom tools / project-level install
+- ✅ **Pi CLI Adapter v0.6.0** — TypeScript extensions / Skills / Agent Skills standard / lifecycle events
 - ✅ **Smart config merge** — Won't overwrite existing settings / AGENTS.md / opencode.json
 - ✅ **Interactive adapter selection** — box-drawing UI, multi-select, default-on-Enter
-
-**v0.5.0 — Layout Engine + Uninstall + Project Specs** 🆕
-
-- ✅ **Declarative layout engine** — `AdapterLayout` types + `executeLayout()` executor, upgrading adapter installation from imperative scripts to declarative config
-- ✅ **Manifest-driven uninstall** — `evokit uninstall` command, precise rollback of all installation operations via `manifest.json` (files, hooks, env vars, agent frontmatter)
-- ✅ **Heuristic uninstall fallback** — Automatically falls back to heuristic mode when no manifest exists, safely removing known EvoKit traces
-- ✅ **Project-level spec generation** — `evokit project` command, interactively generates project `.claude/` structure (rules + CLAUDE.md + agents + commands)
-- ✅ **Pi CLI adapter replaces Aider** — Removed Aider stub, replaced with Pi CLI adapter stub
-- ✅ **Windows path fixes** — `__HOME__` placeholder backslash-to-forward-slash conversion, fixing JSON parsing on Windows
-- ✅ **Bilingual documentation** — `docs/zh/` + `docs/en/` parallel structure, added DEV_STANDARDS development guide
-- ✅ **CLI fully localized** — Code comments, CLI prompts, error messages all in Chinese
-- ✅ **203 vitest test cases**
-
-### In Development 🚧
-
 - 🚧 Self-healing CI pipeline
-- 🚧 Pi CLI adapter full implementation
+
+**v0.5.0 — Codex/Pi Adapter Full Integration**
+
+- ✅ Codex adapter enhancements (project-level directories, manifest write, uninstall support)
+- ✅ Pi adapter full integration (extension system, Skills, templates, type definitions)
+- ✅ Bilingual ADAPTER_SPEC documentation
+- ✅ BaseAdapter base class + shared version utility
+
+**v0.6.0 — Adapter Polish + Spec Alignment**
+
+- ✅ Pi extensions respect `PI_CODING_AGENT_DIR` environment variable
+- ✅ Claude Code hook script list completed
+- ✅ Documentation fully synced (FAQ, INSTALL, MULTI_AGENT, roadmap)
+
+> **Version note**: v0.4.x ~ v0.6.x series in active development; all intermediate fixes and iterations are patch bumps. Minor version bumps only happen at feature milestones.
 
 ### Planned 🔜
 
-**v0.6.0 — Standalone Evolution Engine**
+**v0.7.0 — Standalone Evolution Engine**
 
 - ☐ Independent rule promotion engine (runs without Claude Code)
 - ☐ Web UI management dashboard

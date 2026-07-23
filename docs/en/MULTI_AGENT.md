@@ -1,6 +1,6 @@
 # Multi-Agent Adapter Architecture
 
-> **Status:** Planned for v0.3+ / v0.4+
+> **Status:** ✅ Implemented — All four adapters (Claude Code, Codex CLI, OpenCode CLI, Pi CLI) are complete
 > This document defines the adapter interface for integrating with other AI coding assistants.
 
 ## Motivation
@@ -81,31 +81,75 @@ interface CommandResult {
 }
 ```
 
-## Planned Adapters
+## Implemented Adapters
 
 ### Claude Code Adapter (v0.1 — ✅ Current)
 
-| Aspect       | Implementation                             |
-| ------------ | ------------------------------------------ |
-| Installation | Copy template to `~/.claude/`              |
-| Hooks        | `settings.json` hooks config               |
-| Memory       | File-based in `.claude/memory/`            |
-| Commands     | Slash commands in `.claude/commands/`      |
-| Agents       | Sub-agent definitions in `.claude/agents/` |
-| Status       | ✅ Complete                                |
+| Aspect       | Implementation                                                                |
+| ------------ | ----------------------------------------------------------------------------- |
+| Installation | Copy template to `~/.claude/` (global) + `.claude/` (project-level, optional) |
+| Hooks        | `settings.json` hooks config                                                  |
+| Memory       | File-based in `.claude/memory/`                                               |
+| Commands     | Slash commands in `.claude/commands/`                                         |
+| Agents       | Sub-agent definitions in `.claude/agents/`                                    |
+| Status       | ✅ Complete                                                                   |
+
+#### Project-Level Installation
+
+Claude Code supports both global (`~/.claude/`) and project-level (`.claude/` in the project root) configuration. Project-level settings are ideal for team-shared rules, commands, and agents that travel with the repository.
+
+**Project-level directory structure:**
+
+| Path                    | Purpose                                        |
+| ----------------------- | ---------------------------------------------- |
+| `.claude/settings.json` | Team-shared settings (hooks, permissions, env) |
+| `CLAUDE.md`             | Project-level cognitive core (project root)    |
+| `.claude/rules/`        | Project-level path-scoped rules                |
+| `.claude/commands/`     | Project-level slash commands                   |
+| `.claude/agents/`       | Project-level sub-agent definitions            |
+| `.claude/skills/`       | Project-level skills                           |
+| `.claude/memory/`       | Project-level learning data                    |
+
+#### EvoKit → Claude Code Project-Level Mapping
+
+| EvoKit Concept (Global)    | Claude Code Project-Level Equivalent |
+| -------------------------- | ------------------------------------ |
+| `~/.claude/` + `CLAUDE.md` | `<project>/.claude/` + `CLAUDE.md`   |
+| `~/.claude/settings.json`  | `<project>/.claude/settings.json`    |
+| `~/.claude/rules/`         | `<project>/.claude/rules/`           |
+| `~/.claude/commands/`      | `<project>/.claude/commands/`        |
+| `~/.claude/agents/`        | `<project>/.claude/agents/`          |
+| `~/.claude/memory/`        | `<project>/.claude/memory/`          |
+| —                          | `<project>/.claude/skills/`          |
 
 ### Codex CLI Adapter (v0.3 — ✅ Implemented)
 
-| Aspect         | Implementation                                                     |
-| -------------- | ------------------------------------------------------------------ |
-| Installation   | `evokit init --adapter codex` — copies to `~/.codex/`              |
-| Hooks          | `hooks.json` — SessionStart, Stop, PreToolUse events               |
-| Rules          | Starlark `.rules` files in `~/.codex/rules/`                       |
-| Memory         | `~/.codex/memory/` (per-adapter, tagged with `assistant: "codex"`) |
-| Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md)                      |
-| Config         | `~/.codex/config.toml` (features, model, permissions)              |
-| Commands       | `evokit evolve`, `evokit doctor`, shell-based `/boot`              |
-| Status         | ✅ v0.4.0 — Complete (manifest + uninstall)                        |
+| Aspect         | Implementation                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| Installation   | `evokit init --adapter codex` — copies to `~/.codex/` (global) + `.codex/` (project-level, optional) |
+| Hooks          | `hooks.json` — SessionStart, Stop, PreToolUse events                                                 |
+| Rules          | Starlark `.rules` files in `~/.codex/rules/`                                                         |
+| Memory         | `~/.codex/memory/` (per-adapter, tagged with `assistant: "codex"`)                                   |
+| Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md)                                                        |
+| Config         | `~/.codex/config.toml` (features, model, permissions)                                                |
+| Commands       | `evokit evolve`, `evokit doctor`, shell-based `/boot`                                                |
+| Status         | ✅ v0.4.0 — Complete (manifest + uninstall)                                                          |
+
+#### Project-Level Installation
+
+Codex CLI supports both global (`~/.codex/`) and project-level (`.codex/` in the project root) configuration. Project-level settings allow teams to share rules, agents, and hooks within the repository.
+
+**Project-level directory structure:**
+
+| Path                 | Purpose                                        |
+| -------------------- | ---------------------------------------------- |
+| `.codex/config.toml` | Project-level configuration                    |
+| `AGENTS.md`          | Project-level development norms (project root) |
+| `.codex/rules/`      | Project-level Starlark permission rules        |
+| `.codex/agents/`     | Project-level sub-agents                       |
+| `.codex/skills/`     | Project-level skills                           |
+| `.codex/hooks/`      | Project-level lifecycle hook scripts           |
+| `.codex/memory/`     | Project-level learning data                    |
 
 #### EvoKit → Codex CLI Mapping
 
@@ -117,6 +161,18 @@ interface CommandResult {
 | `.claude/agents/`             | Subagents + Skills                   |
 | `.claude/commands/` (`/boot`) | SessionStart hook + `codex exec`     |
 | `.claude/memory/` (JSONL)     | `~/.codex/memory/` (per-adapter)     |
+
+#### EvoKit → Codex CLI Project-Level Mapping
+
+| EvoKit Concept (Global)   | Codex CLI Project-Level Equivalent |
+| ------------------------- | ---------------------------------- |
+| `~/.codex/` + `AGENTS.md` | `<project>/.codex/` + `AGENTS.md`  |
+| `~/.codex/config.toml`    | `<project>/.codex/config.toml`     |
+| `~/.codex/rules/`         | `<project>/.codex/rules/`          |
+| `~/.codex/agents/`        | `<project>/.codex/agents/`         |
+| `~/.codex/memory/`        | `<project>/.codex/memory/`         |
+| —                         | `<project>/.codex/skills/`         |
+| —                         | `<project>/.codex/hooks/`          |
 
 #### Installed Structure
 
@@ -254,12 +310,12 @@ Pi CLI uses TypeScript extensions for lifecycle events, not shell-based hooks:
 
 Each adapter stores its learning data in its own directory:
 
-| Adapter      | Memory Path                   |
-| ------------ | ----------------------------- |
-| Claude Code  | `~/.claude/memory/`           |
-| Codex CLI    | `~/.codex/memory/`            |
-| OpenCode CLI | `<project>/.opencode/memory/` |
-| Pi CLI       | `~/.pi/agent/memory/`         |
+| Adapter      | Memory Path (Global)         | Memory Path (Project)         |
+| ------------ | ---------------------------- | ----------------------------- |
+| Claude Code  | `~/.claude/memory/`          | `<project>/.claude/memory/`   |
+| Codex CLI    | `~/.codex/memory/`           | `<project>/.codex/memory/`    |
+| OpenCode CLI | `~/.config/opencode/memory/` | `<project>/.opencode/memory/` |
+| Pi CLI       | `~/.pi/agent/memory/`        | `<project>/.pi/memory/`       |
 
 Each session record identifies the assistant with a tag:
 

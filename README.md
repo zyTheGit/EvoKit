@@ -48,11 +48,11 @@ _让 AI 编程助手越用越聪明 — 跨会话持久化纠错、观察和规�
   ├─────────────────────────────────────────────┤
   │                                             │
   │  [1] Claude Code (recommended)  ~/.claude/  │
-  │  [2] Codex CLI (v0.3.0)         ~/.codex/   │
-  │  [3] OpenCode CLI (v0.4.0)      .opencode/  │
+  │  [2] Codex CLI (v0.4.0)         ~/.codex/   │
+  │  [3] OpenCode CLI (v0.5.0)      .opencode/  │
+  │  [4] Pi CLI (v0.6.0)            ~/.pi/      │
   │                                             │
-  │  [4] All of the above                       │
-  │  [5] Codex CLI + OpenCode                   │
+  │  [5] All of the above                       │
   │                                             │
   │  Enter numbers separated by spaces.          │
   │  Press ENTER for default: [1] Claude Code    │
@@ -175,8 +175,6 @@ bash bin/install.sh
 | `evokit export`      | 导出系统状态（用于跨机迁移）                 |
 | `evokit import <包>` | 导入迁移包                                   |
 | `evokit doctor`      | 系统健康检查                                 |
-| `evokit uninstall`   | 卸载 EvoKit（清单驱动精确回滚）              |
-| `evokit project`     | 生成项目级 AI 助手规范文件                   |
 
 ```bash
 # 查看所有命令
@@ -249,12 +247,12 @@ evokit evolve --help
 
 EvoKit 通过统一的适配器接口支持多种 AI 编程助手。每个适配器独立迭代，版本号与当前支持的助手版本对应。
 
-| 适配器           | 版本   | 状态               | 安装目录               | 助手版本兼容                 |
-| ---------------- | ------ | ------------------ | ---------------------- | ---------------------------- |
-| **Claude Code**  | v0.2.0 | ✅ **完整支持**    | `~/.claude/`           | Claude Code ≥ v0.1.0（CLI）  |
-| **Codex CLI**    | v0.3.0 | ✅ **完整支持**    | `~/.codex/`            | Codex CLI ≥ v0.3.0（OpenAI） |
-| **OpenCode CLI** | v0.4.0 | ✅ **完整支持**    | `.opencode/`（项目级） | OpenCode CLI ≥ v0.4.0        |
-| **Pi CLI**       | —      | 🚧 **存根/待实现** | —                      | Pi CLI（规划中）             |
+| 适配器           | 版本   | 状态            | 安装目录               | 助手版本兼容                 |
+| ---------------- | ------ | --------------- | ---------------------- | ---------------------------- |
+| **Claude Code**  | v0.2.0 | ✅ **完整支持** | `~/.claude/`           | Claude Code ≥ v0.1.0（CLI）  |
+| **Codex CLI**    | v0.4.0 | ✅ **完整支持** | `~/.codex/`            | Codex CLI ≥ v0.3.0（OpenAI） |
+| **OpenCode CLI** | v0.5.0 | ✅ **完整支持** | `.opencode/`（项目级） | OpenCode CLI ≥ v0.4.0        |
+| **Pi CLI**       | v0.6.0 | ✅ **完整支持** | `~/.pi/agent/`         | Pi CLI ≥ 0.81.0              |
 
 > **适配器版本说明**：每个适配器的 `version` 字段在其源码中定义（`src/adapters/*/adapter.ts`），匹配该助手首次获得完整支持的 EvoKit 里程碑版本。插件的后续迭代随 EvoKit 主版本同步发布。
 
@@ -348,7 +346,7 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ npm 包发布（`@zythegit/evokit`）+ Homebrew 支持
 - ✅ 41 个 vitest 测试用例
 
-**v0.3.0 — Codex 适配器**
+**v0.3.0 — Codex 适配器** 🆕
 
 - ✅ Codex CLI 集成适配器（`~/.codex/` 模板、AGENTS.md、hooks.json、config.toml）
 - ✅ Codex 钩子机制映射（SessionStart / Stop / PreToolUse）
@@ -356,36 +354,37 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ 交互式适配器选择菜单（带 box-drawing UI，支持多选和默认回车）
 - ✅ 29 个新测试（适配器 + 共享内存）
 
+### 开发中 🚧
+
 **v0.4.0 ~ v0.4.2 — 适配器接口重构 + 多助手支持**
 
 - ✅ **适配器接口统一** — 抽取 `AdapterInstaller` 接口（`src/adapters/types.ts`） + 注册表（`registry.ts`），三端适配器共享同一契约
 - ✅ **Claude Code 适配器 v0.2.0** — 模块化重构，插件化安装管线
-- ✅ **Codex CLI 适配器 v0.3.0** — AGENTS.md / hooks.json / config.toml / Starlark 规则
-- ✅ **OpenCode CLI 适配器 v0.4.0** — AGENTS.md / opencode.json / 自定义工具 / 项目级安装
-- ✅ **Pi CLI 适配器** — 存根代码已创建（`src/adapters/pi/adapter.ts`），待实现
+- ✅ **Codex CLI 适配器 v0.4.0** — AGENTS.md / hooks.json / config.toml / Starlark 规则
+- ✅ **OpenCode CLI 适配器 v0.5.0** — AGENTS.md / opencode.json / 自定义工具 / 项目级安装
+- ✅ **Pi CLI 适配器 v0.6.0** — TypeScript 扩展 / Skills / Agent Skills 标准 / 生命周期事件
 - ✅ **配置文件智能合并** — 不覆盖已有 settings / AGENTS.md / opencode.json
 - ✅ **交互式适配器选择** — 带 box-drawing UI，支持多选和默认回车
-
-**v0.5.0 — 布局引擎 + 卸载 + 项目规范** 🆕
-
-- ✅ **声明式布局引擎** — `AdapterLayout` 类型 + `executeLayout()` 执行器，适配器安装从命令式脚本升级为声明式配置
-- ✅ **清单驱动卸载** — `evokit uninstall` 命令，基于 `manifest.json` 精确回滚所有安装操作（文件、钩子、环境变量、代理 frontmatter）
-- ✅ **启发式卸载回退** — 无清单时自动回退到启发式模式，安全移除已知 EvoKit 痕迹
-- ✅ **项目级规范生成** — `evokit project` 命令，交互式生成项目 `.claude/` 结构（rules + CLAUDE.md + agents + commands）
-- ✅ **Pi CLI 适配器替换 Aider** — 移除 Aider 存根，替换为 Pi CLI 适配器存根
-- ✅ **Windows 路径修复** — `__HOME__` 占位符在 Windows 下反斜杠转正斜杠，修复 JSON 解析
-- ✅ **双语文档体系** — `docs/zh/` + `docs/en/` 双语平行结构，新增 DEV_STANDARDS 开发规范
-- ✅ **CLI 全面中文化** — 代码注释、CLI 提示、错误消息统一中文
-- ✅ **203 个 vitest 测试用例**
-
-### 开发中 🚧
-
 - 🚧 自修复 CI 流水线
-- 🚧 Pi CLI 适配器完整实现
+
+**v0.5.0 — Codex/Pi 适配器完整集成**
+
+- ✅ Codex 适配器增强（项目级目录、清单写入、卸载支持）
+- ✅ Pi 适配器完整集成（扩展系统、Skills、模板、类型定义）
+- ✅ 双语 ADAPTER_SPEC 规范文档
+- ✅ BaseAdapter 基类 + 共享版本工具
+
+**v0.6.0 — 适配器完善 + 规范对齐**
+
+- ✅ Pi 扩展尊重 `PI_CODING_AGENT_DIR` 环境变量
+- ✅ Claude Code Hook 脚本列表补全
+- ✅ 文档全面同步（FAQ、INSTALL、MULTI_AGENT、路线图）
+
+> **版本说明**：v0.4.x ~ v0.6.x 系列持续开发中，所有中间修复和迭代均为修订号更新，次版本号仅在有完整功能里程碑时递增。
 
 ### 规划中 🔜
 
-**v0.6.0 — 进化引擎独立化**
+**v0.7.0 — 进化引擎独立化**
 
 - ☐ 独立的规则晋升引擎（可脱离 Claude Code 运行）
 - ☐ Web UI 管理面板
