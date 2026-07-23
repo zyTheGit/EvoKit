@@ -9,6 +9,8 @@
  * @packageDocumentation
  */
 
+import type { HeuristicConfig } from './base-adapter.js';
+
 /**
  * @public — 此类型是公共适配器 API 的一部分。
  * 第三方适配器实现者应使用此类型。
@@ -104,6 +106,12 @@ export interface AdapterInstaller {
 
   /** 卸载此适配器的模板文件。可选 — 默认使用清单驱动的卸载方式。 */
   uninstall?(config: AdapterUninstallConfig): AdapterUninstallResult;
+
+  /** 解析适配器全局安装目录（支持环境变量覆盖） */
+  resolveHome(homeDir: string): string;
+
+  /** 启发式卸载配置（清单缺失时的回退） */
+  getHeuristicConfig(adapterHome: string): HeuristicConfig;
 
   /** 是否在卸载时对配置文件执行反向合并（而非直接删除）。 */
   reverseMergesSettings?(): boolean;

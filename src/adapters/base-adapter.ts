@@ -216,6 +216,7 @@ export abstract class BaseAdapter {
       noBackup: config.noBackup ?? false,
       backupDir: config.backupDir,
       projectDir: config.projectDir,
+      adapter: this, // 传入适配器实例，避免通过 registry 查找（解决循环依赖）
     });
 
     return {

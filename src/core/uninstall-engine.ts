@@ -24,7 +24,6 @@ import type { AdapterManifest, ManifestAgentFrontmatter } from './manifest.js';
 import { reverseMergeSettings } from './reverse-merge-settings.js';
 import { reverseMergeAgents } from './reverse-merge-agents.js';
 import { removeClaudeMdSection } from './remove-claude-md.js';
-import '../adapters/index.js';
 import { getInstaller } from '../adapters/registry.js';
 import type { AdapterInstaller } from '../adapters/types.js';
 
@@ -46,6 +45,12 @@ export interface UninstallOptions {
   backupDir?: string;
   /** 项目目录（用于项目级适配器） */
   projectDir?: string;
+  /**
+   * 适配器实例（可选）。
+   * 传入后可避免通过 registry 查找，解决循环依赖问题。
+   * BaseAdapter.uninstall() 会传入 this；CLI 命令通过 registry 查找。
+   */
+  adapter?: AdapterInstaller;
 }
 
 /** 卸载操作的结果 */
@@ -94,7 +99,8 @@ const SEED_FILE_NAMES = new Set(['README.md']);
  * 如果清单不存在，回退到启发式卸载。
  */
 export function executeUninstall(options: UninstallOptions): UninstallResult {
-  const { homeDir, adapterId, force, purge, dryRun, noBackup, backupDir, projectDir } = options;
+  const { homeDir, adapterId, force, purge, dryRun, noBackup, backupDir, projectDir, adapter } =
+    options;
 
   const result: UninstallResult = {
     adapterId,
@@ -132,6 +138,8 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   const cognitiveAppendMarker = getAdapterNullable(
     adapterId,
     (a) => a.cognitiveCoreAppendMarker?.() ?? null,
+    null,
+    adapter,
   );
   if (cognitiveAppendMarker) {
     const cognitiveCoreFile = adapterRecord.files.find(
@@ -179,6 +187,8 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   const shouldReverseMerge = getAdapterBoolean(
     adapterId,
     (a) => a.reverseMergesSettings?.() ?? false,
+    false,
+    adapter,
   );
   if (shouldReverseMerge && fse.existsSync(settingsPath)) {
     const reverseResult = reverseMergeSettings(settingsPath, adapterRecord, dryRun);
@@ -193,6 +203,8 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   const appendMarker = getAdapterNullable(
     adapterId,
     (a) => a.cognitiveCoreAppendMarker?.() ?? null,
+    null,
+    adapter,
   );
   const cognitiveCoreFile = adapterRecord.files.find(
     (f) => f.mode === 'appended' && f.appendMarker,
@@ -311,7 +323,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
  * 根据适配器 ID 使用不同的目录结构和文件类型。
  */
 function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
-  const { homeDir, adapterId, purge, dryRun, noBackup, backupDir } = options;
+  const { homeDir, adapterId, purge, dryRun, noBackup, backupDir, adapter } = options;
 
   const result: UninstallResult = {
     adapterId,
@@ -326,10 +338,10 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   };
 
   // 根据适配器 ID 确定适配器家目录
-  const adapterHome = getAdapterHome(homeDir, adapterId);
+  const adapterHome = getAdapterHome(homeDir, adapterId, adapter);
 
   // 根据适配器 ID 确定已知的目录结构和文件扩展名
-  const adapterConfig = getAdapterHeuristicConfig(adapterId, adapterHome);
+  const adapterConfig = getAdapterHeuristicConfig(adapterId, adapterHome, adapter);
 
   // ── 阶段 1: 收集要备份的文件 ─────────────────────
   const filesToBackup: string[] = [];
@@ -393,10 +405,14 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   // ── 阶段 3: 执行修改 ───────────────────────
 
   // 1. 配置文件处理
-  const shouldReverseMerge = getAdapterBoolean(adapterId, (a) =>
-    'reverseMergesSettings' in a && typeof a.reverseMergesSettings === 'function'
-      ? (a as { reverseMergesSettings: () => boolean }).reverseMergesSettings()
-      : false,
+  const shouldReverseMerge = getAdapterBoolean(
+    adapterId,
+    (a) =>
+      'reverseMergesSettings' in a && typeof a.reverseMergesSettings === 'function'
+        ? (a as { reverseMergesSettings: () => boolean }).reverseMergesSettings()
+        : false,
+    false,
+    adapter,
   );
 
   for (const cfgFile of adapterConfig.configFiles) {
@@ -418,10 +434,14 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   }
 
   // 2. 认知核心文件处理
-  const coreAppendMarker = getAdapterNullable<string>(adapterId, (a) =>
-    'cognitiveCoreAppendMarker' in a && typeof a.cognitiveCoreAppendMarker === 'function'
-      ? (a as { cognitiveCoreAppendMarker: () => string | null }).cognitiveCoreAppendMarker()
-      : null,
+  const coreAppendMarker = getAdapterNullable<string>(
+    adapterId,
+    (a) =>
+      'cognitiveCoreAppendMarker' in a && typeof a.cognitiveCoreAppendMarker === 'function'
+        ? (a as { cognitiveCoreAppendMarker: () => string | null }).cognitiveCoreAppendMarker()
+        : null,
+    null,
+    adapter,
   );
 
   if (cognitiveCorePath && fse.existsSync(cognitiveCorePath)) {
@@ -516,15 +536,17 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
 
 /**
  * 安全地从适配器实例查询布尔值。
+ * 优先使用传入的 adapter 实例，否则通过 registry 查找。
  * 若适配器未注册（如第三方或已移除），回退到 fallback。
  */
 function getAdapterBoolean(
   adapterId: string,
   fn: (a: AdapterInstaller) => boolean,
   fallback = false,
+  adapter?: AdapterInstaller,
 ): boolean {
   try {
-    return fn(getInstaller(adapterId));
+    return fn(adapter ?? getInstaller(adapterId));
   } catch {
     return fallback;
   }
@@ -532,15 +554,17 @@ function getAdapterBoolean(
 
 /**
  * 安全地从适配器实例查询可空值（如 appendMarker）。
+ * 优先使用传入的 adapter 实例，否则通过 registry 查找。
  * 若适配器未注册，回退到 fallback（null）。
  */
 function getAdapterNullable<T>(
   adapterId: string,
   fn: (a: AdapterInstaller) => T | null,
   fallback: T | null = null,
+  adapter?: AdapterInstaller,
 ): T | null {
   try {
-    return fn(getInstaller(adapterId));
+    return fn(adapter ?? getInstaller(adapterId));
   } catch {
     return fallback;
   }
@@ -548,14 +572,13 @@ function getAdapterNullable<T>(
 
 /**
  * 获取适配器家目录 —— 通过 adapter 实例的 resolveHome()，支持环境变量覆盖。
+ * 优先使用传入的 adapter 实例，否则通过 registry 查找。
  * 替代旧的硬编码 adapterHomes 映射。
  */
-function getAdapterHome(homeDir: string, adapterId: string): string {
+function getAdapterHome(homeDir: string, adapterId: string, adapter?: AdapterInstaller): string {
   try {
-    const installer = getInstaller(adapterId);
-    if ('resolveHome' in installer && typeof installer.resolveHome === 'function') {
-      return (installer as { resolveHome: (h: string) => string }).resolveHome(homeDir);
-    }
+    const inst = adapter ?? getInstaller(adapterId);
+    return inst.resolveHome(homeDir);
   } catch {
     // 适配器未注册 —— 回退
   }
@@ -585,18 +608,17 @@ interface AdapterHeuristicConfig {
 
 /**
  * 获取启发式卸载配置 —— 通过 adapter 实例的 getHeuristicConfig()。
+ * 优先使用传入的 adapter 实例，否则通过 registry 查找。
  * 替代旧的硬编码 switch-case。若适配器未注册，回退到 AGENTS.md 通用配置。
  */
-function getAdapterHeuristicConfig(adapterId: string, adapterHome: string): AdapterHeuristicConfig {
+function getAdapterHeuristicConfig(
+  adapterId: string,
+  adapterHome: string,
+  adapter?: AdapterInstaller,
+): AdapterHeuristicConfig {
   try {
-    const installer = getInstaller(adapterId);
-    if ('getHeuristicConfig' in installer && typeof installer.getHeuristicConfig === 'function') {
-      return (
-        installer as {
-          getHeuristicConfig: (h: string) => AdapterHeuristicConfig;
-        }
-      ).getHeuristicConfig(adapterHome);
-    }
+    const inst = adapter ?? getInstaller(adapterId);
+    return inst.getHeuristicConfig(adapterHome);
   } catch {
     // 适配器未注册 —— 回退
   }

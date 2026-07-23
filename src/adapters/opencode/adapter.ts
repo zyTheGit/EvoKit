@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
-import { BaseAdapter } from '../base-adapter.js';
+import { BaseAdapter, type HeuristicConfig } from '../base-adapter.js';
 import type { AdapterVerifyCheck } from '../types.js';
 import type { InstallSummary, SessionEntry } from '../../core/types.js';
 import type { OpenCodeAdapterOptions, OpenCodeInstallConfig } from './types.js';
@@ -219,6 +219,19 @@ export class OpenCodeAdapter extends BaseAdapter {
   /** OpenCode 全局配置目录，支持 XDG_CONFIG_HOME。 */
   resolveHome(homeDir: string): string {
     return resolveOpenCodeConfigHome(homeDir);
+  }
+
+  /** OpenCode 启发式卸载配置 —— 描述实际文件结构。 */
+  override getHeuristicConfig(adapterHome: string): HeuristicConfig {
+    return {
+      configFiles: ['opencode.json'],
+      cognitiveCorePath: path.join(adapterHome, 'AGENTS.md'),
+      knownDirs: [
+        { name: 'agent', extension: '.md' },
+        { name: 'skills', extension: '' },
+      ],
+      skillsDir: path.join(adapterHome, 'skills'),
+    };
   }
 
   /** 构建声明式安装布局。 */

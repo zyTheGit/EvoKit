@@ -16,6 +16,7 @@
 import { Command } from 'commander';
 import path from 'node:path';
 import { getInstaller, listAdapters } from '../adapters/index.js';
+import type { AdapterInstaller } from '../adapters/types.js';
 import { readManifest } from '../core/manifest.js';
 import { executeUninstall } from '../core/uninstall-engine.js';
 import { spinner, intro, outro, note, log, confirm } from '@clack/prompts';
@@ -30,6 +31,28 @@ export const uninstallCommand = new Command('uninstall')
   .option('--dry-run', '预览卸载，不修改文件')
   .option('--no-backup', '跳过备份创建')
   .option('--backup-dir <path>', '自定义备份目录')
+  .addHelpText(
+    'after',
+    `
+卸载模式：
+  清单驱动  — 优先使用 ~/.evokit/manifest.json 精确还原安装
+  启发式    — 清单缺失时，根据适配器已知结构推断卸载
+
+选项说明：
+  --purge       同时删除用户数据（记忆文件、MEMORY.md、learned-rules.md）
+  --dry-run     仅预览将删除的文件，不实际修改
+  --no-backup   跳过备份（默认备份到 ~/.evokit/backup/）
+  --force       跳过确认提示
+
+示例：
+  evokit uninstall claude              交互式卸载 Claude Code
+  evokit uninstall opencode --dry-run  预览 OpenCode 卸载
+  evokit uninstall claude --purge      卸载并删除用户数据
+
+卸载后：
+  运行 evokit doctor 验证系统状态
+  备份位于 ~/.evokit/backup/uninstall-YYYYMMDD/`,
+  )
   .action(async (adapterArg: string | undefined, options: any) => {
     const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -97,7 +120,7 @@ export const uninstallCommand = new Command('uninstall')
       log.warn('部分 EvoKit 痕迹可能未被移除。卸载后请运行 `evokit doctor` 验证。');
     }
 
-    const previewLines = buildPreview(adapterId, adapterRecord, homeDir, options.purge);
+    const previewLines = buildPreview(adapterId, adapterRecord, homeDir, options.purge, installer);
     note(previewLines.join('\n'), `卸载：${installer.label}`);
 
     // ── 确认 ──────────────────────────────────────
@@ -124,6 +147,7 @@ export const uninstallCommand = new Command('uninstall')
         dryRun: options.dryRun ?? false,
         noBackup: options.backup === false,
         backupDir: options.backupDir,
+        adapter: installer, // 传入适配器实例，避免通过 registry 查找
       });
 
       s.stop(`${installer.label} 已卸载`);
@@ -161,17 +185,27 @@ export const uninstallCommand = new Command('uninstall')
 
 // ─── 显示辅助函数 ─────────────────────────────────────────
 
+/** 将绝对路径转为 ~/ 简写形式 */
+function tildePath(absPath: string, homeDir: string): string {
+  if (absPath.startsWith(homeDir)) {
+    return '~' + absPath.slice(homeDir.length);
+  }
+  return absPath;
+}
+
 function buildPreview(
   adapterId: string,
   adapterRecord: any,
   homeDir: string,
   purge: boolean,
+  installer: AdapterInstaller,
 ): string[] {
   const lines: string[] = [];
 
   if (adapterRecord) {
     // Manifest-driven preview
     const adapterHome = adapterRecord.adapterHome;
+    const displayHome = tildePath(adapterHome, homeDir);
 
     // Count files by category
     const hookFiles = adapterRecord.files.filter(
@@ -186,41 +220,74 @@ function buildPreview(
     const skillFiles = adapterRecord.files.filter((f: any) => f.source === 'copy-skills');
     const memorySeeds = adapterRecord.memorySeeds || [];
 
-    lines.push(pc.red('Will remove:'));
-    if (hookFiles.length > 0) lines.push(`  ${hookFiles.length} hook script(s)`);
-    if (ruleFiles.length > 0) lines.push(`  ${ruleFiles.length} rule file(s)`);
-    if (commandFiles.length > 0) lines.push(`  ${commandFiles.length} command file(s)`);
-    if (skillFiles.length > 0) lines.push(`  ${skillFiles.length} skill(s)`);
+    lines.push(pc.red('将移除：'));
+    if (hookFiles.length > 0) lines.push(`  ${hookFiles.length} 个钩子脚本`);
+    if (ruleFiles.length > 0) lines.push(`  ${ruleFiles.length} 个规则文件`);
+    if (commandFiles.length > 0) lines.push(`  ${commandFiles.length} 个命令文件`);
+    if (skillFiles.length > 0) lines.push(`  ${skillFiles.length} 个技能`);
     if (adapterRecord.hooks?.length > 0)
-      lines.push(`  ${adapterRecord.hooks.length} hook entries from settings.json`);
+      lines.push(`  ${adapterRecord.hooks.length} 个 settings.json 钩子条目`);
     if (adapterRecord.envVars?.length > 0)
-      lines.push(`  ${adapterRecord.envVars.length} env var(s) from settings.json`);
+      lines.push(`  ${adapterRecord.envVars.length} 个 settings.json 环境变量`);
     if (adapterRecord.agentFrontmatter?.length > 0)
-      lines.push(`  ${adapterRecord.agentFrontmatter.length} agent frontmatter entries`);
-    if (memorySeeds.length > 0) lines.push(`  memory/README.md (seed file)`);
-    lines.push(`  EvoKit section from ~/CLAUDE.md`);
+      lines.push(`  ${adapterRecord.agentFrontmatter.length} 个代理 frontmatter 条目`);
+    if (memorySeeds.length > 0) lines.push('  memory/README.md（种子文件）');
+    lines.push(`  ${displayHome} 中的 EvoKit 区段`);
 
     lines.push('');
-    lines.push(pc.green('Will preserve:'));
+    lines.push(pc.green('将保留：'));
     if (!purge) {
-      lines.push('  Memory data (corrections, observations, sessions, etc.)');
+      lines.push('  用户数据（修正、观察、会话等）');
       lines.push('  MEMORY.md');
-      lines.push('  learned-rules.md, evolution-log.md');
+      lines.push('  learned-rules.md、evolution-log.md');
     } else {
-      lines.push(pc.yellow('  ⚠ --purge: user data will also be deleted'));
+      lines.push(pc.yellow('  ⚠ --purge：用户数据也将被删除'));
     }
   } else {
-    // Heuristic preview
-    lines.push(pc.red('Will remove (heuristic):'));
-    lines.push('  Hook scripts (~/.claude/hooks/)');
-    lines.push('  Rule files (~/.claude/rules/)');
-    lines.push('  Command files (~/.claude/commands/)');
-    lines.push('  Skills directory (~/.claude/skills/)');
-    lines.push('  EvoKit hooks from settings.json');
-    lines.push('  EvoKit section from ~/CLAUDE.md');
-    lines.push('  memory/README.md (seed file)');
+    // Heuristic preview — 根据适配器动态生成
+    const adapterHome = installer.resolveHome(homeDir);
+    const displayHome = tildePath(adapterHome, homeDir);
+    const heuristicConfig = installer.getHeuristicConfig(adapterHome);
+
+    lines.push(pc.red('将移除（启发式）：'));
+
+    // 已知目录
+    for (const dirConfig of heuristicConfig.knownDirs) {
+      const dirDisplay = `${displayHome}/${dirConfig.name}/`;
+      const extHint = dirConfig.extension ? `（*${dirConfig.extension}）` : '';
+      lines.push(`  ${dirDisplay}${extHint}`);
+    }
+
+    // 配置文件
+    for (const cfgFile of heuristicConfig.configFiles) {
+      lines.push(`  ${displayHome}/${cfgFile}`);
+    }
+
+    // 认知核心文件
+    if (heuristicConfig.cognitiveCorePath) {
+      lines.push(`  ${tildePath(heuristicConfig.cognitiveCorePath, homeDir)}`);
+    }
+
+    // Skills 目录
+    if (heuristicConfig.skillsDir) {
+      lines.push(`  ${tildePath(heuristicConfig.skillsDir, homeDir)}/`);
+    }
+
+    // memory/README.md
+    lines.push(`  ${displayHome}/memory/README.md（种子文件）`);
+
     lines.push('');
-    lines.push(pc.yellow('⚠ Heuristic mode — may miss some EvoKit traces'));
+    lines.push(pc.green('将保留：'));
+    if (!purge) {
+      lines.push('  用户数据（修正、观察、会话等）');
+      lines.push('  MEMORY.md');
+      lines.push('  learned-rules.md、evolution-log.md');
+    } else {
+      lines.push(pc.yellow('  ⚠ --purge：用户数据也将被删除'));
+    }
+
+    lines.push('');
+    lines.push(pc.yellow('⚠ 启发式模式 — 可能遗漏部分 EvoKit 痕迹'));
   }
 
   return lines;
@@ -229,14 +296,13 @@ function buildPreview(
 function buildResultSummary(result: any): string[] {
   const lines: string[] = [];
 
-  lines.push(`Files deleted: ${result.filesDeleted}`);
-  lines.push(`Files preserved: ${result.filesPreserved}`);
-  if (result.hooksRemoved > 0) lines.push(`Hooks removed: ${result.hooksRemoved}`);
-  if (result.envVarsRemoved > 0) lines.push(`Env vars removed: ${result.envVarsRemoved}`);
-  if (result.agentFieldsRemoved > 0)
-    lines.push(`Agent fields removed: ${result.agentFieldsRemoved}`);
-  if (result.directoriesRemoved > 0) lines.push(`Empty dirs removed: ${result.directoriesRemoved}`);
-  if (result.heuristic) lines.push(pc.yellow('Mode: heuristic (no manifest)'));
+  lines.push(`已删除文件：${result.filesDeleted}`);
+  lines.push(`已保留文件：${result.filesPreserved}`);
+  if (result.hooksRemoved > 0) lines.push(`已移除钩子：${result.hooksRemoved}`);
+  if (result.envVarsRemoved > 0) lines.push(`已移除环境变量：${result.envVarsRemoved}`);
+  if (result.agentFieldsRemoved > 0) lines.push(`已移除代理字段：${result.agentFieldsRemoved}`);
+  if (result.directoriesRemoved > 0) lines.push(`已清理空目录：${result.directoriesRemoved}`);
+  if (result.heuristic) lines.push(pc.yellow('模式：启发式（无清单）'));
 
   return lines;
 }

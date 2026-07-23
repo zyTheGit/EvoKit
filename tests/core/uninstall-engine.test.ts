@@ -8,6 +8,9 @@ import type { UninstallOptions, UninstallResult } from '../../src/core/uninstall
 import type { AdapterManifest, EvoKitManifest } from '../../src/core/manifest.js';
 import { writeManifest, manifestPath } from '../../src/core/manifest.js';
 
+// 注册内置适配器，使 getInstaller('claude') 等在卸载引擎中可用
+import '../../src/adapters/register.js';
+
 let tmpHome: string;
 
 function makeAdapterManifest(overrides: Partial<AdapterManifest> = {}): AdapterManifest {

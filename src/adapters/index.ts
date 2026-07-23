@@ -1,23 +1,14 @@
 /**
  * EvoKit — 适配器索引
  *
- * 在导入时注册所有内置适配器。
- * 只需导入此文件一次即可使所有适配器可用。
+ * 导入此文件即注册所有内置适配器并 re-export 公共 API。
+ * 注册逻辑在 register.ts 中，与 re-export 分离以避免循环依赖。
  *
  * @packageDocumentation
  */
 
-import { registerAdapter } from './registry.js';
-import { ClaudeAdapter } from './claude/adapter.js';
-import { CodexAdapter } from './codex/adapter.js';
-import { OpenCodeAdapter } from './opencode/adapter.js';
-import { PiAdapter } from './pi/adapter.js';
-
-// 注册内置适配器
-registerAdapter(new ClaudeAdapter());
-registerAdapter(new CodexAdapter());
-registerAdapter(new OpenCodeAdapter());
-registerAdapter(new PiAdapter());
+// 注册内置适配器（副作用导入 — 触发 register.ts 中的 registerAdapter 调用）
+import './register.js';
 
 export { registerAdapter, getInstaller, listAdapters, hasAdapter } from './registry.js';
 export { BaseAdapter } from './base-adapter.js';
