@@ -27,7 +27,11 @@ export type {
   AdapterVerifyCheck,
   AdapterStatus,
 } from './types.js';
-export { ClaudeAdapter, getLayout as getClaudeLayout } from './claude/adapter.js';
+export {
+  ClaudeAdapter,
+  getLayout as getClaudeLayout,
+  verifyClaudeInstallation,
+} from './claude/adapter.js';
 export { CodexAdapter, resolveCodexHome } from './codex/adapter.js';
 export { OpenCodeAdapter, resolveOpenCodeProjectDir } from './opencode/adapter.js';
 export { PiAdapter } from './pi/adapter.js';

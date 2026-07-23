@@ -164,15 +164,15 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  // 4. 撤销 settings.json 合并
-  if (fse.existsSync(settingsPath)) {
+  // 4. 撤销 settings.json 合并（仅适用于 Claude Code 适配器）
+  if (adapterId === 'claude' && fse.existsSync(settingsPath)) {
     const reverseResult = reverseMergeSettings(settingsPath, adapterRecord, dryRun);
     result.hooksRemoved = reverseResult.hooksRemoved;
     result.envVarsRemoved = reverseResult.envVarsRemoved;
   }
 
-  // 5. 移除 CLAUDE.md 节
-  if (fse.existsSync(claudeMdPath)) {
+  // 5. 移除 CLAUDE.md 节（仅适用于 Claude Code 适配器）
+  if (adapterId === 'claude' && fse.existsSync(claudeMdPath)) {
     // 从清单文件中查找 appendMarker
     const claudeMdRecord = adapterRecord.files.find(
       (f) => f.path === claudeMdPath && f.mode === 'appended',
@@ -273,11 +273,8 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
 /**
  * 清单不存在时的启发式卸载。
  *
- * 使用已知模式查找并删除 EvoKit 安装的内容：
- * - settings.json：移除包含 `.claude/hooks/` 的钩子、autoMemoryEnabled、已知环境变量
- * - CLAUDE.md：移除从 'Self-Evolving System Protocol' 开始的节
- * - 已知文件名：hooks/*.sh, rules/*.md, commands/*.md, skills/ 子目录, memory/README.md
- * - 代理：移除具有模板默认值的已知 EvoKit frontmatter 字段
+ * 使用已知模式查找并删除 EvoKit 安装的内容。
+ * 根据适配器 ID 使用不同的目录结构和文件类型。
  */
 function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   const { homeDir, adapterId, purge, dryRun, noBackup, backupDir } = options;
@@ -297,34 +294,34 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   // 根据适配器 ID 确定适配器家目录
   const adapterHome = getAdapterHome(homeDir, adapterId);
 
+  // 根据适配器 ID 确定已知的目录结构和文件扩展名
+  const adapterConfig = getAdapterHeuristicConfig(adapterId, adapterHome);
+
   // ── 阶段 1: 收集要备份的文件 ─────────────────────
   const filesToBackup: string[] = [];
 
-  const settingsPath = path.join(adapterHome, 'settings.json');
-  if (fse.existsSync(settingsPath)) {
-    filesToBackup.push(settingsPath);
+  // 配置文件（settings.json 或 hooks.json）
+  for (const cfgFile of adapterConfig.configFiles) {
+    const cfgPath = path.join(adapterHome, cfgFile);
+    if (fse.existsSync(cfgPath)) {
+      filesToBackup.push(cfgPath);
+    }
   }
 
-  const claudeMdPath = path.join(homeDir, 'CLAUDE.md');
-  if (fse.existsSync(claudeMdPath)) {
-    filesToBackup.push(claudeMdPath);
+  // 认知核心文件（CLAUDE.md 在 home 根目录，AGENTS.md 在 adapterHome 内）
+  const cognitiveCorePath = adapterConfig.cognitiveCorePath;
+  if (cognitiveCorePath && fse.existsSync(cognitiveCorePath)) {
+    filesToBackup.push(cognitiveCorePath);
   }
 
-  const knownDirs = ['hooks', 'rules', 'commands', 'agents'];
-  const knownExtensions: Record<string, string> = {
-    hooks: '.sh',
-    rules: '.md',
-    commands: '.md',
-  };
-
-  for (const dirName of knownDirs) {
-    const dirPath = path.join(adapterHome, dirName);
+  // 已知目录中的文件
+  for (const dirConfig of adapterConfig.knownDirs) {
+    const dirPath = path.join(adapterHome, dirConfig.name);
     if (!fse.existsSync(dirPath)) continue;
-    const ext = knownExtensions[dirName];
     try {
       const files = fs.readdirSync(dirPath);
       for (const file of files) {
-        if (ext && !file.endsWith(ext)) continue;
+        if (dirConfig.extension && !file.endsWith(dirConfig.extension)) continue;
         filesToBackup.push(path.join(dirPath, file));
       }
     } catch {
@@ -332,9 +329,9 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
-  const skillsDir = path.join(adapterHome, 'skills');
-  if (fse.existsSync(skillsDir)) {
-    filesToBackup.push(skillsDir);
+  // Skills 目录
+  if (adapterConfig.skillsDir && fse.existsSync(adapterConfig.skillsDir)) {
+    filesToBackup.push(adapterConfig.skillsDir);
   }
 
   const memoryReadme = path.join(adapterHome, 'memory', 'README.md');
@@ -361,27 +358,47 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
 
   // ── 阶段 3: 执行修改 ───────────────────────
 
-  // 1. Settings.json 启发式
-  if (fse.existsSync(settingsPath) && !dryRun) {
-    const heuristicResult = heuristicReverseSettings(settingsPath, homeDir, adapterHome);
-    result.hooksRemoved = heuristicResult.hooksRemoved;
-    result.envVarsRemoved = heuristicResult.envVarsRemoved;
+  // 1. 配置文件处理
+  for (const cfgFile of adapterConfig.configFiles) {
+    const cfgPath = path.join(adapterHome, cfgFile);
+    if (!fse.existsSync(cfgPath)) continue;
+
+    if (adapterId === 'claude') {
+      // Claude Code: settings.json 需要反向合并（移除 hooks 条目）
+      const heuristicResult = heuristicReverseSettings(cfgPath, homeDir, adapterHome);
+      result.hooksRemoved = heuristicResult.hooksRemoved;
+      result.envVarsRemoved = heuristicResult.envVarsRemoved;
+    } else {
+      // 其他适配器: 配置文件为 EvoKit 独占，直接删除
+      if (!dryRun) {
+        fse.removeSync(cfgPath);
+      }
+      result.filesDeleted++;
+    }
   }
 
-  // 2. CLAUDE.md 启发式
-  if (fse.existsSync(claudeMdPath)) {
-    removeClaudeMdSection(claudeMdPath, 'Self-Evolving System Protocol', dryRun);
+  // 2. 认知核心文件处理
+  if (cognitiveCorePath && fse.existsSync(cognitiveCorePath)) {
+    if (adapterId === 'claude') {
+      // Claude Code: CLAUDE.md 可能包含其他内容，只移除 EvoKit 节
+      removeClaudeMdSection(cognitiveCorePath, 'Self-Evolving System Protocol', dryRun);
+    } else {
+      // 其他适配器: AGENTS.md 为 EvoKit 独占，直接删除
+      if (!dryRun) {
+        fse.removeSync(cognitiveCorePath);
+      }
+      result.filesDeleted++;
+    }
   }
 
-  // 3. 已知文件名 — 删除
-  for (const dirName of knownDirs) {
-    const dirPath = path.join(adapterHome, dirName);
+  // 3. 已知目录中的文件 — 删除
+  for (const dirConfig of adapterConfig.knownDirs) {
+    const dirPath = path.join(adapterHome, dirConfig.name);
     if (!fse.existsSync(dirPath)) continue;
-    const ext = knownExtensions[dirName];
     try {
       const files = fs.readdirSync(dirPath);
       for (const file of files) {
-        if (ext && !file.endsWith(ext)) continue;
+        if (dirConfig.extension && !file.endsWith(dirConfig.extension)) continue;
         const filePath = path.join(dirPath, file);
         if (!dryRun) {
           fse.removeSync(filePath);
@@ -394,9 +411,9 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   }
 
   // Skills 目录
-  if (fse.existsSync(skillsDir)) {
+  if (adapterConfig.skillsDir && fse.existsSync(adapterConfig.skillsDir)) {
     if (!dryRun) {
-      fse.removeSync(skillsDir);
+      fse.removeSync(adapterConfig.skillsDir);
     }
     result.filesDeleted++;
   }
@@ -439,8 +456,8 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
   }
 
   // 5. 清理空目录
-  const dirsToClean = knownDirs
-    .map((d) => path.join(adapterHome, d))
+  const dirsToClean = adapterConfig.knownDirs
+    .map((d) => path.join(adapterHome, d.name))
     .concat([path.join(adapterHome, 'memory'), adapterHome]);
   result.directoriesRemoved = cleanupEmptyDirs(dirsToClean, dryRun);
 
@@ -456,11 +473,85 @@ function getAdapterHome(homeDir: string, adapterId: string): string {
   const adapterHomes: Record<string, string> = {
     claude: '.claude',
     codex: '.codex',
-    opencode: '.opencode',
+    opencode: '.config/opencode',
+    pi: '.pi/agent',
     aider: '.aider',
   };
   const subDir = adapterHomes[adapterId] || `.${adapterId}`;
   return path.join(homeDir, subDir);
+}
+
+/** 适配器启发式卸载的目录配置 */
+interface AdapterHeuristicDirConfig {
+  /** 目录名（相对于 adapterHome） */
+  name: string;
+  /** 文件扩展名过滤（如 '.sh'、'.md'、'.rules'），空字符串表示不过滤 */
+  extension: string;
+}
+
+/** 适配器启发式卸载的完整配置 */
+interface AdapterHeuristicConfig {
+  /** 配置文件名列表（相对于 adapterHome） */
+  configFiles: string[];
+  /** 认知核心文件绝对路径（Claude: ~/CLAUDE.md, 其他: adapterHome/AGENTS.md） */
+  cognitiveCorePath: string | null;
+  /** 已知目录配置 */
+  knownDirs: AdapterHeuristicDirConfig[];
+  /** Skills 目录绝对路径 */
+  skillsDir: string | null;
+}
+
+/** 根据适配器 ID 获取启发式卸载配置 */
+function getAdapterHeuristicConfig(adapterId: string, adapterHome: string): AdapterHeuristicConfig {
+  switch (adapterId) {
+    case 'codex':
+      return {
+        configFiles: ['hooks.json', 'config.toml'],
+        cognitiveCorePath: path.join(adapterHome, 'AGENTS.md'),
+        knownDirs: [
+          { name: 'hooks-scripts', extension: '.sh' },
+          { name: 'rules', extension: '.rules' },
+        ],
+        skillsDir: null,
+      };
+
+    case 'opencode':
+      return {
+        configFiles: ['opencode.json'],
+        cognitiveCorePath: path.join(adapterHome, 'AGENTS.md'),
+        knownDirs: [
+          { name: 'tools', extension: '.ts' },
+          { name: 'agents', extension: '.md' },
+        ],
+        skillsDir: path.join(adapterHome, 'skills'),
+      };
+
+    case 'pi':
+      return {
+        configFiles: ['settings.json'],
+        cognitiveCorePath: path.join(adapterHome, 'AGENTS.md'),
+        knownDirs: [
+          { name: 'extensions', extension: '.ts' },
+          { name: 'agent', extension: '.md' },
+        ],
+        skillsDir: path.join(adapterHome, 'skills'),
+      };
+
+    case 'claude':
+    default:
+      // Claude Code 的原始配置
+      return {
+        configFiles: ['settings.json'],
+        cognitiveCorePath: path.join(path.dirname(adapterHome), 'CLAUDE.md'),
+        knownDirs: [
+          { name: 'hooks', extension: '.sh' },
+          { name: 'rules', extension: '.md' },
+          { name: 'commands', extension: '.md' },
+          { name: 'agents', extension: '.md' },
+        ],
+        skillsDir: path.join(adapterHome, 'skills'),
+      };
+  }
 }
 
 /** 清单不存在时对 settings.json 的启发式撤销 */

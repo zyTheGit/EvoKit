@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import fse from 'fs-extra';
 import path from 'node:path';
-import { verifyInstallation } from '../core/template.js';
+import { verifyClaudeInstallation } from '../adapters/claude/adapter.js';
 import { getFileLineCount } from '../core/memory.js';
 import { getCodexStatus, verifyCodexSetup } from '../adapters/codex/adapter.js';
 import { getOpenCodeStatus } from '../adapters/opencode/adapter.js';
@@ -68,7 +68,7 @@ async function checkClaude(claudeDir: string, homeDir: string, options: any): Pr
 
   console.log(pc.cyan('📁 Claude Code — 目录结构...'));
   let pass = true;
-  const checks = verifyInstallation(homeDir);
+  const checks = verifyClaudeInstallation(homeDir, process.cwd());
   for (const check of checks) {
     const icon = check.pass ? pc.green('✓') : pc.red('✗');
     console.log(`  ${icon} ${check.name}${check.detail ? pc.yellow(` — ${check.detail}`) : ''}`);
