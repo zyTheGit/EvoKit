@@ -104,4 +104,10 @@ export interface AdapterInstaller {
 
   /** 卸载此适配器的模板文件。可选 — 默认使用清单驱动的卸载方式。 */
   uninstall?(config: AdapterUninstallConfig): AdapterUninstallResult;
+
+  /** 是否在卸载时对配置文件执行反向合并（而非直接删除）。 */
+  reverseMergesSettings?(): boolean;
+
+  /** 认知核心文件的 appendMarker（用于精确移除追加的区段）。 */
+  cognitiveCoreAppendMarker?(): string | null;
 }

@@ -24,6 +24,7 @@ import type { AdapterManifest, ManifestAgentFrontmatter } from './manifest.js';
 import { reverseMergeSettings } from './reverse-merge-settings.js';
 import { reverseMergeAgents } from './reverse-merge-agents.js';
 import { removeClaudeMdSection } from './remove-claude-md.js';
+import '../adapters/index.js';
 import { getInstaller } from '../adapters/registry.js';
 import type { AdapterInstaller } from '../adapters/types.js';
 
@@ -128,8 +129,11 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   }
 
   // 认知核心文件（如 CLAUDE.md 在 home 根目录）
-  const appendMarker = getAdapterNullable(adapterId, (a) => a.cognitiveCoreAppendMarker());
-  if (appendMarker) {
+  const cognitiveAppendMarker = getAdapterNullable(
+    adapterId,
+    (a) => a.cognitiveCoreAppendMarker?.() ?? null,
+  );
+  if (cognitiveAppendMarker) {
     const cognitiveCoreFile = adapterRecord.files.find(
       (f) => f.mode === 'appended' && f.appendMarker,
     );
@@ -172,7 +176,10 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   }
 
   // 4. 撤销 settings.json 合并（仅适用于需要反向合并的适配器）
-  const shouldReverseMerge = getAdapterBoolean(adapterId, (a) => a.reverseMergesSettings());
+  const shouldReverseMerge = getAdapterBoolean(
+    adapterId,
+    (a) => a.reverseMergesSettings?.() ?? false,
+  );
   if (shouldReverseMerge && fse.existsSync(settingsPath)) {
     const reverseResult = reverseMergeSettings(settingsPath, adapterRecord, dryRun);
     result.hooksRemoved = reverseResult.hooksRemoved;
@@ -183,7 +190,10 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   }
 
   // 5. 移除认知核心追加区段（仅适用于有 appendMarker 的适配器）
-  const appendMarker = getAdapterNullable(adapterId, (a) => a.cognitiveCoreAppendMarker());
+  const appendMarker = getAdapterNullable(
+    adapterId,
+    (a) => a.cognitiveCoreAppendMarker?.() ?? null,
+  );
   const cognitiveCoreFile = adapterRecord.files.find(
     (f) => f.mode === 'appended' && f.appendMarker,
   );
@@ -580,13 +590,12 @@ interface AdapterHeuristicConfig {
 function getAdapterHeuristicConfig(adapterId: string, adapterHome: string): AdapterHeuristicConfig {
   try {
     const installer = getInstaller(adapterId);
-    if (
-      'getHeuristicConfig' in installer &&
-      typeof installer.getHeuristicConfig === 'function'
-    ) {
-      return (installer as {
-        getHeuristicConfig: (h: string) => AdapterHeuristicConfig;
-      }).getHeuristicConfig(adapterHome);
+    if ('getHeuristicConfig' in installer && typeof installer.getHeuristicConfig === 'function') {
+      return (
+        installer as {
+          getHeuristicConfig: (h: string) => AdapterHeuristicConfig;
+        }
+      ).getHeuristicConfig(adapterHome);
     }
   } catch {
     // 适配器未注册 —— 回退
@@ -598,7 +607,6 @@ function getAdapterHeuristicConfig(adapterId: string, adapterHome: string): Adap
     knownDirs: [{ name: 'hooks', extension: '.sh' }],
     skillsDir: null,
   };
-}
 }
 
 /** 清单不存在时对 settings.json 的启发式撤销 */

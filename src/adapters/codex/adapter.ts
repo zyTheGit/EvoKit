@@ -241,7 +241,7 @@ export class CodexAdapter extends BaseAdapter {
   }
 
   /** 解析 Codex 全局安装目录（支持 CODEX_HOME 环境变量覆盖）。 */
-  protected resolveHome(homeDir: string): string {
+  override resolveHome(homeDir: string): string {
     return resolveCodexHome(homeDir);
   }
 
