@@ -20,7 +20,7 @@ import fse from 'fs-extra';
 export interface ManifestFileRecord {
   /** 已安装文件的绝对路径 */
   path: string;
-  /** 安装方式: 'copy' | 'copy-dir' | 'copy-skills' | 'seed-memory' */
+  /** 安装方式: 'copy' | 'copy-dir' | 'copy-skills' | 'seed-memory' | 'merge-settings' | 'merge-agents' */
   source: string;
   /** 文件是全新创建还是追加到已有文件 */
   mode: 'created' | 'appended';

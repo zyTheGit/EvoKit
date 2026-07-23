@@ -177,6 +177,9 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     const reverseResult = reverseMergeSettings(settingsPath, adapterRecord, dryRun);
     result.hooksRemoved = reverseResult.hooksRemoved;
     result.envVarsRemoved = reverseResult.envVarsRemoved;
+    if (reverseResult.fileDeleted) {
+      result.filesDeleted++;
+    }
   }
 
   // 5. 移除认知核心追加区段（仅适用于有 appendMarker 的适配器）
@@ -204,6 +207,16 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   for (const fileRecord of adapterRecord.files) {
     const filePath = fileRecord.path;
     if (!fse.existsSync(filePath)) continue;
+
+    // 跳过已由反向合并步骤处理的文件（步骤 4 和步骤 6）
+    // merge-settings: 步骤 4 reverseMergeSettings 已处理（保留/删除）
+    // merge-agents: 步骤 6 reverseMergeAgents 已处理（保留/删除/跳过）
+    if (fileRecord.source === 'merge-settings' && shouldReverseMerge) {
+      continue;
+    }
+    if (fileRecord.source === 'merge-agents' && adapterRecord.agentFrontmatter.length > 0) {
+      continue;
+    }
 
     const basename = path.basename(filePath);
     const dirName = path.basename(path.dirname(filePath));

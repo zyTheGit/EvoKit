@@ -86,7 +86,7 @@ function setupFullInstallation(): AdapterManifest {
     hooks: { SessionStart: [hookEntry] },
     autoMemoryEnabled: true,
     env: { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' },
-    permissionsAllow: ['Bash(bash .claude/hooks/*.sh)'],
+    permissions: { allow: ['Bash(bash .claude/hooks/*.sh)'] },
   };
   const settingsPath = path.join(adapterHome, 'settings.json');
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
@@ -179,13 +179,9 @@ describe('uninstall-engine', () => {
       expect(result.agentFieldsRemoved).toBe(1);
       expect(result.filesDeleted).toBeGreaterThan(0);
 
-      // Settings.json should be cleaned
+      // Settings.json 应被删除（仅含 EvoKit 条目，无用户内容）
       const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
-      if (fse.existsSync(settingsPath)) {
-        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-        expect(settings.hooks).toBeUndefined();
-        expect(settings.autoMemoryEnabled).toBeUndefined();
-      }
+      expect(fse.existsSync(settingsPath)).toBe(false);
 
       // CLAUDE.md should have EvoKit section removed
       const claudeMdPath = path.join(tmpHome, 'CLAUDE.md');
@@ -197,6 +193,89 @@ describe('uninstall-engine', () => {
 
       // Manifest should be removed (no adapters left)
       expect(fse.existsSync(manifestPath(tmpHome))).toBe(false);
+    });
+
+    it('preserves settings.json when it has user content after reverse merge', () => {
+      setupFullInstallation();
+      const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
+
+      // 添加用户自定义内容
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      settings.myCustomKey = 'user-value';
+      settings.anotherUserPref = true;
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        force: false,
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      };
+
+      executeUninstall(options);
+
+      // settings.json 应保留，且仅 EvoKit 条目被移除
+      expect(fse.existsSync(settingsPath)).toBe(true);
+      const cleaned = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      expect(cleaned.hooks).toBeUndefined();
+      expect(cleaned.autoMemoryEnabled).toBeUndefined();
+      expect(cleaned.myCustomKey).toBe('user-value');
+      expect(cleaned.anotherUserPref).toBe(true);
+    });
+
+    it('deletes settings.json when only $schema remains after reverse merge', () => {
+      setupFullInstallation();
+      const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
+
+      // 仅添加 $schema 作为非 EvoKit 内容
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      settings.$schema = 'https://example.com/schema';
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        force: false,
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      };
+
+      executeUninstall(options);
+
+      // settings.json 应被删除（仅剩 $schema 不算有效用户内容）
+      expect(fse.existsSync(settingsPath)).toBe(false);
+    });
+
+    it('preserves agent files with user body content after reverse merge', () => {
+      setupFullInstallation();
+      const agentPath = path.join(tmpHome, '.claude', 'agents', 'reviewer.md');
+
+      // 添加用户正文内容
+      fs.writeFileSync(
+        agentPath,
+        '---\nname: reviewer\nmodel: sonnet\n---\n# Reviewer\n\nCustom user instructions here.',
+        'utf-8',
+      );
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        force: false,
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      };
+
+      executeUninstall(options);
+
+      // agent 文件应保留，且用户正文内容仍在
+      expect(fse.existsSync(agentPath)).toBe(true);
+      const content = fs.readFileSync(agentPath, 'utf-8');
+      expect(content).toContain('Custom user instructions here.');
+      expect(content).not.toContain('model: sonnet'); // EvoKit 字段已移除
     });
   });
 
