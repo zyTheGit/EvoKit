@@ -88,6 +88,8 @@ export interface AdapterInstaller {
   readonly label: string;
   readonly description: string;
   readonly version: string;
+  /** 该适配器支持的 AI 助手 CLI 版本范围（如 '>=0.81.0'）*/
+  readonly supportedAgentVersion: string;
   /** 标记为实验性 — 尚未完全实现 */
   readonly experimental?: boolean;
 

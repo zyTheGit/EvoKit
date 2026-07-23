@@ -14,6 +14,7 @@ export type CodexHookEventName =
   | 'PreToolUse'
   | 'PermissionRequest'
   | 'PostToolUse'
+  | 'PostToolUseFailure'
   | 'PreCompact'
   | 'PostCompact'
   | 'UserPromptSubmit'

@@ -175,6 +175,8 @@ After installation, use the `evokit` command to manage your system:
 | `evokit export`           | Export system state for cross-machine migration      |
 | `evokit import <package>` | Import a migration package                           |
 | `evokit doctor`           | System health check and integrity verification       |
+| `evokit uninstall`        | Uninstall EvoKit (manifest-driven precise rollback)  |
+| `evokit project`          | Generate project-level AI assistant spec files       |
 
 ```bash
 # View all commands
@@ -346,15 +348,13 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ npm package (`@zythegit/evokit`) + Homebrew support
 - ✅ 41 vitest test cases
 
-**v0.3.0 — Codex Adapter** 🆕
+**v0.3.0 — Codex Adapter**
 
 - ✅ Codex CLI integration adapter (`~/.codex/` templates, AGENTS.md, hooks.json, config.toml)
 - ✅ Codex hook mechanism mapping (SessionStart / Stop / PreToolUse)
 - ✅ Shared learning data across assistants (shared `~/.claude/memory/`)
 - ✅ Interactive adapter selection menu (box-drawing UI, multi-select support, default-on-Enter)
 - ✅ 29 new tests (adapter + shared memory)
-
-### In Development 🚧
 
 **v0.4.0 ~ v0.4.2 — Adapter Interface Refactor + Multi-assistant Support**
 
@@ -365,13 +365,27 @@ See: [MIGRATION.md](docs/en/MIGRATION.md)
 - ✅ **Pi CLI Adapter** — Stub created (`src/adapters/pi/adapter.ts`), pending implementation
 - ✅ **Smart config merge** — Won't overwrite existing settings / AGENTS.md / opencode.json
 - ✅ **Interactive adapter selection** — box-drawing UI, multi-select, default-on-Enter
-- 🚧 Self-healing CI pipeline
 
-> **Version note**: v0.4.x is in active development; all intermediate fixes and iterations are patch bumps (v0.4.1 / v0.4.2 / ...). Minor version bumps only happen at feature milestones.
+**v0.5.0 — Layout Engine + Uninstall + Project Specs** 🆕
+
+- ✅ **Declarative layout engine** — `AdapterLayout` types + `executeLayout()` executor, upgrading adapter installation from imperative scripts to declarative config
+- ✅ **Manifest-driven uninstall** — `evokit uninstall` command, precise rollback of all installation operations via `manifest.json` (files, hooks, env vars, agent frontmatter)
+- ✅ **Heuristic uninstall fallback** — Automatically falls back to heuristic mode when no manifest exists, safely removing known EvoKit traces
+- ✅ **Project-level spec generation** — `evokit project` command, interactively generates project `.claude/` structure (rules + CLAUDE.md + agents + commands)
+- ✅ **Pi CLI adapter replaces Aider** — Removed Aider stub, replaced with Pi CLI adapter stub
+- ✅ **Windows path fixes** — `__HOME__` placeholder backslash-to-forward-slash conversion, fixing JSON parsing on Windows
+- ✅ **Bilingual documentation** — `docs/zh/` + `docs/en/` parallel structure, added DEV_STANDARDS development guide
+- ✅ **CLI fully localized** — Code comments, CLI prompts, error messages all in Chinese
+- ✅ **203 vitest test cases**
+
+### In Development 🚧
+
+- 🚧 Self-healing CI pipeline
+- 🚧 Pi CLI adapter full implementation
 
 ### Planned 🔜
 
-**v0.5.0 — Standalone Evolution Engine**
+**v0.6.0 — Standalone Evolution Engine**
 
 - ☐ Independent rule promotion engine (runs without Claude Code)
 - ☐ Web UI management dashboard

@@ -105,7 +105,7 @@ interface CommandResult {
 | 认知核心 | `~/.codex/AGENTS.md`（类似于 CLAUDE.md）                      |
 | 配置     | `~/.codex/config.toml`（功能开关、模型、权限）                |
 | 命令     | `evokit evolve`、`evokit doctor`、基于 shell 的 `/boot`       |
-| 状态     | ✅ v0.3.0 — 已完成                                            |
+| 状态     | ✅ v0.4.0 — 已完成（清单写入 + 卸载支持）                     |
 
 #### EvoKit → Codex CLI 映射
 
@@ -191,14 +191,64 @@ project-root/
         └── README.md                  # 学习数据目录
 ```
 
-### Pi CLI 适配器（v0.4 — 🔜 计划中）
+### Pi CLI 适配器（v0.6 — ✅ 已实现）
 
-| 方面 | 实现方式                             |
-| ---- | ------------------------------------ |
-| 安装 | ~/.pi/agent/（全局）+ .pi/（项目级） |
-| 钩子 | Pi CLI 扩展 + 技能                   |
-| 记忆 | ~/.pi/agent/ 记忆（按适配器独立）    |
-| 命令 | Pi CLI 技能                          |
+| 方面     | 实现方式                                                                   |
+| -------- | -------------------------------------------------------------------------- |
+| 安装     | `evokit init --adapter pi` — 复制到 `~/.pi/agent/` + `.pi/`                |
+| 钩子     | TypeScript 扩展 via `pi.on()` — session_start, session_shutdown, tool_call |
+| 记忆     | `~/.pi/agent/memory/`（按适配器独立，标记 `assistant: "pi"`）              |
+| 命令     | 自定义扩展 — evokit-boot, evokit-evolve, evokit-memory, evokit-session     |
+| 认知核心 | `~/.pi/agent/AGENTS.md`（类似于 CLAUDE.md）                                |
+| 配置     | `~/.pi/agent/settings.json`（skills + extensions）                         |
+| 技能     | `~/.pi/agent/skills/evokit/`（Agent Skills 标准）                          |
+| 子智能体 | `~/.pi/agent/agent/` Markdown 文件（architect, reviewer）                  |
+| 状态     | ✅ v0.6.0 — 已完成（Pi CLI ≥ 0.81.0）                                      |
+
+#### EvoKit → Pi CLI 映射
+
+| EvoKit 概念                    | Pi CLI 对应项                                        |
+| ------------------------------ | ---------------------------------------------------- |
+| `~/.claude/` + `CLAUDE.md`     | `~/.pi/agent/` + `AGENTS.md`                         |
+| `.claude/hooks/settings.json`  | 扩展 via `pi.on()`（TypeScript 事件系统）            |
+| `.claude/hooks/`（shell 脚本） | `~/.pi/agent/extensions/`（TypeScript，`pi.on()`）   |
+| `.claude/rules/`（markdown）   | `AGENTS.md` + 扩展（无专用 rules 目录）              |
+| `.claude/agents/`              | `~/.pi/agent/agent/`（Markdown + YAML 前置元数据）   |
+| `.claude/commands/`（`/boot`） | `~/.pi/agent/extensions/evokit-boot.ts`              |
+| `.claude/memory/`（JSONL）     | `~/.pi/agent/memory/`（按适配器独立）                |
+| SessionStart 钩子              | evokit-lifecycle.ts 中的 `pi.on("session_start")`    |
+| Stop 钩子                      | evokit-lifecycle.ts 中的 `pi.on("session_shutdown")` |
+| PreToolUse 钩子                | evokit-lifecycle.ts 中的 `pi.on("tool_call")`        |
+
+#### 重要提示：基于扩展的生命周期
+
+Pi CLI 使用 TypeScript 扩展处理生命周期事件，而非基于 shell 的钩子：
+
+- **引导验证是自动的** — `evokit-lifecycle.ts` 通过 `pi.on()` 订阅 `session_start`
+- **会话记录是自动的** — `evokit-lifecycle.ts` 订阅 `session_shutdown`
+- **已学规则注入是自动的** — `evokit-lifecycle.ts` 订阅 `tool_call`
+- 手动命令也可通过 `/evokit-boot`、`/evokit-evolve`、`/evokit-memory`、`/evokit-session` 调用
+
+#### 安装后结构
+
+```
+~/.pi/agent/
+├── AGENTS.md                  # L1 认知核心（思考框架、进化协议）
+├── settings.json              # 技能 + 扩展配置
+├── extensions/
+│   ├── evokit-lifecycle.ts    # 生命周期事件（session_start, session_shutdown, tool_call）
+│   ├── evokit-boot.ts         # 引导验证命令
+│   ├── evokit-evolve.ts       # 进化审计命令
+│   ├── evokit-memory.ts       # 记忆管理命令
+│   └── evokit-session.ts      # 会话记录命令
+├── skills/evokit/
+│   └── SKILL.md               # EvoKit 技能定义
+├── agent/
+│   ├── architect.md            # 架构师子智能体
+│   └── reviewer.md             # 审查者子智能体
+└── memory/
+    └── README.md               # 学习数据目录
+```
 
 ## 按适配器划分的学习数据
 
@@ -209,6 +259,7 @@ project-root/
 | Claude Code  | `~/.claude/memory/`           |
 | Codex CLI    | `~/.codex/memory/`            |
 | OpenCode CLI | `<project>/.opencode/memory/` |
+| Pi CLI       | `~/.pi/agent/memory/`         |
 
 每条会话记录使用标签标识助手：
 

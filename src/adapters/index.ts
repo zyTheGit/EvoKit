@@ -20,6 +20,7 @@ registerAdapter(new OpenCodeAdapter());
 registerAdapter(new PiAdapter());
 
 export { registerAdapter, getInstaller, listAdapters, hasAdapter } from './registry.js';
+export { BaseAdapter } from './base-adapter.js';
 export type {
   AdapterInstaller,
   AdapterInstallConfig,
@@ -27,7 +28,20 @@ export type {
   AdapterVerifyCheck,
   AdapterStatus,
 } from './types.js';
-export { ClaudeAdapter, getLayout as getClaudeLayout } from './claude/adapter.js';
+export {
+  ClaudeAdapter,
+  getLayout as getClaudeLayout,
+  verifyClaudeInstallation,
+} from './claude/adapter.js';
 export { CodexAdapter, resolveCodexHome } from './codex/adapter.js';
 export { OpenCodeAdapter, resolveOpenCodeProjectDir } from './opencode/adapter.js';
-export { PiAdapter } from './pi/adapter.js';
+export {
+  PiAdapter,
+  resolvePiHome,
+  installPi,
+  verifyPiInstallation,
+  injectPiMemory,
+  exportPiMemory,
+  recordPiSession,
+  getPiStatus,
+} from './pi/adapter.js';

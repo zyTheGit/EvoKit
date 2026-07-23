@@ -83,6 +83,54 @@ export class CodexHooksBuilder {
   }
 
   /**
+   * 添加用于编辑追踪/自动格式化的 PostToolUse 钩子。
+   */
+  addPostToolUseHook(scriptPath: string, matcher = '.*', timeout = 10): this {
+    return this.addHook('PostToolUse', matcher, {
+      type: 'command',
+      command: scriptPath,
+      timeout,
+      statusMessage: 'EvoKit: 正在追踪工具使用',
+    });
+  }
+
+  /**
+   * 添加用于工具调用失败记录的 PostToolUseFailure 钩子。
+   */
+  addPostToolUseFailureHook(scriptPath: string, matcher = '.*', timeout = 10): this {
+    return this.addHook('PostToolUseFailure', matcher, {
+      type: 'command',
+      command: scriptPath,
+      timeout,
+      statusMessage: 'EvoKit: 正在记录工具失败',
+    });
+  }
+
+  /**
+   * 添加用于用户提示处理的 UserPromptSubmit 钩子。
+   */
+  addUserPromptSubmitHook(scriptPath: string, timeout = 10): this {
+    return this.addHook('UserPromptSubmit', '.*', {
+      type: 'command',
+      command: scriptPath,
+      timeout,
+      statusMessage: 'EvoKit: 正在处理用户提示',
+    });
+  }
+
+  /**
+   * 添加用于子代理启动追踪的 SubagentStart 钩子。
+   */
+  addSubagentStartHook(scriptPath: string, timeout = 10): this {
+    return this.addHook('SubagentStart', '.*', {
+      type: 'command',
+      command: scriptPath,
+      timeout,
+      statusMessage: 'EvoKit: 正在追踪子代理启动',
+    });
+  }
+
+  /**
    * 添加拒绝特定工具的自定义 PreToolUse 钩子。
    */
   addToolGuard(toolMatcher: string, scriptPath: string, timeout = 10): this {

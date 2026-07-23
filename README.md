@@ -175,6 +175,8 @@ bash bin/install.sh
 | `evokit export`      | 导出系统状态（用于跨机迁移）                 |
 | `evokit import <包>` | 导入迁移包                                   |
 | `evokit doctor`      | 系统健康检查                                 |
+| `evokit uninstall`   | 卸载 EvoKit（清单驱动精确回滚）              |
+| `evokit project`     | 生成项目级 AI 助手规范文件                   |
 
 ```bash
 # 查看所有命令
@@ -346,15 +348,13 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ npm 包发布（`@zythegit/evokit`）+ Homebrew 支持
 - ✅ 41 个 vitest 测试用例
 
-**v0.3.0 — Codex 适配器** 🆕
+**v0.3.0 — Codex 适配器**
 
 - ✅ Codex CLI 集成适配器（`~/.codex/` 模板、AGENTS.md、hooks.json、config.toml）
 - ✅ Codex 钩子机制映射（SessionStart / Stop / PreToolUse）
 - ✅ 跨助手学习数据同步（共享 `~/.claude/memory/`）
 - ✅ 交互式适配器选择菜单（带 box-drawing UI，支持多选和默认回车）
 - ✅ 29 个新测试（适配器 + 共享内存）
-
-### 开发中 🚧
 
 **v0.4.0 ~ v0.4.2 — 适配器接口重构 + 多助手支持**
 
@@ -365,13 +365,27 @@ cd ~/ && tar xzf claude-evolution-*.tar.gz && bash install.sh
 - ✅ **Pi CLI 适配器** — 存根代码已创建（`src/adapters/pi/adapter.ts`），待实现
 - ✅ **配置文件智能合并** — 不覆盖已有 settings / AGENTS.md / opencode.json
 - ✅ **交互式适配器选择** — 带 box-drawing UI，支持多选和默认回车
-- 🚧 自修复 CI 流水线
 
-> **版本说明**：v0.4.x 系列持续开发中，所有中间修复和迭代均为修订号更新（v0.4.1 / v0.4.2 / ...），次版本号仅在有完整功能里程碑时递增。
+**v0.5.0 — 布局引擎 + 卸载 + 项目规范** 🆕
+
+- ✅ **声明式布局引擎** — `AdapterLayout` 类型 + `executeLayout()` 执行器，适配器安装从命令式脚本升级为声明式配置
+- ✅ **清单驱动卸载** — `evokit uninstall` 命令，基于 `manifest.json` 精确回滚所有安装操作（文件、钩子、环境变量、代理 frontmatter）
+- ✅ **启发式卸载回退** — 无清单时自动回退到启发式模式，安全移除已知 EvoKit 痕迹
+- ✅ **项目级规范生成** — `evokit project` 命令，交互式生成项目 `.claude/` 结构（rules + CLAUDE.md + agents + commands）
+- ✅ **Pi CLI 适配器替换 Aider** — 移除 Aider 存根，替换为 Pi CLI 适配器存根
+- ✅ **Windows 路径修复** — `__HOME__` 占位符在 Windows 下反斜杠转正斜杠，修复 JSON 解析
+- ✅ **双语文档体系** — `docs/zh/` + `docs/en/` 双语平行结构，新增 DEV_STANDARDS 开发规范
+- ✅ **CLI 全面中文化** — 代码注释、CLI 提示、错误消息统一中文
+- ✅ **203 个 vitest 测试用例**
+
+### 开发中 🚧
+
+- 🚧 自修复 CI 流水线
+- 🚧 Pi CLI 适配器完整实现
 
 ### 规划中 🔜
 
-**v0.5.0 — 进化引擎独立化**
+**v0.6.0 — 进化引擎独立化**
 
 - ☐ 独立的规则晋升引擎（可脱离 Claude Code 运行）
 - ☐ Web UI 管理面板

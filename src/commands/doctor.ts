@@ -1,17 +1,25 @@
+/**
+ * EvoKit — Doctor 命令
+ *
+ * 验证 EvoKit 系统完整性。
+ * 通过适配器注册表遍历所有已安装适配器，
+ * 调用 adapter.status() 获取检查结果 —— 不再直接导入适配器实现函数。
+ *
+ * @packageDocumentation
+ */
+
 import { Command } from 'commander';
 import pc from 'picocolors';
 import fse from 'fs-extra';
 import path from 'node:path';
-import { verifyInstallation } from '../core/template.js';
+import { listAdapters } from '../adapters/registry.js';
 import { getFileLineCount } from '../core/memory.js';
-import { getCodexStatus, verifyCodexSetup } from '../adapters/codex/adapter.js';
-import { getOpenCodeStatus } from '../adapters/opencode/adapter.js';
 
 export const doctorCommand = new Command('doctor')
   .description('验证 EvoKit 系统完整性')
   .option('--home <path>', 'EvoKit 主目录（默认: $HOME）')
   .option('--fix', '尝试修复常见问题')
-  .option('--adapter <name>', '检查指定适配器（claude | codex | opencode | all）', 'all')
+  .option('--adapter <name>', '检查指定适配器（claude | codex | opencode | pi | all）', 'all')
   .action(async (options) => {
     const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -19,35 +27,60 @@ export const doctorCommand = new Command('doctor')
       process.exit(1);
     }
 
-    const claudeDir = path.join(homeDir, '.claude');
     const adapter = options.adapter || 'all';
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
     console.log(pc.cyan('║   EvoKit — 系统健康检查                  ║'));
     console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
-    console.log(`  主目录: ${claudeDir}`);
+    console.log(`  主目录: ${homeDir}`);
     console.log('');
 
     let allPass = true;
+    const adapters = listAdapters();
 
-    // 检查 Claude Code 适配器
-    if (adapter === 'all' || adapter === 'claude') {
-      allPass = !(await checkClaude(claudeDir, homeDir, options)) && allPass;
-    }
+    for (const installer of adapters) {
+      if (adapter !== 'all' && adapter !== installer.id) continue;
 
-    // 检查 Codex CLI 适配器
-    if (adapter === 'all' || adapter === 'codex') {
-      allPass = !(await checkCodex(homeDir, options)) && allPass;
-    }
+      const config = { homeDir, templateDir: '' };
+      const status = installer.status(config);
 
-    // 检查 OpenCode CLI 适配器
-    if (adapter === 'all' || adapter === 'opencode') {
-      allPass = !(await checkOpenCode()) && allPass;
-    }
+      console.log(pc.cyan(`\n📁 ${installer.label} — ${status.adapterHome}`));
 
-    // 记忆文件检查
-    if (adapter === 'all' || adapter === 'claude') {
-      allPass = !checkMemory(homeDir, '.claude') && allPass;
+      if (!status.installed) {
+        console.log(pc.yellow(`  ⚠ ${installer.label} 适配器：未安装`));
+        console.log(`    运行：evokit init --adapter ${installer.id}`);
+        allPass = false;
+        continue;
+      }
+
+      let pass = true;
+      for (const check of status.checks) {
+        const icon = check.pass ? pc.green('✓') : pc.red('✗');
+        console.log(
+          `  ${icon} ${check.name}${check.detail ? pc.yellow(` — ${check.detail}`) : ''}`,
+        );
+        if (!check.pass) pass = false;
+      }
+
+      if (!pass) allPass = false;
+
+      // Claude 特有：文件大小限制检查
+      if (installer.id === 'claude') {
+        console.log(pc.cyan('\n📏 Claude Code — 文件大小限制...'));
+        const rootClaudeMd = path.join(homeDir, 'CLAUDE.md');
+        if (fse.existsSync(rootClaudeMd)) {
+          const lines = getFileLineCount(rootClaudeMd);
+          if (lines > 150) {
+            console.log(`  ${pc.yellow('⚠️')} CLAUDE.md：${lines} 行（限制：150）`);
+            allPass = false;
+          } else {
+            console.log(`  ${pc.green('✓')} CLAUDE.md：${lines}/150 行`);
+          }
+        }
+
+        // 记忆文件检查
+        allPass = !checkMemory(homeDir, '.claude') && allPass;
+      }
     }
 
     // 汇总
@@ -59,99 +92,6 @@ export const doctorCommand = new Command('doctor')
     }
     console.log('');
   });
-
-async function checkClaude(claudeDir: string, homeDir: string, options: any): Promise<boolean> {
-  if (!fse.existsSync(claudeDir)) {
-    console.log(pc.yellow(`  ⚠ Claude Code 适配器：未安装在 ${claudeDir}`));
-    return false;
-  }
-
-  console.log(pc.cyan('📁 Claude Code — 目录结构...'));
-  let pass = true;
-  const checks = verifyInstallation(homeDir);
-  for (const check of checks) {
-    const icon = check.pass ? pc.green('✓') : pc.red('✗');
-    console.log(`  ${icon} ${check.name}${check.detail ? pc.yellow(` — ${check.detail}`) : ''}`);
-    if (!check.pass) pass = false;
-  }
-
-  // 文件大小限制
-  console.log(pc.cyan('\n📏 Claude Code — 文件大小限制...'));
-  const rootClaudeMd = path.join(homeDir, 'CLAUDE.md');
-  if (fse.existsSync(rootClaudeMd)) {
-    const lines = getFileLineCount(rootClaudeMd);
-    if (lines > 150) {
-      console.log(`  ${pc.yellow('⚠️')} CLAUDE.md：${lines} 行（限制：150）`);
-      pass = false;
-    } else {
-      console.log(`  ${pc.green('✓')} CLAUDE.md：${lines}/150 行`);
-    }
-  }
-
-  return pass;
-}
-
-async function checkCodex(homeDir: string, options: any): Promise<boolean> {
-  const status = getCodexStatus(homeDir);
-
-  if (!status.installed) {
-    console.log(pc.yellow(`  ⚠ Codex CLI 适配器：未安装在 ${status.codexHome}`));
-    console.log(`    运行：evokit init --adapter codex`);
-    return false;
-  }
-
-  console.log(pc.cyan(`\n📁 Codex CLI — ${status.codexHome}...`));
-  let pass = true;
-
-  const checks = verifyCodexSetup(homeDir);
-  for (const check of checks) {
-    const icon =
-      check.status === 'pass'
-        ? pc.green('✓')
-        : check.status === 'warn'
-          ? pc.yellow('⚠')
-          : pc.red('✗');
-    console.log(`  ${icon} ${check.check}${check.detail ? pc.yellow(` — ${check.detail}`) : ''}`);
-    if (check.status !== 'pass') pass = false;
-  }
-
-  console.log(`  ${pc.green('✓')} 已安装规则：${status.ruleCount}`);
-
-  return pass;
-}
-
-async function checkOpenCode(): Promise<boolean> {
-  const projectDir = process.cwd();
-  const status = getOpenCodeStatus(projectDir);
-
-  if (!status.installed) {
-    console.log(pc.yellow(`  ⚠ OpenCode CLI 适配器：未安装`));
-    console.log(`    运行：evokit init --adapter opencode`);
-    return false;
-  }
-
-  console.log(pc.cyan('\n📁 OpenCode CLI...'));
-  let pass = true;
-
-  const checks = [
-    { name: '~/.config/opencode/AGENTS.md', pass: status.agentsPresent },
-    { name: '~/.config/opencode/opencode.json', pass: status.configPresent },
-    { name: '.opencode/tools/', pass: status.toolsPresent },
-    { name: '~/.config/opencode/memory/', pass: status.memoryPresent },
-  ];
-
-  for (const check of checks) {
-    const icon = check.pass ? pc.green('✓') : pc.red('✗');
-    console.log(`  ${icon} ${check.name}`);
-    if (!check.pass) pass = false;
-  }
-
-  if (status.agentCount > 0) {
-    console.log(`  ${pc.green('✓')} 子代理：已定义 ${status.agentCount} 个`);
-  }
-
-  return pass;
-}
 
 function checkMemory(homeDir: string, subDir: string): boolean {
   const memoryDir = path.join(homeDir, subDir, 'memory');

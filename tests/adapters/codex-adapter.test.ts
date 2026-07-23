@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import fse from 'fs-extra';
 import {
   resolveCodexHome,
   verifyCodexInstallation,
@@ -10,6 +11,7 @@ import {
   exportCodexMemory,
   recordCodexSession,
   getCodexStatus,
+  CodexAdapter,
 } from '../../src/adapters/codex/adapter.js';
 import {
   CodexHooksBuilder,
@@ -18,9 +20,17 @@ import {
 } from '../../src/adapters/codex/hooks.js';
 import { CodexHooksJson } from '../../src/adapters/codex/types.js';
 import { SessionEntry } from '../../src/core/types.js';
+import { readManifest, manifestPath } from '../../src/core/manifest.js';
+
+let tmpHome: string;
 
 beforeEach(() => {
   delete process.env.CODEX_HOME;
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'evokit-codex-'));
+});
+
+afterEach(() => {
+  fse.removeSync(tmpHome);
 });
 
 function tmpDir(): string {
@@ -166,6 +176,33 @@ describe('codex-hooks', () => {
         .build();
 
       expect(hooks.hooks!.PermissionRequest).toHaveLength(1);
+    });
+
+    it('supports PostToolUse hooks', () => {
+      const hooks = new CodexHooksBuilder().addPostToolUseHook('/path/to/post-tool-use.sh').build();
+
+      expect(hooks.hooks!.PostToolUse).toHaveLength(1);
+      expect(hooks.hooks!.PostToolUse![0].matcher).toBe('.*');
+    });
+
+    it('supports PostToolUseFailure hooks', () => {
+      const hooks = new CodexHooksBuilder()
+        .addPostToolUseFailureHook('/path/to/failure.sh')
+        .build();
+
+      expect(hooks.hooks!.PostToolUseFailure).toHaveLength(1);
+    });
+
+    it('supports UserPromptSubmit hooks', () => {
+      const hooks = new CodexHooksBuilder().addUserPromptSubmitHook('/path/to/prompt.sh').build();
+
+      expect(hooks.hooks!.UserPromptSubmit).toHaveLength(1);
+    });
+
+    it('supports SubagentStart hooks', () => {
+      const hooks = new CodexHooksBuilder().addSubagentStartHook('/path/to/subagent.sh').build();
+
+      expect(hooks.hooks!.SubagentStart).toHaveLength(1);
     });
   });
 
@@ -316,5 +353,328 @@ describe('codex-adapter memory', () => {
       expect(status.configPresent).toBe(true);
       expect(status.ruleCount).toBe(1);
     });
+  });
+});
+
+// ─── CodexAdapter Class Tests ─────────────────────────────────
+
+describe('CodexAdapter class', () => {
+  it('has correct static properties', () => {
+    const adapter = new CodexAdapter();
+    expect(adapter.id).toBe('codex');
+    expect(adapter.label).toBe('Codex CLI');
+    expect(adapter.description).toBe('~/.codex/ + .codex/');
+    expect(adapter.supportedAgentVersion).toBe('>=1.0.0');
+  });
+
+  describe('install', () => {
+    it('creates manifest after installation', () => {
+      const adapter = new CodexAdapter();
+      const result = adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 验证清单文件已创建
+      const mPath = manifestPath(tmpHome);
+      expect(fse.existsSync(mPath)).toBe(true);
+
+      // 验证清单内容
+      const manifest = readManifest(tmpHome);
+      expect(manifest).not.toBeNull();
+      expect(manifest!.adapters).toHaveProperty('codex');
+      expect(manifest!.adapters.codex.adapterId).toBe('codex');
+      expect(manifest!.adapters.codex.adapterHome).toBe(resolveCodexHome(tmpHome));
+
+      // 验证安装结果
+      expect(result.filesCreated).toBeGreaterThan(0);
+      expect(result.adapterHome).toBe(resolveCodexHome(tmpHome));
+    });
+
+    it('does not create manifest in dry-run mode', () => {
+      const adapter = new CodexAdapter();
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: true,
+      });
+
+      const mPath = manifestPath(tmpHome);
+      expect(fse.existsSync(mPath)).toBe(false);
+    });
+
+    it('updates existing manifest when reinstalling', () => {
+      const adapter = new CodexAdapter();
+
+      // 第一次安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 第二次安装（升级）
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 清单仍应存在且有效
+      const manifest = readManifest(tmpHome);
+      expect(manifest!.adapters).toHaveProperty('codex');
+    });
+  });
+
+  describe('verify', () => {
+    it('returns failing checks for missing installation', () => {
+      const adapter = new CodexAdapter();
+      const checks = adapter.verify({ homeDir: tmpHome, templateDir: path.resolve('template') });
+      const failing = checks.filter((c) => !c.pass);
+      expect(failing.length).toBeGreaterThan(0);
+    });
+
+    it('returns passing checks after installation', () => {
+      const adapter = new CodexAdapter();
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      const checks = adapter.verify({ homeDir: tmpHome, templateDir: path.resolve('template') });
+      const failing = checks.filter((c) => !c.pass);
+      expect(failing).toHaveLength(0);
+    });
+  });
+
+  describe('status', () => {
+    it('reports not installed when empty', () => {
+      const adapter = new CodexAdapter();
+      const status = adapter.status({ homeDir: tmpHome, templateDir: path.resolve('template') });
+
+      expect(status.installed).toBe(false);
+      expect(status.allPass).toBe(false);
+      expect(status.adapterHome).toBe(resolveCodexHome(tmpHome));
+    });
+
+    it('reports installed after installation', () => {
+      const adapter = new CodexAdapter();
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      const status = adapter.status({ homeDir: tmpHome, templateDir: path.resolve('template') });
+      expect(status.installed).toBe(true);
+      expect(status.allPass).toBe(true);
+    });
+  });
+
+  describe('uninstall', () => {
+    it('removes installed files via manifest', () => {
+      const adapter = new CodexAdapter();
+      const codexHome = resolveCodexHome(tmpHome);
+
+      // 先安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 验证安装存在
+      expect(fse.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(true);
+      expect(fse.existsSync(path.join(codexHome, 'hooks.json'))).toBe(true);
+
+      // 卸载
+      const result = adapter.uninstall({
+        homeDir: tmpHome,
+        purge: true,
+        dryRun: false,
+        noBackup: true,
+      });
+
+      // 验证卸载结果
+      expect(result.filesDeleted).toBeGreaterThan(0);
+      expect(result.heuristic).toBe(false);
+
+      // 验证清单已移除
+      expect(fse.existsSync(manifestPath(tmpHome))).toBe(false);
+    });
+
+    it('preserves user data by default', () => {
+      const adapter = new CodexAdapter();
+      const codexHome = resolveCodexHome(tmpHome);
+
+      // 安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 创建用户数据（不在清单中的运行时文件）
+      const correctionsPath = path.join(codexHome, 'memory', 'corrections.jsonl');
+      fs.mkdirSync(path.join(codexHome, 'memory'), { recursive: true });
+      fs.writeFileSync(correctionsPath, '{"pattern":"test","context":"ctx","count":1}', 'utf-8');
+      fs.chmodSync(correctionsPath, 0o600);
+
+      // 卸载（不 purge）
+      const result = adapter.uninstall({
+        homeDir: tmpHome,
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      });
+
+      // 不在清单中的运行时文件不受卸载影响，仍保留
+      expect(fse.existsSync(correctionsPath)).toBe(true);
+      // memory 目录因仍有文件而保留
+      expect(result.directoriesRemoved).toBeGreaterThanOrEqual(0);
+    });
+
+    it('deletes EvoKit seed files even without purge', () => {
+      const adapter = new CodexAdapter();
+      const codexHome = resolveCodexHome(tmpHome);
+
+      // 安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // memory/README.md 是 EvoKit 种子文件
+      const readmePath = path.join(codexHome, 'memory', 'README.md');
+      expect(fse.existsSync(readmePath)).toBe(true);
+
+      // 卸载（不 purge）
+      adapter.uninstall({
+        homeDir: tmpHome,
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      });
+
+      // 种子文件应被删除
+      expect(fse.existsSync(readmePath)).toBe(false);
+    });
+
+    it('makes no changes in dry-run mode', () => {
+      const adapter = new CodexAdapter();
+      const codexHome = resolveCodexHome(tmpHome);
+
+      // 安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 干跑卸载
+      adapter.uninstall({
+        homeDir: tmpHome,
+        purge: true,
+        dryRun: true,
+        noBackup: true,
+      });
+
+      // 文件应仍存在
+      expect(fse.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(true);
+
+      // 清单应仍存在
+      expect(fse.existsSync(manifestPath(tmpHome))).toBe(true);
+    });
+
+    it('falls back to heuristic without manifest', () => {
+      const adapter = new CodexAdapter();
+
+      // 安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 删除清单（模拟无清单状态）
+      fse.removeSync(manifestPath(tmpHome));
+
+      // 卸载
+      const result = adapter.uninstall({
+        homeDir: tmpHome,
+        purge: true,
+        dryRun: false,
+        noBackup: true,
+      });
+
+      // 应使用启发式卸载
+      expect(result.heuristic).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
+    });
+
+    it('creates backup by default', () => {
+      const adapter = new CodexAdapter();
+
+      // 安装
+      adapter.install({
+        homeDir: tmpHome,
+        templateDir: path.resolve('template'),
+        dryRun: false,
+      });
+
+      // 卸载（不跳过备份）
+      const result = adapter.uninstall({
+        homeDir: tmpHome,
+        purge: true,
+        dryRun: false,
+        noBackup: false,
+      });
+
+      expect(result.backupPath).toBeDefined();
+    });
+  });
+});
+
+// ─── Manifest Integration Tests ───────────────────────────────
+
+describe('codex manifest integration', () => {
+  it('manifest records all installed files', () => {
+    const adapter = new CodexAdapter();
+
+    adapter.install({
+      homeDir: tmpHome,
+      templateDir: path.resolve('template'),
+      dryRun: false,
+    });
+
+    const manifest = readManifest(tmpHome);
+    const codexRecord = manifest!.adapters.codex;
+
+    // 验证清单记录了关键文件
+    expect(codexRecord.files.length).toBeGreaterThan(0);
+
+    const filePaths = codexRecord.files.map((f: { path: string }) => f.path);
+    expect(filePaths.some((p: string) => p.includes('AGENTS.md'))).toBe(true);
+    expect(filePaths.some((p: string) => p.includes('hooks.json'))).toBe(true);
+
+    // 验证目录记录
+    expect(codexRecord.directories.length).toBeGreaterThan(0);
+  });
+
+  it('manifest records adapterHome correctly', () => {
+    const adapter = new CodexAdapter();
+    const codexHome = resolveCodexHome(tmpHome);
+
+    adapter.install({
+      homeDir: tmpHome,
+      templateDir: path.resolve('template'),
+      dryRun: false,
+    });
+
+    const manifest = readManifest(tmpHome);
+    expect(manifest!.adapters.codex.adapterHome).toBe(codexHome);
   });
 });

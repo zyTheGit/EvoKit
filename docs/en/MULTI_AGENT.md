@@ -105,7 +105,7 @@ interface CommandResult {
 | Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md)                      |
 | Config         | `~/.codex/config.toml` (features, model, permissions)              |
 | Commands       | `evokit evolve`, `evokit doctor`, shell-based `/boot`              |
-| Status         | ✅ v0.3.0 — Complete                                               |
+| Status         | ✅ v0.4.0 — Complete (manifest + uninstall)                        |
 
 #### EvoKit → Codex CLI Mapping
 
@@ -191,14 +191,64 @@ project-root/
         └── README.md                  # Learning data directory
 ```
 
-### Pi CLI Adapter (v0.4 — 🔜 Planned)
+### Pi CLI Adapter (v0.6 — ✅ Implemented)
 
-| Aspect       | Implementation                         |
-| ------------ | -------------------------------------- |
-| Installation | ~/.pi/agent/ (global) + .pi/ (project) |
-| Hooks        | Pi CLI extensions + skills             |
-| Memory       | ~/.pi/agent/ memory (per-adapter)      |
-| Commands     | Pi CLI skills                          |
+| Aspect         | Implementation                                                                   |
+| -------------- | -------------------------------------------------------------------------------- |
+| Installation   | `evokit init --adapter pi` — copies to `~/.pi/agent/` + `.pi/`                   |
+| Hooks          | TypeScript extensions via `pi.on()` — session_start, session_shutdown, tool_call |
+| Memory         | `~/.pi/agent/memory/` (per-adapter, tagged `assistant: "pi"`)                    |
+| Commands       | Custom extensions — evokit-boot, evokit-evolve, evokit-memory, evokit-session    |
+| Cognitive Core | `~/.pi/agent/AGENTS.md` (analogous to CLAUDE.md)                                 |
+| Config         | `~/.pi/agent/settings.json` (skills + extensions)                                |
+| Skills         | `~/.pi/agent/skills/evokit/` (Agent Skills standard)                             |
+| Sub-agents     | `~/.pi/agent/agent/` Markdown files (architect, reviewer)                        |
+| Status         | ✅ v0.6.0 — Complete (Pi CLI ≥ 0.81.0)                                           |
+
+#### EvoKit → Pi CLI Mapping
+
+| EvoKit Concept                   | Pi CLI Equivalent                                       |
+| -------------------------------- | ------------------------------------------------------- |
+| `~/.claude/` + `CLAUDE.md`       | `~/.pi/agent/` + `AGENTS.md`                            |
+| `.claude/hooks/settings.json`    | Extensions via `pi.on()` (TypeScript event system)      |
+| `.claude/hooks/` (shell scripts) | `~/.pi/agent/extensions/` (TypeScript, `pi.on()`)       |
+| `.claude/rules/` (markdown)      | `AGENTS.md` + extensions (no dedicated rules directory) |
+| `.claude/agents/`                | `~/.pi/agent/agent/` (Markdown + YAML frontmatter)      |
+| `.claude/commands/` (`/boot`)    | `~/.pi/agent/extensions/evokit-boot.ts`                 |
+| `.claude/memory/` (JSONL)        | `~/.pi/agent/memory/` (per-adapter)                     |
+| SessionStart hook                | `pi.on("session_start")` in evokit-lifecycle.ts         |
+| Stop hook                        | `pi.on("session_shutdown")` in evokit-lifecycle.ts      |
+| PreToolUse hook                  | `pi.on("tool_call")` in evokit-lifecycle.ts             |
+
+#### Important: Extension-based Lifecycle
+
+Pi CLI uses TypeScript extensions for lifecycle events, not shell-based hooks:
+
+- **Boot verification is automatic** — `evokit-lifecycle.ts` subscribes to `session_start` via `pi.on()`
+- **Session recording is automatic** — `evokit-lifecycle.ts` subscribes to `session_shutdown`
+- **Learned rules injection is automatic** — `evokit-lifecycle.ts` subscribes to `tool_call`
+- Manual commands also available via `/evokit-boot`, `/evokit-evolve`, `/evokit-memory`, `/evokit-session`
+
+#### Installed Structure
+
+```
+~/.pi/agent/
+├── AGENTS.md                  # L1 cognitive core (thinking framework, evolution protocol)
+├── settings.json              # Skills + extensions configuration
+├── extensions/
+│   ├── evokit-lifecycle.ts    # Lifecycle events (session_start, session_shutdown, tool_call)
+│   ├── evokit-boot.ts        # Boot verification command
+│   ├── evokit-evolve.ts      # Evolution audit command
+│   ├── evokit-memory.ts      # Memory management command
+│   └── evokit-session.ts     # Session recording command
+├── skills/evokit/
+│   └── SKILL.md              # EvoKit skill definition
+├── agent/
+│   ├── architect.md           # Architect sub-agent
+│   └── reviewer.md            # Reviewer sub-agent
+└── memory/
+    └── README.md              # Learning data directory
+```
 
 ## Per-Adapter Learning Data
 
@@ -209,6 +259,7 @@ Each adapter stores its learning data in its own directory:
 | Claude Code  | `~/.claude/memory/`           |
 | Codex CLI    | `~/.codex/memory/`            |
 | OpenCode CLI | `<project>/.opencode/memory/` |
+| Pi CLI       | `~/.pi/agent/memory/`         |
 
 Each session record identifies the assistant with a tag:
 

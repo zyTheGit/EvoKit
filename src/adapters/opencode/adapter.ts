@@ -1,7 +1,7 @@
 /**
  * EvoKit — OpenCode CLI 适配器
  *
- * @internal — OpenCode CLI 的适配器实现。OpenCodeAdapter 类实现了公共的 AdapterInstaller 接口。
+ * @internal — OpenCode CLI 的适配器实现。OpenCodeAdapter 类继承 BaseAdapter 基类。
  *
  * 为 OpenCode CLI 实现 AgentAdapter 接口。
  * OpenCode 使用：
@@ -21,13 +21,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
-import {
-  type AdapterInstaller,
-  type AdapterInstallConfig,
-  type AdapterInstallResult,
-  type AdapterVerifyCheck,
-  type AdapterStatus,
-} from '../types.js';
+import { BaseAdapter } from '../base-adapter.js';
+import type { AdapterVerifyCheck } from '../types.js';
 import type { InstallSummary, SessionEntry } from '../../core/types.js';
 import type { OpenCodeAdapterOptions, OpenCodeInstallConfig } from './types.js';
 import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
@@ -212,69 +207,46 @@ export function getLayout(opts: {
   return { targetDir: globalDir, sections };
 }
 
-// ─── AdapterInstaller Implementation ─────────────────────────────
+// ─── BaseAdapter 子类实现 ─────────────────────────────────────────
 
-export class OpenCodeAdapter implements AdapterInstaller {
+export class OpenCodeAdapter extends BaseAdapter {
   readonly id = 'opencode';
   readonly label = 'OpenCode CLI';
   readonly description = '~/.config/opencode/ + .opencode/';
   readonly version = OPENCODE_ADAPTER_VERSION;
+  readonly supportedAgentVersion = '>=0.1.0';
 
-  install(config: AdapterInstallConfig): AdapterInstallResult {
-    const homeDir = config.homeDir;
-    const projectDir = config.projectDir || process.cwd();
-    const templateDir = config.templateDir;
-    const opencodeTemplateDir = path.join(templateDir, 'opencode');
-    const dryRun = config.dryRun ?? false;
+  /** OpenCode 全局配置目录，支持 XDG_CONFIG_HOME。 */
+  resolveHome(homeDir: string): string {
+    return resolveOpenCodeConfigHome(homeDir);
+  }
 
-    // Validate template exists
-    if (!fse.existsSync(path.join(opencodeTemplateDir, 'AGENTS.md'))) {
-      throw new Error(
-        `OpenCode template not found at: ${opencodeTemplateDir}\n` +
-          '  Ensure the template directory contains an opencode/ subdirectory with AGENTS.md.',
-      );
-    }
-
-    // Ensure project .opencode/ directory exists (outside targetDir/globalDir)
-    if (!dryRun) {
-      fse.ensureDirSync(path.join(projectDir, '.opencode'));
-    }
-
-    const layout = getLayout({ homeDir, projectDir, templateDir });
-    const summary = executeLayout(layout, {
-      homeDir,
-      dryRun,
+  /** 构建声明式安装布局。 */
+  protected buildLayout(opts: {
+    homeDir: string;
+    projectDir?: string;
+    templateDir: string;
+  }): AdapterLayout {
+    return getLayout({
+      homeDir: opts.homeDir,
+      projectDir: opts.projectDir || process.cwd(),
+      templateDir: opts.templateDir,
     });
-
-    return {
-      filesCreated: summary.filesCreated,
-      filesSkipped: summary.filesSkipped,
-      hooksInstalled: summary.hooksInstalled,
-      commandsInstalled: summary.commandsInstalled,
-      rulesInstalled: summary.rulesInstalled,
-      agentsInstalled: summary.agentsInstalled,
-      adapterHome: resolveOpenCodeConfigHome(homeDir),
-    };
   }
 
-  verify(config: AdapterInstallConfig): AdapterVerifyCheck[] {
-    const projectDir = config.projectDir || process.cwd();
-    const homeDir = config.homeDir;
-    return verifyOpenCodeInstallation(projectDir, homeDir);
+  /** 验证检查项。 */
+  protected verifyChecks(config: import('../types.js').AdapterInstallConfig): AdapterVerifyCheck[] {
+    return verifyOpenCodeInstallation(config.projectDir || process.cwd(), config.homeDir);
   }
 
-  status(config: AdapterInstallConfig): AdapterStatus {
-    const projectDir = config.projectDir || process.cwd();
-    const homeDir = config.homeDir;
-    const checks = verifyOpenCodeInstallation(projectDir, homeDir);
-    const allPass = checks.every((c) => c.pass);
-    return {
-      installed: allPass,
-      adapterHome: resolveOpenCodeConfigHome(homeDir),
-      allPass,
-      checks,
-      projectDir,
-    };
+  /** OpenCode 项目级配置目录名。 */
+  protected override get projectSubdir(): string {
+    return '.opencode';
+  }
+
+  /** OpenCode 的 projectDir 默认回退到 cwd。 */
+  protected override resolveProjectDir(config: import('../types.js').AdapterInstallConfig): string {
+    return config.projectDir || process.cwd();
   }
 }
 
