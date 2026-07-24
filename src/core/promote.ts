@@ -25,7 +25,7 @@ import {
 // ─── 纠正分析 ────────────────────────────────────────────
 
 export function analyzeCorrections(config: EvoConfig): CorrectionGroup[] {
-  const memoryDir = getMemoryDir(config.homeDir);
+  const memoryDir = getMemoryDir(config.homeDir, config.adapterId);
   const corrections = readJsonlFile<CorrectionEntry>(path.join(memoryDir, 'corrections.jsonl'));
 
   const grouped = new Map<string, CorrectionEntry[]>();
@@ -47,7 +47,7 @@ export function analyzeCorrections(config: EvoConfig): CorrectionGroup[] {
 // ─── 提升 ──────────────────────────────────────────────
 
 export function promotePatterns(config: EvoConfig, groups: CorrectionGroup[]): PromotionResult[] {
-  const memoryDir = getMemoryDir(config.homeDir);
+  const memoryDir = getMemoryDir(config.homeDir, config.adapterId);
   const rulesPath = path.join(memoryDir, 'learned-rules.md');
   const logPath = path.join(memoryDir, 'evolution-log.md');
   const threshold = config.promoteThreshold ?? 2;
@@ -123,7 +123,7 @@ export function promotePatterns(config: EvoConfig, groups: CorrectionGroup[]): P
 // ─── 过期规则修剪 ─────────────────────────────────────────
 
 export function pruneStaleRules(config: EvoConfig, sessions: SessionEntry[]): PromotionResult[] {
-  const memoryDir = getMemoryDir(config.homeDir);
+  const memoryDir = getMemoryDir(config.homeDir, config.adapterId);
   const rulesPath = path.join(memoryDir, 'learned-rules.md');
   const logPath = path.join(memoryDir, 'evolution-log.md');
   const graduateThreshold = config.graduateSessions ?? 10;
@@ -184,7 +184,7 @@ export function pruneStaleRules(config: EvoConfig, sessions: SessionEntry[]): Pr
 
 export function logDecisions(config: EvoConfig, results: PromotionResult[]): void {
   if (config.dryRun) return;
-  const logPath = path.join(getMemoryDir(config.homeDir), 'evolution-log.md');
+  const logPath = path.join(getMemoryDir(config.homeDir, config.adapterId), 'evolution-log.md');
 
   for (const r of results) {
     const emoji =
@@ -205,7 +205,7 @@ export function logDecisions(config: EvoConfig, results: PromotionResult[]): voi
 export function prunePromotedCorrections(config: EvoConfig, results: PromotionResult[]): void {
   if (config.dryRun) return;
 
-  const memoryDir = getMemoryDir(config.homeDir);
+  const memoryDir = getMemoryDir(config.homeDir, config.adapterId);
   const correctionsPath = path.join(memoryDir, 'corrections.jsonl');
 
   const promoted = new Set(

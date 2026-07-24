@@ -2,10 +2,9 @@
 description: Reviews code for quality, bugs, and security
 mode: subagent
 temperature: 0.1
-tools:
-  write: false
-  edit: false
-  bash: false
+permission:
+  edit: deny
+  bash: deny
 ---
 
 You are the EvoKit Reviewer. Your role is to review code changes.

@@ -117,7 +117,7 @@
 ### Agents 系统
 
 - 位于 `.claude/agents/`
-- Frontmatter 字段：`name`、`description`、`tools`、`disallowedTools`、`model`、`permissionMode`、`maxTurns`、`skills`、`mcpServers`、`hooks`、`memory`、`background`、`effort`、`isolation` 等
+- Frontmatter 字段：`name`、`description`、`permission`、`model`、`maxTurns`、`skills`、`mcpServers`、`hooks`、`memory`、`background`、`effort`、`isolation` 等
 - Skills/Agent frontmatter 中可定义 Hooks
 
 ### 权限系统
@@ -283,7 +283,7 @@ include_only = ["PATH", "HOME", "USER"]
 | `provider`           | 提供商配置    |
 | `tui`                | TUI 设置      |
 | `server`             | 服务器设置    |
-| `tools`              | 工具启用/禁用 |
+| `tools`              | 工具启用/禁用（已废弃，使用 permission） |
 | `theme`              | 主题          |
 | `agent`              | 代理配置      |
 | `default_agent`      | 默认代理      |

@@ -62,6 +62,35 @@ export interface OpenCodeMcpServer {
   enabled?: boolean;
 }
 
+/** OpenCode 权限动作（简写形式） */
+export type PermissionAction = 'allow' | 'deny' | 'ask';
+
+/** OpenCode 权限规则（简写或带模式匹配的对象形式） */
+export type PermissionRuleConfig = PermissionAction | Record<string, PermissionAction>;
+
+/** OpenCode 权限配置（简写或按工具类别映射） */
+export type PermissionConfig =
+  | PermissionAction
+  | {
+      read?: PermissionRuleConfig;
+      edit?: PermissionRuleConfig;
+      glob?: PermissionRuleConfig;
+      grep?: PermissionRuleConfig;
+      list?: PermissionRuleConfig;
+      bash?: PermissionRuleConfig;
+      task?: PermissionRuleConfig;
+      external_directory?: PermissionRuleConfig;
+      todowrite?: PermissionAction;
+      question?: PermissionAction;
+      webfetch?: PermissionAction;
+      websearch?: PermissionAction;
+      lsp?: PermissionRuleConfig;
+      doom_loop?: PermissionAction;
+      skill?: PermissionRuleConfig;
+      /** 自定义工具 / MCP 工具模式 */
+      [key: string]: PermissionRuleConfig | undefined;
+    };
+
 /** OpenCode 代理配置 */
 export interface OpenCodeAgentConfig {
   /** 代理描述 */
@@ -70,8 +99,13 @@ export interface OpenCodeAgentConfig {
   model?: string;
   /** 代理系统提示词 */
   prompt?: string;
-  /** 工具权限覆盖 */
-  tools?: Record<string, boolean | 'ask'>;
+  /**
+   * 工具权限覆盖（已废弃，使用 permission 字段）
+   * @deprecated 使用 permission 字段替代
+   */
+  tools?: Record<string, boolean>;
+  /** 权限控制（推荐，替代 tools 字段） */
+  permission?: PermissionConfig;
 }
 
 /** OpenCode 自定义命令配置 */
@@ -99,7 +133,10 @@ export interface OpenCodeConfig {
   tui?: Record<string, unknown>;
   /** 服务器设置 */
   server?: Record<string, unknown>;
-  /** 工具启用/禁用 */
+  /**
+   * 工具启用/禁用（已废弃，使用 permission 字段）
+   * @deprecated 使用 permission 字段替代
+   */
   tools?: Record<string, boolean>;
   /** 主题 */
   theme?: string;
@@ -117,8 +154,8 @@ export interface OpenCodeConfig {
   autoupdate?: boolean | 'notify';
   /** 代码格式化器 */
   formatter?: Record<string, OpenCodeFormatter>;
-  /** 权限控制 */
-  permission?: Record<string, 'allow' | 'deny' | 'ask'>;
+  /** 权限控制（推荐，替代 tools 字段） */
+  permission?: PermissionConfig;
   /** 上下文压缩 */
   compaction?: OpenCodeCompaction;
   /** 文件监视 */

@@ -2,10 +2,9 @@
 description: Designs implementation plans for complex multi-step tasks
 mode: subagent
 temperature: 0.1
-tools:
-  write: false
-  edit: false
-  bash: false
+permission:
+  edit: deny
+  bash: deny
 ---
 
 You are the EvoKit Architect. Your role is to design implementation plans.

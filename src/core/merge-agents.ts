@@ -19,8 +19,7 @@ const KEY_ORDER = [
   'name',
   'description',
   'model',
-  'tools',
-  'disallowedTools',
+  'permission',
   'memory',
   'maxTurns',
 ];
@@ -55,17 +54,60 @@ export function parseFrontmatter(content: string): {
   const body = lines.slice(endIdx + 1).join('\n');
   const frontmatter: Record<string, string> = {};
 
-  for (const raw of fmLines) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
+  let i = 0;
+  while (i < fmLines.length) {
+    const line = fmLines[i].trim();
+    if (!line || line.startsWith('#')) {
+      i++;
+      continue;
+    }
     const colonIdx = line.indexOf(':');
-    if (colonIdx === -1) continue;
+    if (colonIdx === -1) {
+      i++;
+      continue;
+    }
     const key = line.slice(0, colonIdx).trim();
     const value = line.slice(colonIdx + 1).trim();
-    if (key) frontmatter[key] = value;
+    if (!key) {
+      i++;
+      continue;
+    }
+
+    // 多行嵌套值：父键后无值，后续缩进行为子项
+    if (value === '') {
+      const childLines: string[] = [];
+      let j = i + 1;
+      while (j < fmLines.length) {
+        const raw = fmLines[j];
+        // 子行必须缩进（2 空格或 tab）
+        if (raw && (raw.startsWith('  ') || raw.startsWith('\t'))) {
+          childLines.push(raw.trim());
+          j++;
+        } else {
+          break;
+        }
+      }
+      if (childLines.length > 0) {
+        // 序列化为逗号分隔的 "key: value" 字符串
+        // 例如 "edit: deny, bash: deny"
+        frontmatter[key] = childLines.join(', ');
+        i = j;
+      } else {
+        frontmatter[key] = '';
+        i++;
+      }
+    } else {
+      frontmatter[key] = value;
+      i++;
+    }
   }
 
   return { frontmatter, body, hasFrontmatter: true };
+}
+
+/** 检查 frontmatter 值是否为序列化的嵌套映射（如 "edit: deny, bash: deny"） */
+function isNestedMapping(value: string): boolean {
+  return value.includes(': ') && value.includes(', ');
 }
 
 export function serializeFrontmatter(fm: Record<string, string>): string {
@@ -77,7 +119,18 @@ export function serializeFrontmatter(fm: Record<string, string>): string {
     if (bi !== -1) return 1;
     return a.localeCompare(b);
   });
-  return keys.map((k) => `${k}: ${fm[k]}`).join('\n');
+  return keys
+    .map((k) => {
+      const v = fm[k];
+      // 嵌套映射序列化为多行 YAML
+      if (isNestedMapping(v)) {
+        const entries = v.split(', ');
+        const childLines = entries.map((e) => `  ${e}`).join('\n');
+        return `${k}:\n${childLines}`;
+      }
+      return `${k}: ${v}`;
+    })
+    .join('\n');
 }
 
 /**

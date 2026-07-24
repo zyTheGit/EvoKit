@@ -77,6 +77,8 @@ export interface PromotionResult {
 /** 演化管道的配置 */
 export interface EvoConfig {
   homeDir: string;
+  /** 适配器 ID（决定 memory 目录路径，默认 'claude'） */
+  adapterId?: string;
   maxLines?: number;
   maxDays?: number;
   maxLinesArchive?: number;

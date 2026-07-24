@@ -13,7 +13,7 @@ import {
   CorrectionEntry,
   ObservationEntry,
 } from './types.js';
-import { readJsonlFile, writeJsonlFile, getArchiveDir, isOlderThanDays } from './memory.js';
+import { readJsonlFile, writeJsonlFile, getMemoryDir, getArchiveDir, isOlderThanDays } from './memory.js';
 
 /**
  * 轮换 JSONL 文件：将超过 maxDays 的记录归档。
@@ -21,7 +21,8 @@ import { readJsonlFile, writeJsonlFile, getArchiveDir, isOlderThanDays } from '.
  * 如果归档文件超过 maxLinesArchive，则进行 gzip 压缩。
  */
 export function rotateJsonlFile(config: EvoConfig, filename: string): RotationResult {
-  const memoryDir = path.join(config.homeDir, '.claude', 'memory');
+  const adapterId = config.adapterId ?? 'claude';
+  const memoryDir = getMemoryDir(config.homeDir, adapterId);
   const filePath = path.join(memoryDir, filename);
   const maxLines = config.maxLines ?? 500;
   const maxDays = config.maxDays ?? 30;
@@ -32,6 +33,7 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
     return { file: filename, kept: entries.length, archived: 0, gzipped: false };
   }
 
+  // 优先按时间归档：将超过 maxDays 的旧记录移入归档
   const recent = entries.filter((e) => {
     const ts = (e as any).timestamp;
     return !ts || !isOlderThanDays(ts, maxDays);
@@ -41,27 +43,31 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
     return ts && isOlderThanDays(ts, maxDays);
   });
 
-  if (recent.length === entries.length) {
-    // 所有记录都是近期的 — 行数高但无需轮换
-    return { file: filename, kept: entries.length, archived: 0, gzipped: false };
+  // 如果按时间归档后仍超过 maxLines（所有记录都是近期的），
+  // 则按行数轮转：保留最近的 maxLines 条，其余作为溢出归档
+  let overflow: Record<string, unknown>[] = [];
+  if (recent.length > maxLines) {
+    overflow = recent.slice(0, recent.length - maxLines);
+    recent.splice(0, recent.length - maxLines);
+  }
+
+  const toArchive = [...old, ...overflow];
+  if (toArchive.length === 0) {
+    return { file: filename, kept: recent.length, archived: 0, gzipped: false };
   }
 
   if (!config.dryRun) {
     writeJsonlFile(filePath, recent);
   }
 
-  if (old.length === 0) {
-    return { file: filename, kept: recent.length, archived: 0, gzipped: false };
-  }
-
-  // 归档旧记录
-  const archiveDir = getArchiveDir(config.homeDir);
+  // 归档旧记录及溢出记录
+  const archiveDir = getArchiveDir(config.homeDir, adapterId);
   const month = new Date().toISOString().slice(0, 7);
   let archivePath = path.join(archiveDir, `${filename}-${month}`);
 
   // 如果归档已存在，合并
   const existingArchive = readJsonlFile<Record<string, unknown>>(archivePath);
-  const allArchived = [...existingArchive, ...old];
+  const allArchived = [...existingArchive, ...toArchive];
 
   let gzipped = false;
   if (allArchived.length > maxLinesArchive) {
@@ -87,7 +93,7 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
   return {
     file: filename,
     kept: recent.length,
-    archived: old.length,
+    archived: toArchive.length,
     archivePath,
     gzipped,
   };
@@ -99,7 +105,8 @@ export function rotateJsonlFile(config: EvoConfig, filename: string): RotationRe
  * 低于 confidenceThreshold 的记录被归档。
  */
 export function applyConfidenceDecay(config: EvoConfig, filename: string): DecayResult {
-  const memoryDir = path.join(config.homeDir, '.claude', 'memory');
+  const adapterId = config.adapterId ?? 'claude';
+  const memoryDir = getMemoryDir(config.homeDir, adapterId);
   const filePath = path.join(memoryDir, filename);
   const decayDays = config.confidenceDecayDays ?? 60;
   const threshold = config.confidenceThreshold ?? 0.3;
@@ -131,7 +138,7 @@ export function applyConfidenceDecay(config: EvoConfig, filename: string): Decay
   }
 
   if (archived.length > 0) {
-    const archiveDir = getArchiveDir(config.homeDir);
+    const archiveDir = getArchiveDir(config.homeDir, adapterId);
     const month = new Date().toISOString().slice(0, 7);
     const archivePath = path.join(archiveDir, `${filename}-decayed-${month}`);
     if (!config.dryRun) {

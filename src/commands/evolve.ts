@@ -12,25 +12,28 @@ import {
   prunePromotedCorrections,
 } from '../core/promote.js';
 import { readJsonlFile, getFileLineCount, getMemoryDir } from '../core/memory.js';
-import { SessionEntry } from '../core/types.js';
+import { SessionEntry, EvoConfig } from '../core/types.js';
 
 export const evolveCommand = new Command('evolve')
   .description('运行演化审计 — 提升纠正、清理过期规则')
   .option('--home <path>', 'EvoKit 主目录（默认: $HOME）')
+  .option('--adapter <name>', '适配器名称（claude | codex | opencode | pi）', 'claude')
   .option('--dry-run', '预览变更但不写入')
   .option('--force', '跳过确认提示')
   .option('--max-lines <number>', '轮转触发阈值', '500')
   .option('--max-days <number>', '归档超过 N 天的条目', '30')
   .action(async (options) => {
+    const adapterId = options.adapter || 'claude';
     const config = buildConfig({
       ...options,
       homeDir: options.home,
       maxLines: options.maxLines ? parseInt(options.maxLines, 10) : undefined,
       maxDays: options.maxDays ? parseInt(options.maxDays, 10) : undefined,
       dryRun: options.dryRun || false,
-    });
+      adapterId,
+    }) as EvoConfig & { adapterId: string };
 
-    const memoryDir = getMemoryDir(config.homeDir);
+    const memoryDir = getMemoryDir(config.homeDir, adapterId);
     if (!fse.existsSync(memoryDir)) {
       console.error(pc.red(`错误：EvoKit 未在 ${config.homeDir} 初始化`));
       console.error('  请先运行 "evokit init"。');

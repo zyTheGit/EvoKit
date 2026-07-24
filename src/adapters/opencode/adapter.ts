@@ -39,7 +39,7 @@ const TOOL_FILES = [
   'evokit-session.ts',
 ] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
-const MEMORY_SEED_FILES = ['README.md'] as const;
+const MEMORY_SEED_FILES = ['README.md', 'learned-rules.md', 'evolution-log.md'] as const;
 
 export function resolveOpenCodeProjectDir(projectDir: string): string {
   return path.join(projectDir, '.opencode');

@@ -9,19 +9,17 @@
     "architect": {
       "mode": "subagent",
       "prompt": "{file:__HOME__/.config/opencode/agent/architect.md}",
-      "tools": {
-        "write": false,
-        "edit": false,
-        "bash": false
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
       }
     },
     "reviewer": {
       "mode": "subagent",
       "prompt": "{file:__HOME__/.config/opencode/agent/reviewer.md}",
-      "tools": {
-        "write": "ask",
-        "edit": "ask",
-        "bash": false
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
       }
     }
   },

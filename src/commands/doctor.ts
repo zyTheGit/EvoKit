@@ -20,6 +20,7 @@ export const doctorCommand = new Command('doctor')
   .option('--home <path>', 'EvoKit 主目录（默认: $HOME）')
   .option('--fix', '尝试修复常见问题')
   .option('--adapter <name>', '检查指定适配器（claude | codex | opencode | pi | all）', 'all')
+  .option('--project-dir <path>', '项目目录（用于 OpenCode 等项目级适配器）')
   .action(async (options) => {
     const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -28,20 +29,26 @@ export const doctorCommand = new Command('doctor')
     }
 
     const adapter = options.adapter || 'all';
+    const projectDir = options.projectDir || process.cwd();
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
     console.log(pc.cyan('║   EvoKit — 系统健康检查                  ║'));
     console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
     console.log(`  主目录: ${homeDir}`);
+    if (adapter === 'all' || adapter === 'opencode') {
+      console.log(`  项目目录: ${projectDir}`);
+    }
     console.log('');
 
     let allPass = true;
     const adapters = listAdapters();
+    let checkedCount = 0;
 
     for (const installer of adapters) {
       if (adapter !== 'all' && adapter !== installer.id) continue;
+      checkedCount++;
 
-      const config = { homeDir, templateDir: '' };
+      const config = { homeDir, templateDir: '', projectDir };
       const status = installer.status(config);
 
       console.log(pc.cyan(`\n📁 ${installer.label} — ${status.adapterHome}`));
@@ -79,11 +86,12 @@ export const doctorCommand = new Command('doctor')
         }
 
         // 记忆文件检查
-        allPass = !checkMemory(homeDir, '.claude') && allPass;
+        const memoryPass = checkMemory(homeDir, '.claude');
+        if (!memoryPass) allPass = false;
       }
     }
 
-    // 汇总
+    // 汇总 — allPass 仅基于实际检查的适配器结果
     console.log('');
     if (allPass) {
       console.log(pc.green('✅ 所有检查通过！系统健康。'));

@@ -11,6 +11,15 @@ template/memory/sessions.jsonl
 !.claude/rules/
 *.claude/
 
+# Adapter test residuals (installed instances, not source)
+.codex/
+.pi/
+AGENTS.md
+settings.json
+
+# Temporary test reports
+docs/TEST_REPORT_*.md
+
 # System files
 .DS_Store
 Thumbs.db

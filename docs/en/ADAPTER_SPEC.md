@@ -117,7 +117,7 @@
 ### Agents System
 
 - Located at `.claude/agents/`
-- Frontmatter fields: `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, etc.
+- Frontmatter fields: `name`, `description`, `permission`, `model`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, etc.
 - Hooks definable in Skills/Agent frontmatter
 
 ### Permissions System
@@ -283,7 +283,7 @@ include_only = ["PATH", "HOME", "USER"]
 | `provider`           | Provider configuration |
 | `tui`                | TUI settings           |
 | `server`             | Server settings        |
-| `tools`              | Tool enable/disable    |
+| `tools`              | Tool enable/disable (deprecated, use permission) |
 | `theme`              | Theme                  |
 | `agent`              | Agent configuration    |
 | `default_agent`      | Default agent          |

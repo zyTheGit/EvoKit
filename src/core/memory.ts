@@ -150,12 +150,31 @@ export function getClaudeDir(homeDir: string): string {
   return path.join(homeDir, '.claude');
 }
 
-export function getMemoryDir(homeDir: string): string {
-  return path.join(homeDir, '.claude', 'memory');
+/** 适配器 ID → memory 子路径映射 */
+const ADAPTER_MEMORY_PATHS: Record<string, string> = {
+  claude: '.claude/memory',
+  codex: '.codex/memory',
+  opencode: '.config/opencode/memory',
+  pi: '.pi/agent/memory',
+};
+
+/**
+ * 获取指定适配器的 memory 目录路径。
+ * @param homeDir 用户家目录
+ * @param adapterId 适配器 ID（默认 'claude'）
+ */
+export function getMemoryDir(homeDir: string, adapterId = 'claude'): string {
+  const subPath = ADAPTER_MEMORY_PATHS[adapterId] ?? ADAPTER_MEMORY_PATHS['claude'];
+  return path.join(homeDir, subPath);
 }
 
-export function getArchiveDir(homeDir: string): string {
-  const dir = path.join(homeDir, '.claude', 'memory', 'archive');
+/**
+ * 获取指定适配器的 archive 目录路径。
+ * @param homeDir 用户家目录
+ * @param adapterId 适配器 ID（默认 'claude'）
+ */
+export function getArchiveDir(homeDir: string, adapterId = 'claude'): string {
+  const dir = path.join(getMemoryDir(homeDir, adapterId), 'archive');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }

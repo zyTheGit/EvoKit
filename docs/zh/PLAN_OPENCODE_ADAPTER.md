@@ -242,10 +242,9 @@ export default tool({
 description: 为复杂的多步骤任务设计方案
 mode: subagent
 temperature: 0.1
-tools:
-  write: false
-  edit: false
-  bash: false
+permission:
+  edit: deny
+  bash: deny
 ---
 
 你是 EvoKit 架构师...
@@ -258,10 +257,9 @@ tools:
 description: 审查代码质量、错误和安全性
 mode: subagent
 temperature: 0.1
-tools:
-  write: false
-  edit: false
-  bash: false
+permission:
+  edit: deny
+  bash: deny
 ---
 
 你是 EvoKit 审查者...

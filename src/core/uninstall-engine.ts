@@ -287,6 +287,36 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     }
   }
 
+  // 7.5 purge 模式：删除整个 memory 目录及不在清单中的用户数据文件
+  // 清单只记录安装时创建的文件，用户后续写入的文件（如 user-data.txt）不在清单中。
+  // 非 purge 模式下这些文件被保留（设计意图）；purge 模式下应一并清理。
+  if (purge) {
+    // 删除各适配器的 memory 目录（路径相对于 adapterHome）
+    const memoryCandidates = [
+      path.join(adapterHome, 'memory'),
+      // 项目级 memory（OpenCode）
+      projectDir ? path.join(projectDir, '.opencode', 'memory') : '',
+    ].filter(Boolean);
+    for (const memDir of memoryCandidates) {
+      if (memDir && fse.existsSync(memDir)) {
+        if (!dryRun) {
+          fse.removeSync(memDir);
+        }
+        result.filesDeleted++;
+      }
+    }
+  }
+
+  // 7.6 purge 模式 + reverse-merge 后 settings.json 仍残留时删除文件
+  // reverse-merge 会保留非 EvoKit 的配置（如 permissions.deny）。
+  // purge 模式下用户明确要求清除所有数据，应删除整个 settings.json。
+  if (purge && shouldReverseMerge && fse.existsSync(settingsPath)) {
+    if (!dryRun) {
+      fse.removeSync(settingsPath);
+    }
+    result.filesDeleted++;
+  }
+
   // 8. 清理空目录（最深优先）
   result.directoriesRemoved = cleanupEmptyDirs(
     adapterRecord.directories.map((d) => (path.isAbsolute(d) ? d : path.join(adapterHome, d))),
