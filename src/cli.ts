@@ -35,7 +35,33 @@ const pkg = require('../package.json') as { version: string };
 
 const program = new Command();
 
-program.name('evokit').description('EvoKit — AI 编程助手的自演化系统框架').version(pkg.version);
+program
+  .name('evokit')
+  .description('EvoKit — AI 编程助手的自演化系统框架')
+  .version(pkg.version)
+  .addHelpText(
+    'after',
+    `
+命令说明：
+  install <适配器>     安装 EvoKit 到指定 AI 编程助手（claude | codex | opencode）
+  uninstall <适配器>   卸载指定 AI 编程助手的 EvoKit
+  init                 install 的别名（向后兼容）
+  project              在项目目录中生成 .claude/ 规范文件（规则、代理、命令）
+  doctor               验证 EvoKit 系统完整性（钩子、清单、文件结构）
+  evolve               运行演化审计 — 提升纠正为规则、清理过期规则
+  export               导出 EvoKit 系统状态为迁移压缩包
+  import <压缩包>      从迁移压缩包导入 EvoKit 系统状态
+
+快速上手：
+  evokit install claude          安装 EvoKit 到 Claude Code
+  evokit install                 交互式选择要安装的 AI 助手
+  evokit uninstall claude        卸载 Claude Code 的 EvoKit
+  evokit doctor                  检查系统健康状态
+  evokit project                 在当前项目生成规范文件
+
+详细帮助：
+  evokit <command> --help        查看子命令的完整选项和示例`,
+  );
 
 program.addCommand(installCommand);
 program.addCommand(initCommand);
