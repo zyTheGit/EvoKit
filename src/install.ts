@@ -50,7 +50,7 @@ export const installCommand = new Command('install')
   .description('为一个或多个 AI 编程助手安装 EvoKit')
   .option(
     '--adapter <names>',
-    '逗号分隔的适配器名称（claude, codex, opencode）。省略则以交互方式选择。',
+    '逗号分隔的适配器名称（claude, codex, opencode, pi）。省略则以交互方式选择。',
   )
   .option('--template <path>', '模板目录路径（用于开发）')
   .option('--branch <name>', '下载模板的 GitHub 分支', 'main')
@@ -84,7 +84,7 @@ export const installCommand = new Command('install')
       );
     } else {
       log.info('检测到非交互终端——默认使用 Claude Code。');
-      log.info('使用 --adapter 指定助手：--adapter claude,codex,opencode');
+      log.info('使用 --adapter 指定助手：--adapter claude,codex,opencode,pi');
       adapterIds = ['claude'];
     }
 

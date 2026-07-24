@@ -24,7 +24,10 @@ import pc from 'picocolors';
 
 export const uninstallCommand = new Command('uninstall')
   .description('卸载 AI 编码助手的 EvoKit')
-  .argument('[adapter]', '适配器名称（claude、codex、opencode）。省略则在仅安装一个时自动选择。')
+  .argument(
+    '[adapter]',
+    '适配器名称（claude、codex、opencode、pi）。省略则在仅安装一个时自动选择。',
+  )
   .option('--home <path>', '目标主目录（默认：$HOME）')
   .option('--force', '跳过确认提示')
   .option('--purge', '除 EvoKit 管理的文件外，同时删除用户数据（记忆文件、MEMORY.md）')

@@ -45,7 +45,7 @@ export const initCommand = new Command('init')
   .option('--branch <name>', '下载模板使用的 GitHub 分支', 'main')
   .option('--dry-run', '预览安装，不修改文件')
   .option('--verify', '安装后运行启动验证')
-  .option('--adapter <name>', '目标 AI 助手（claude | codex | opencode）。省略则交互式选择。')
+  .option('--adapter <name>', '目标 AI 助手（claude | codex | opencode | pi）。省略则交互式选择。')
   .option('--allow-workflow', '允许开发工作流命令（npm test/lint 等）免确认')
   .action(async (directory, options) => {
     const homeDir = directory || process.env.HOME || process.env.USERPROFILE || '';

@@ -43,7 +43,7 @@ program
     'after',
     `
 命令说明：
-  install <适配器>     安装 EvoKit 到指定 AI 编程助手（claude | codex | opencode）
+  install <适配器>     安装 EvoKit 到指定 AI 编程助手（claude | codex | opencode | pi）
   uninstall <适配器>   卸载指定 AI 编程助手的 EvoKit
   init                 install 的别名（向后兼容）
   project              在项目目录中生成 .claude/ 规范文件（规则、代理、命令）
