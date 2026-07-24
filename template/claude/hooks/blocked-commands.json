@@ -2,19 +2,19 @@
   "rules": [
     {
       "pattern": "(^|[;&|])\\s*rm\\s+-rf\\s+(\\/|~\\/\\.|\\$HOME\\/\\.)",
-      "message": "rm -rf on protected path is not allowed"
+      "message": "禁止对受保护路径执行 rm -rf"
     },
     {
       "pattern": "git\\s+push\\s+.*(--force|-f)\\b",
-      "message": "git push --force is not allowed (use --force-with-lease instead)"
+      "message": "禁止 git push --force（请使用 --force-with-lease）"
     },
     {
       "pattern": "git\\s+reset\\s+--hard\\b",
-      "message": "git reset --hard is not allowed (use git reset --soft or --mixed)"
+      "message": "禁止 git reset --hard（请使用 --soft 或 --mixed）"
     },
     {
       "pattern": "chmod\\s+-R\\s+777\\b",
-      "message": "chmod -R 777 is a security risk"
+      "message": "chmod -R 777 存在安全风险"
     }
   ]
 }

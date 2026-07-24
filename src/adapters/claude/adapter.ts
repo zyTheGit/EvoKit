@@ -106,7 +106,6 @@ export function getLayout(opts: {
     type: 'copy-dir',
     srcDir: path.join(claudeTemplateDir, 'hooks'),
     dstDir: path.join(claudeDir, 'hooks'),
-    filter: '.sh',
     strategy: 'always',
     replaceHome: true,
     counter: 'hooksInstalled',

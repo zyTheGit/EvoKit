@@ -19,43 +19,48 @@ if [ -n "$CMD" ]; then
     BLOCKED=false
 
     # 尝试从 JSON 配置文件读取规则
+    USE_JSON=false
     if command -v jq >/dev/null 2>&1 && [ -f "$BLOCKED_COMMANDS_JSON" ]; then
-        # 从 JSON 读取规则数量
         RULE_COUNT=$(jq '.rules | length' "$BLOCKED_COMMANDS_JSON" 2>/dev/null || echo "0")
-        IDX=0
-        while [ "$IDX" -lt "$RULE_COUNT" ]; do
-            PATTERN=$(jq -r ".rules[$IDX].pattern" "$BLOCKED_COMMANDS_JSON" 2>/dev/null || echo "")
-            MESSAGE=$(jq -r ".rules[$IDX].message" "$BLOCKED_COMMANDS_JSON" 2>/dev/null || echo "")
-            if [ -n "$PATTERN" ] && echo "$CMD" | grep -qE "$PATTERN"; then
-                echo "BLOCKED: $MESSAGE" >&2
-                BLOCKED=true
-            fi
-            IDX=$((IDX + 1))
-        done
-    else
+        if [ -n "$RULE_COUNT" ] && [ "$RULE_COUNT" -gt 0 ] 2>/dev/null; then
+            USE_JSON=true
+            IDX=0
+            while [ "$IDX" -lt "$RULE_COUNT" ]; do
+                PATTERN=$(jq -r ".rules[$IDX].pattern" "$BLOCKED_COMMANDS_JSON" 2>/dev/null || echo "")
+                MESSAGE=$(jq -r ".rules[$IDX].message" "$BLOCKED_COMMANDS_JSON" 2>/dev/null || echo "")
+                if [ -n "$PATTERN" ] && echo "$CMD" | grep -qE "$PATTERN"; then
+                    echo "BLOCKED: $MESSAGE" >&2
+                    BLOCKED=true
+                fi
+                IDX=$((IDX + 1))
+            done
+        fi
+    fi
+
+    if [ "$USE_JSON" = false ]; then
         # 回退到硬编码规则（jq 不可用或配置文件不存在）
         # Pattern: rm -rf on critical paths
         RM_RF_PATTERN="(^|[;&|])\\s*rm\\s+-rf\\s+(\\/|~\\/\\.|\\\$HOME\\/\\.)"
         if echo "$CMD" | grep -qE "$RM_RF_PATTERN"; then
-            echo "BLOCKED: rm -rf on protected path is not allowed" >&2
+            echo "BLOCKED: 禁止对受保护路径执行 rm -rf" >&2
             BLOCKED=true
         fi
 
         # Pattern: git push --force
         if echo "$CMD" | grep -qE 'git\s+push\s+.*(--force|-f)\b'; then
-            echo "BLOCKED: git push --force is not allowed (use --force-with-lease instead)" >&2
+            echo "BLOCKED: 禁止 git push --force（请使用 --force-with-lease）" >&2
             BLOCKED=true
         fi
 
         # Pattern: git reset --hard (destructive)
         if echo "$CMD" | grep -qE 'git\s+reset\s+--hard\b'; then
-            echo "BLOCKED: git reset --hard is not allowed (use git reset --soft or --mixed)" >&2
+            echo "BLOCKED: 禁止 git reset --hard（请使用 --soft 或 --mixed）" >&2
             BLOCKED=true
         fi
 
         # Pattern: chmod -R dangerous
         if echo "$CMD" | grep -qE 'chmod\s+-R\s+777\b'; then
-            echo "BLOCKED: chmod -R 777 is a security risk" >&2
+            echo "BLOCKED: chmod -R 777 存在安全风险" >&2
             BLOCKED=true
         fi
     fi

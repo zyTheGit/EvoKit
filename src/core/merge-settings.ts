@@ -155,14 +155,16 @@ export function mergeSettings(
       ) as Record<string, unknown>;
       const eAllow = (Array.isArray(ePerms.allow) ? ePerms.allow : []) as string[];
       const mAllow = [...eAllow];
+      let permsChanged = false;
       for (const rule of tAllow) {
         if (!mAllow.includes(rule)) {
           mAllow.push(rule);
+          permsChanged = true;
           changed = true;
           detail.permissionsAllowAdded.push(rule);
         }
       }
-      if (changed) {
+      if (permsChanged) {
         ePerms.allow = mAllow;
         settings.permissions = ePerms;
       }
