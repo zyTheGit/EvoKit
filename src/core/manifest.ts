@@ -74,9 +74,10 @@ export interface AdapterManifest {
   envVars: ManifestEnvEntry[];
   /** autoMemoryEnabled 是否由 EvoKit 设置 */
   autoMemoryEnabledSet: boolean;
-  /** 添加的权限条目（Claude 适配器） */
-  permissionsAllow: string[];
-  permissionsDeny: string[];
+  /** 安装时添加的 permissions.allow 规则 */
+  permissionsAllow?: string[];
+  /** 已弃用：permissionsDeny 不再由框架写入 */
+  permissionsDeny?: string[];
   /** 合并的代理 frontmatter 字段（Claude/OpenCode 适配器） */
   agentFrontmatter: ManifestAgentFrontmatter[];
   /** 已安装的 memory 初始化文件 */

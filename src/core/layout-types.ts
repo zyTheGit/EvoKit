@@ -64,6 +64,8 @@ export interface MergeSettingsSection {
   dstPath: string;
   /** 合并前替换模板中的 `__HOME__` 占位符。 */
   replaceHome?: boolean;
+  /** 是否合并 permissions.allow 工作流规则（如 npm test/lint 免确认）。 */
+  allowWorkflow?: boolean;
 }
 
 /**

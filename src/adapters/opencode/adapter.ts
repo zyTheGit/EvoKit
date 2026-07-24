@@ -239,6 +239,7 @@ export class OpenCodeAdapter extends BaseAdapter {
     homeDir: string;
     projectDir?: string;
     templateDir: string;
+    allowWorkflow?: boolean;
   }): AdapterLayout {
     return getLayout({
       homeDir: opts.homeDir,

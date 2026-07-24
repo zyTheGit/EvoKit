@@ -20,8 +20,6 @@ function makeManifest(overrides: Partial<AdapterManifest> = {}): AdapterManifest
     hooks: [],
     envVars: [],
     autoMemoryEnabledSet: false,
-    permissionsAllow: [],
-    permissionsDeny: [],
     agentFrontmatter: [],
     memorySeeds: [],
     skillDirs: [],
@@ -291,6 +289,61 @@ describe('reverse-merge-settings', () => {
       expect(result.permissionsAllowRemoved).toBe(1);
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       // permissions.allow was the only key — empty permissions object is cleaned up entirely
+      expect(updated.permissions).toBeUndefined();
+      expect(updated.someUserSetting).toBe(true);
+    });
+
+    it('仅移除清单中记录的规则，保留用户自己添加的', () => {
+      const settingsPath = path.join(tmpDir, 'settings.json');
+      const settings = {
+        permissions: {
+          allow: [
+            'Bash(bash .claude/hooks/*.sh)',
+            'Read',
+            'Write', // 用户自己添加的
+          ],
+        },
+      };
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+
+      const manifest = makeManifest({
+        permissionsAllow: ['Bash(bash .claude/hooks/*.sh)', 'Read'],
+      });
+
+      const result = reverseMergeSettings(settingsPath, manifest);
+
+      expect(result.permissionsAllowRemoved).toBe(2);
+      expect(result.changed).toBe(true);
+
+      const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      // 用户自己添加的 Write 规则保留
+      expect(updated.permissions.allow).toEqual(['Write']);
+    });
+
+    it('permissions 对象为空时（allow 和 deny 都被移除）清理 permissions 对象', () => {
+      const settingsPath = path.join(tmpDir, 'settings.json');
+      const settings = {
+        someUserSetting: true,
+        permissions: {
+          allow: ['Bash(bash .claude/hooks/*.sh)'],
+          deny: ['Bash(rm -rf /)'],
+        },
+      };
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+
+      const manifest = makeManifest({
+        permissionsAllow: ['Bash(bash .claude/hooks/*.sh)'],
+        permissionsDeny: ['Bash(rm -rf /)'],
+      });
+
+      const result = reverseMergeSettings(settingsPath, manifest);
+
+      expect(result.permissionsAllowRemoved).toBe(1);
+      expect(result.permissionsDenyRemoved).toBe(1);
+      expect(result.changed).toBe(true);
+
+      const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      // allow 和 deny 都被移除后，permissions 对象本身也被删除
       expect(updated.permissions).toBeUndefined();
       expect(updated.someUserSetting).toBe(true);
     });

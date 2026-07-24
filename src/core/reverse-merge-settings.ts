@@ -118,17 +118,17 @@ export function reverseMergeSettings(
     result.changed = true;
   }
 
-  // 5. 移除权限条目
+  // 5. 移除权限条目（向后兼容：旧清单可能包含 permissions 字段）
   // Claude 的 settings.json 将权限存储在 permissions.allow / permissions.deny 下（嵌套）
   if (
-    manifest.permissionsAllow.length > 0 &&
+    (manifest.permissionsAllow?.length ?? 0) > 0 &&
     settings.permissions &&
     typeof settings.permissions === 'object'
   ) {
     const perms = settings.permissions as Record<string, unknown>;
     if (Array.isArray(perms.allow)) {
       const allow = perms.allow as string[];
-      const manifestAllowSet = new Set(manifest.permissionsAllow);
+      const manifestAllowSet = new Set(manifest.permissionsAllow ?? []);
       const filtered = allow.filter((entry) => !manifestAllowSet.has(entry));
       result.permissionsAllowRemoved = allow.length - filtered.length;
       if (result.permissionsAllowRemoved > 0) {
@@ -143,14 +143,14 @@ export function reverseMergeSettings(
   }
 
   if (
-    manifest.permissionsDeny.length > 0 &&
+    (manifest.permissionsDeny?.length ?? 0) > 0 &&
     settings.permissions &&
     typeof settings.permissions === 'object'
   ) {
     const perms = settings.permissions as Record<string, unknown>;
     if (Array.isArray(perms.deny)) {
       const deny = perms.deny as string[];
-      const manifestDenySet = new Set(manifest.permissionsDeny);
+      const manifestDenySet = new Set(manifest.permissionsDeny ?? []);
       const filtered = deny.filter((entry) => !manifestDenySet.has(entry));
       result.permissionsDenyRemoved = deny.length - filtered.length;
       if (result.permissionsDenyRemoved > 0) {

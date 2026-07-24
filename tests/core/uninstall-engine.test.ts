@@ -27,8 +27,6 @@ function makeAdapterManifest(overrides: Partial<AdapterManifest> = {}): AdapterM
     hooks: [],
     envVars: [],
     autoMemoryEnabledSet: false,
-    permissionsAllow: [],
-    permissionsDeny: [],
     agentFrontmatter: [],
     memorySeeds: [],
     skillDirs: [],
@@ -89,7 +87,6 @@ function setupFullInstallation(): AdapterManifest {
     hooks: { SessionStart: [hookEntry] },
     autoMemoryEnabled: true,
     env: { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' },
-    permissions: { allow: ['Bash(bash .claude/hooks/*.sh)'] },
   };
   const settingsPath = path.join(adapterHome, 'settings.json');
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
@@ -131,7 +128,6 @@ function setupFullInstallation(): AdapterManifest {
     hooks: [{ event: 'SessionStart', entry: hookEntry }],
     envVars: [{ key: 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', value: '1' }],
     autoMemoryEnabledSet: true,
-    permissionsAllow: ['Bash(bash .claude/hooks/*.sh)'],
     agentFrontmatter: [{ file: 'reviewer.md', fields: { model: 'sonnet' } }],
     memorySeeds: [memoryReadme, memoryMd, correctionsPath],
     skillDirs: [path.join(adapterHome, 'skills', 'debug')],

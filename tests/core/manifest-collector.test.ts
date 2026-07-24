@@ -121,40 +121,6 @@ describe('ManifestCollector', () => {
     });
   });
 
-  // ─── recordPermissionsAllow / Deny ─────────────────────────
-
-  describe('recordPermissionsAllow', () => {
-    it('records permissions allow entries', () => {
-      const collector = new ManifestCollector();
-      collector.recordPermissionsAllow(['Bash(git:*)', 'Read(*)']);
-
-      const result = collector.build({
-        adapterId: 'claude',
-        adapterVersion: '1.0.0',
-        homeDir: '/home/user',
-        adapterHome: '/home/user/.claude',
-      });
-
-      expect(result.permissionsAllow).toEqual(['Bash(git:*)', 'Read(*)']);
-    });
-  });
-
-  describe('recordPermissionsDeny', () => {
-    it('records permissions deny entries', () => {
-      const collector = new ManifestCollector();
-      collector.recordPermissionsDeny(['Bash(rm:*)']);
-
-      const result = collector.build({
-        adapterId: 'claude',
-        adapterVersion: '1.0.0',
-        homeDir: '/home/user',
-        adapterHome: '/home/user/.claude',
-      });
-
-      expect(result.permissionsDeny).toEqual(['Bash(rm:*)']);
-    });
-  });
-
   // ─── recordAgentFrontmatter ────────────────────────────────
 
   describe('recordAgentFrontmatter', () => {
@@ -196,6 +162,41 @@ describe('ManifestCollector', () => {
     });
   });
 
+  // ─── recordPermissionAllow ─────────────────────────────────
+
+  describe('recordPermissionAllow', () => {
+    it('records permission allow rules', () => {
+      const collector = new ManifestCollector();
+      collector.recordPermissionAllow('Bash(bash .claude/hooks/*.sh)');
+      collector.recordPermissionAllow('Read');
+
+      const result = collector.build({
+        adapterId: 'claude',
+        adapterVersion: '1.0.0',
+        homeDir: '/home/user',
+        adapterHome: '/home/user/.claude',
+      });
+
+      expect(result.permissionsAllow).toEqual([
+        'Bash(bash .claude/hooks/*.sh)',
+        'Read',
+      ]);
+    });
+
+    it('defaults to empty array when no rules recorded', () => {
+      const collector = new ManifestCollector();
+
+      const result = collector.build({
+        adapterId: 'claude',
+        adapterVersion: '1.0.0',
+        homeDir: '/home/user',
+        adapterHome: '/home/user/.claude',
+      });
+
+      expect(result.permissionsAllow).toEqual([]);
+    });
+  });
+
   // ─── recordSkillDir ────────────────────────────────────────
 
   describe('recordSkillDir', () => {
@@ -225,11 +226,10 @@ describe('ManifestCollector', () => {
       collector.recordHook('SessionStart', { hooks: [] });
       collector.recordEnvVar('KEY', 'val');
       collector.recordAutoMemoryEnabled();
-      collector.recordPermissionsAllow(['Bash(*)']);
-      collector.recordPermissionsDeny(['Bash(rm:*)']);
       collector.recordAgentFrontmatter('architect.md', { model: 'opus' });
       collector.recordMemorySeed('corrections.jsonl');
       collector.recordSkillDir('debug');
+      collector.recordPermissionAllow('Bash(bash .claude/hooks/*.sh)');
 
       const result = collector.build({
         adapterId: 'claude',
@@ -249,11 +249,10 @@ describe('ManifestCollector', () => {
       expect(result.hooks).toHaveLength(1);
       expect(result.envVars).toHaveLength(1);
       expect(result.autoMemoryEnabledSet).toBe(true);
-      expect(result.permissionsAllow).toEqual(['Bash(*)']);
-      expect(result.permissionsDeny).toEqual(['Bash(rm:*)']);
       expect(result.agentFrontmatter).toHaveLength(1);
       expect(result.memorySeeds).toEqual(['corrections.jsonl']);
       expect(result.skillDirs).toEqual(['debug']);
+      expect(result.permissionsAllow).toEqual(['Bash(bash .claude/hooks/*.sh)']);
     });
 
     it('sets installedAt to a valid ISO timestamp', () => {
@@ -290,8 +289,6 @@ describe('ManifestCollector', () => {
       expect(result.hooks).toEqual([]);
       expect(result.envVars).toEqual([]);
       expect(result.autoMemoryEnabledSet).toBe(false);
-      expect(result.permissionsAllow).toEqual([]);
-      expect(result.permissionsDeny).toEqual([]);
       expect(result.agentFrontmatter).toEqual([]);
       expect(result.memorySeeds).toEqual([]);
       expect(result.skillDirs).toEqual([]);

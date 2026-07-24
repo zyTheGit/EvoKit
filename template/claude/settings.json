@@ -1,47 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "permissions": {
-    "allow": [
-      "Read",
-      "Glob",
-      "Grep",
-      "Bash(git status)",
-      "Bash(git diff *)",
-      "Bash(git log *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(git pull *)",
-      "Bash(git checkout *)",
-      "Bash(git branch *)",
-      "Bash(git stash *)",
-      "Bash(git tag *)",
-      "Bash(git fetch *)",
-      "Bash(git merge *)",
-      "Bash(wc *)",
-      "Bash(du *)",
-      "Bash(date *)",
-      "Bash(echo *)",
-      "Bash(mkdir -p *)",
-      "Bash(cp *)",
-      "Bash(mv *)",
-      "Bash(chmod *)",
-      "Bash(test *)",
-      "Bash(printf *)"
-    ],
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(rm -f /)",
-      "Bash(git push --force *)",
-      "Bash(git reset --hard *)",
-      "Bash(curl *)",
-      "Bash(wget *)",
-      "Bash(sudo *)",
-      "Bash(chmod -R 777 *)",
-      "Bash(sh -c *)",
-      "Bash(bash -c *)"
-    ]
-  },
   "hooks": {
     "SessionStart": [
       {
@@ -103,6 +61,14 @@
     ]
   },
   "autoMemoryEnabled": true,
+  "permissions": {
+    "allow": [
+      "Bash(npm test*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run test*)",
+      "Bash(shellcheck*)"
+    ]
+  },
   "env": {
     "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   }

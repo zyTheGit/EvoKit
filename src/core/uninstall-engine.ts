@@ -67,6 +67,8 @@ export interface UninstallResult {
   envVarsRemoved: number;
   /** 移除的 agent frontmatter 字段数 */
   agentFieldsRemoved: number;
+  /** 移除的 permissions.allow 规则数 */
+  permissionsAllowRemoved: number;
   /** 移除的空目录数 */
   directoriesRemoved: number;
   /** 备份目录路径（如已创建） */
@@ -109,6 +111,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     hooksRemoved: 0,
     envVarsRemoved: 0,
     agentFieldsRemoved: 0,
+    permissionsAllowRemoved: 0,
     directoriesRemoved: 0,
     heuristic: false,
     warnings: [],
@@ -194,6 +197,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     const reverseResult = reverseMergeSettings(settingsPath, adapterRecord, dryRun);
     result.hooksRemoved = reverseResult.hooksRemoved;
     result.envVarsRemoved = reverseResult.envVarsRemoved;
+    result.permissionsAllowRemoved = reverseResult.permissionsAllowRemoved;
     if (reverseResult.fileDeleted) {
       result.filesDeleted++;
     }
@@ -332,6 +336,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     hooksRemoved: 0,
     envVarsRemoved: 0,
     agentFieldsRemoved: 0,
+    permissionsAllowRemoved: 0,
     directoriesRemoved: 0,
     heuristic: true,
     warnings: ['未找到清单文件 — 使用启发式卸载。部分文件可能被遗漏。'],

@@ -57,6 +57,7 @@ export const installCommand = new Command('install')
   .option('--dry-run', '预览安装，不修改文件')
   .option('--verify', '安装后运行启动验证')
   .option('--project-dir <path>', '项目目录（用于 OpenCode 等项目级适配器）')
+  .option('--allow-workflow', '允许开发工作流命令（npm test/lint 等）免确认')
   .action(async (options) => {
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -124,6 +125,7 @@ export const installCommand = new Command('install')
         templateDir,
         projectDir: options.projectDir || process.cwd(),
         dryRun: options.dryRun ?? false,
+        allowWorkflow: options.allowWorkflow ?? false,
       };
 
       const s = spinner();

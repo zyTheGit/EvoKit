@@ -21,6 +21,8 @@ export interface AdapterInstallConfig {
   projectDir?: string;
   adapterHome?: string;
   dryRun?: boolean;
+  /** 是否写入 permissions.allow 工作流规则（如 npm test/lint 免确认） */
+  allowWorkflow?: boolean;
 }
 
 /** 适配器安装结果摘要 */
@@ -73,6 +75,8 @@ export interface AdapterUninstallResult {
   hooksRemoved: number;
   envVarsRemoved: number;
   agentFieldsRemoved: number;
+  /** 卸载时移除的 permissions.allow 规则数量 */
+  permissionsAllowRemoved: number;
   directoriesRemoved: number;
   backupPath?: string;
   /** 是否为启发式（无清单）卸载 */

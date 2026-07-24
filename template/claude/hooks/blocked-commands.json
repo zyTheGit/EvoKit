@@ -1,0 +1,20 @@
+{
+  "rules": [
+    {
+      "pattern": "(^|[;&|])\\s*rm\\s+-rf\\s+(\\/|~\\/\\.|\\$HOME\\/\\.)",
+      "message": "rm -rf on protected path is not allowed"
+    },
+    {
+      "pattern": "git\\s+push\\s+.*(--force|-f)\\b",
+      "message": "git push --force is not allowed (use --force-with-lease instead)"
+    },
+    {
+      "pattern": "git\\s+reset\\s+--hard\\b",
+      "message": "git reset --hard is not allowed (use git reset --soft or --mixed)"
+    },
+    {
+      "pattern": "chmod\\s+-R\\s+777\\b",
+      "message": "chmod -R 777 is a security risk"
+    }
+  ]
+}

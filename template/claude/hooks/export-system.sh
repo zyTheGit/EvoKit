@@ -456,20 +456,7 @@ if not imported:
 else:
     changed = False
 
-    # Merge permissions.allow (deduplicate)
-    if "permissions" in imported and "allow" in imported["permissions"]:
-        existing.setdefault("permissions", {})
-        existing["permissions"].setdefault("allow", [])
-        seen = set(existing["permissions"]["allow"])
-        added = 0
-        for item in imported["permissions"]["allow"]:
-            if item not in seen:
-                existing["permissions"]["allow"].append(item)
-                seen.add(item)
-                added += 1
-                changed = True
-        if added:
-            print(f"  ✓ Added {added} permission rules")
+    # (permissions.allow 合并已移除 — 权限属于用户个人安全偏好，不应由框架代劳)
 
     if changed:
         with open(local_path, 'w') as f:

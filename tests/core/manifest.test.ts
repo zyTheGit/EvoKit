@@ -32,8 +32,6 @@ function makeAdapter(overrides: Partial<AdapterManifest> = {}): AdapterManifest 
     hooks: [],
     envVars: [],
     autoMemoryEnabledSet: false,
-    permissionsAllow: [],
-    permissionsDeny: [],
     agentFrontmatter: [],
     memorySeeds: [],
     skillDirs: [],

@@ -24,8 +24,8 @@ export interface SettingsMergeResult {
     hooksAdded: Array<{ event: string; entry: Record<string, unknown> }>;
     envVarsAdded: Array<{ key: string; value: string }>;
     autoMemoryEnabledSet: boolean;
-    permissionsAllow: string[];
-    permissionsDeny: string[];
+    /** 本次合并添加的 permissions.allow 规则 */
+    permissionsAllowAdded: string[];
   };
 }
 
@@ -45,6 +45,7 @@ export function mergeSettings(
   settingsPath: string,
   templatePath: string,
   homeDir: string = process.env.HOME || '',
+  allowWorkflow: boolean = false,
 ): SettingsMergeResult {
   // 1. 读取现有设置
   let settings: Record<string, unknown>;
@@ -88,8 +89,7 @@ export function mergeSettings(
     hooksAdded: [],
     envVarsAdded: [],
     autoMemoryEnabledSet: false,
-    permissionsAllow: [],
-    permissionsDeny: [],
+    permissionsAllowAdded: [],
   };
 
   // 3. 合并 hooks — 仅添加缺失的 hook 事件
@@ -143,16 +143,29 @@ export function mergeSettings(
   }
   settings.env = mEnv;
 
-  // 6. 从模板记录权限信息，用于清单跟踪
-  //    （权限不会被合并——它们仅在全新安装时设置——
-  //    但记录在详情中，以便清单知道 EvoKit 拥有哪些内容）
-  const tPerms = template.permissions as Record<string, unknown> | undefined;
-  if (tPerms && typeof tPerms === 'object') {
-    if (Array.isArray(tPerms.allow)) {
-      detail.permissionsAllow = (tPerms.allow as string[]).map(String);
-    }
-    if (Array.isArray(tPerms.deny)) {
-      detail.permissionsDeny = (tPerms.deny as string[]).map(String);
+  // 6. permissions.allow — 仅在 allowWorkflow: true 时合并
+  if (allowWorkflow) {
+    const tPerms = (template.permissions as Record<string, unknown>) || {};
+    const tAllow = (tPerms.allow as string[]) || [];
+    if (tAllow.length > 0) {
+      const ePerms = (
+        settings.permissions && typeof settings.permissions === 'object'
+          ? { ...(settings.permissions as Record<string, unknown>) }
+          : {}
+      ) as Record<string, unknown>;
+      const eAllow = (Array.isArray(ePerms.allow) ? ePerms.allow : []) as string[];
+      const mAllow = [...eAllow];
+      for (const rule of tAllow) {
+        if (!mAllow.includes(rule)) {
+          mAllow.push(rule);
+          changed = true;
+          detail.permissionsAllowAdded.push(rule);
+        }
+      }
+      if (changed) {
+        ePerms.allow = mAllow;
+        settings.permissions = ePerms;
+      }
     }
   }
 

@@ -311,7 +311,7 @@ function executeMergeSettings(
 
   // 有效 JSON —— 深度合并（添加缺失的 hooks/env，绝不覆盖已有值）
   if (!dryRun) {
-    const result = mergeSettings(dstPath, srcPath, homeDir);
+    const result = mergeSettings(dstPath, srcPath, homeDir, section.allowWorkflow ?? false);
     if (result.changed) {
       summary.filesCreated++;
       collector?.recordFile({ path: dstPath, source: 'merge-settings', mode: 'created' });
@@ -326,11 +326,8 @@ function executeMergeSettings(
         if (result.detail.autoMemoryEnabledSet) {
           collector?.recordAutoMemoryEnabled();
         }
-        if (result.detail.permissionsAllow.length > 0) {
-          collector?.recordPermissionsAllow(result.detail.permissionsAllow);
-        }
-        if (result.detail.permissionsDeny.length > 0) {
-          collector?.recordPermissionsDeny(result.detail.permissionsDeny);
+        for (const rule of result.detail.permissionsAllowAdded) {
+          collector?.recordPermissionAllow(rule);
         }
       }
     } else {
@@ -467,14 +464,11 @@ function recordSettingsEntries(
     collector.recordAutoMemoryEnabled();
   }
 
-  // 记录权限
+  // 记录 permissions.allow
   const perms = settings.permissions as Record<string, unknown> | undefined;
-  if (perms && typeof perms === 'object') {
-    if (Array.isArray(perms.allow)) {
-      collector.recordPermissionsAllow(perms.allow as string[]);
-    }
-    if (Array.isArray(perms.deny)) {
-      collector.recordPermissionsDeny(perms.deny as string[]);
+  if (perms && typeof perms === 'object' && Array.isArray(perms.allow)) {
+    for (const rule of perms.allow as string[]) {
+      collector.recordPermissionAllow(rule);
     }
   }
 }

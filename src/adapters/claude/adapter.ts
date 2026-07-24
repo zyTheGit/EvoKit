@@ -57,8 +57,9 @@ export function getLayout(opts: {
   homeDir: string;
   projectDir?: string;
   templateDir: string;
+  allowWorkflow?: boolean;
 }): AdapterLayout {
-  const { homeDir, projectDir, templateDir } = opts;
+  const { homeDir, projectDir, templateDir, allowWorkflow = false } = opts;
   const claudeDir = path.join(homeDir, '.claude');
   const claudeTemplateDir = path.join(templateDir, 'claude');
 
@@ -97,6 +98,7 @@ export function getLayout(opts: {
     srcPath: path.join(claudeTemplateDir, 'settings.json'),
     dstPath: path.join(claudeDir, 'settings.json'),
     replaceHome: true,
+    allowWorkflow,
   });
 
   // ── 5. Hooks（全局，复制并替换 __HOME__，始终覆盖）──
@@ -293,6 +295,7 @@ export class ClaudeAdapter extends BaseAdapter {
     homeDir: string;
     projectDir?: string;
     templateDir: string;
+    allowWorkflow?: boolean;
   }): AdapterLayout {
     return getLayout(opts);
   }

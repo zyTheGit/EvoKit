@@ -225,6 +225,7 @@ export class PiAdapter extends BaseAdapter {
     homeDir: string;
     projectDir?: string;
     templateDir: string;
+    allowWorkflow?: boolean;
   }): AdapterLayout {
     return getLayout(opts);
   }

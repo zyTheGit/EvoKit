@@ -23,7 +23,6 @@ export class ManifestCollector {
   private envVars: ManifestEnvEntry[] = [];
   private autoMemoryEnabledSet: boolean = false;
   private permissionsAllow: string[] = [];
-  private permissionsDeny: string[] = [];
   private agentFrontmatter: ManifestAgentFrontmatter[] = [];
   private memorySeeds: string[] = [];
   private skillDirs: string[] = [];
@@ -48,12 +47,8 @@ export class ManifestCollector {
     this.autoMemoryEnabledSet = true;
   }
 
-  recordPermissionsAllow(entries: string[]): void {
-    this.permissionsAllow.push(...entries);
-  }
-
-  recordPermissionsDeny(entries: string[]): void {
-    this.permissionsDeny.push(...entries);
+  recordPermissionAllow(rule: string): void {
+    this.permissionsAllow.push(rule);
   }
 
   recordAgentFrontmatter(file: string, fields: Record<string, string>): void {
@@ -88,7 +83,6 @@ export class ManifestCollector {
       envVars: this.envVars,
       autoMemoryEnabledSet: this.autoMemoryEnabledSet,
       permissionsAllow: this.permissionsAllow,
-      permissionsDeny: this.permissionsDeny,
       agentFrontmatter: this.agentFrontmatter,
       memorySeeds: this.memorySeeds,
       skillDirs: this.skillDirs,

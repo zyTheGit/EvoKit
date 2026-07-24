@@ -46,6 +46,7 @@ export const initCommand = new Command('init')
   .option('--dry-run', '预览安装，不修改文件')
   .option('--verify', '安装后运行启动验证')
   .option('--adapter <name>', '目标 AI 助手（claude | codex | opencode）。省略则交互式选择。')
+  .option('--allow-workflow', '允许开发工作流命令（npm test/lint 等）免确认')
   .action(async (directory, options) => {
     const homeDir = directory || process.env.HOME || process.env.USERPROFILE || '';
     if (!homeDir) {
@@ -100,6 +101,7 @@ export const initCommand = new Command('init')
         templateDir,
         projectDir: process.cwd(),
         dryRun: options.dryRun ?? false,
+        allowWorkflow: options.allowWorkflow ?? false,
       };
 
       const installSpin = spinner();

@@ -122,6 +122,7 @@ export abstract class BaseAdapter {
     homeDir: string;
     projectDir?: string;
     templateDir: string;
+    allowWorkflow?: boolean;
   }): AdapterLayout;
 
   /** 返回验证检查项。子类实现以适配各自的安装结构。 */
@@ -154,7 +155,12 @@ export abstract class BaseAdapter {
 
     // 3. 创建清单收集器并执行布局
     const collector = new ManifestCollector();
-    const layout = this.buildLayout({ homeDir, projectDir, templateDir });
+    const layout = this.buildLayout({
+      homeDir,
+      projectDir,
+      templateDir,
+      allowWorkflow: config.allowWorkflow,
+    });
     const summary = executeLayout(layout, { homeDir, dryRun, collector });
 
     // 4. 写入清单（非 dry-run 模式）—— 所有适配器统一获得清单支持
@@ -225,6 +231,7 @@ export abstract class BaseAdapter {
       hooksRemoved: result.hooksRemoved,
       envVarsRemoved: result.envVarsRemoved,
       agentFieldsRemoved: result.agentFieldsRemoved,
+      permissionsAllowRemoved: result.permissionsAllowRemoved,
       directoriesRemoved: result.directoriesRemoved,
       backupPath: result.backupPath,
       heuristic: result.heuristic,
