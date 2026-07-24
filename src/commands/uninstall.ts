@@ -19,7 +19,7 @@ import { getInstaller, listAdapters } from '../adapters/index.js';
 import type { AdapterInstaller } from '../adapters/types.js';
 import { readManifest } from '../core/manifest.js';
 import { executeUninstall } from '../core/uninstall-engine.js';
-import { spinner, intro, outro, note, log, confirm } from '@clack/prompts';
+import { spinner, intro, outro, note, log, confirm, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 
 export const uninstallCommand = new Command('uninstall')
@@ -128,9 +128,9 @@ export const uninstallCommand = new Command('uninstall')
       const shouldContinue = await confirm({
         message: '确认卸载？',
       });
-      if (!shouldContinue) {
-        outro('卸载已取消');
-        return;
+      if (isCancel(shouldContinue) || !shouldContinue) {
+        cancel('卸载已取消');
+        process.exit(0);
       }
     }
 
