@@ -80,7 +80,12 @@ export abstract class BaseAdapter {
 
   /** OpenCode 的 projectDir 默认回退到 cwd，其余适配器可选。 */
   protected resolveProjectDir(config: AdapterInstallConfig): string | undefined {
-    return config.projectDir;
+    const dir = config.projectDir;
+    // 当 projectDir 与 homeDir 相同时，项目级安装路径与全局重叠，无意义
+    if (dir && path.resolve(dir) === path.resolve(config.homeDir)) {
+      return undefined;
+    }
+    return dir;
   }
 
   /** 解析适配器全局安装目录。子类实现以支持环境变量覆盖。 */

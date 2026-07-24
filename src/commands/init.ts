@@ -99,7 +99,7 @@ export const initCommand = new Command('init')
       const config: AdapterInstallConfig = {
         homeDir,
         templateDir,
-        projectDir: process.cwd(),
+        projectDir: undefined,
         dryRun: options.dryRun ?? false,
         allowWorkflow: options.allowWorkflow ?? false,
       };

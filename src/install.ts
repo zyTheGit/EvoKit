@@ -123,7 +123,7 @@ export const installCommand = new Command('install')
       const config = {
         homeDir,
         templateDir,
-        projectDir: options.projectDir || process.cwd(),
+        projectDir: options.projectDir || undefined,
         dryRun: options.dryRun ?? false,
         allowWorkflow: options.allowWorkflow ?? false,
       };

@@ -29,13 +29,13 @@ export const doctorCommand = new Command('doctor')
     }
 
     const adapter = options.adapter || 'all';
-    const projectDir = options.projectDir || process.cwd();
+    const projectDir = options.projectDir || undefined;
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));
     console.log(pc.cyan('║   EvoKit — 系统健康检查                  ║'));
     console.log(pc.cyan('╚═══════════════════════════════════════════╝'));
     console.log(`  主目录: ${homeDir}`);
-    if (adapter === 'all' || adapter === 'opencode') {
+    if (projectDir) {
       console.log(`  项目目录: ${projectDir}`);
     }
     console.log('');
