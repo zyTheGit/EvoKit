@@ -2,14 +2,14 @@
  * EvoKit — Claude Code 适配器安装器
  *
  * @internal — Claude Code 的适配器实现。继承 BaseAdapter 基类，
- * 仅声明 Claude 特有的路径解析、布局构建和验证逻辑。
+ * 仅声明 Claude 特有的路径解析、布局配置和验证逻辑。
  *
  * 将 EvoKit 模板文件安装到 ~/.claude/（全局）+ .claude/（项目级，可选），包含完整流水线：
  * CLAUDE.md、settings.json 合并、hooks、rules、commands、agents、
  * skills 以及 memory 初始化。
  *
- * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎，
- * 而非旧版布尔标志的 `installPipeline()`。
+ * 使用声明式 `LayoutConfig` + `BaseAdapter.buildStandardLayout()` 引擎，
+ * 替代手写的 getLayout() 函数。
  *
  * @packageDocumentation
  */
@@ -18,8 +18,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
 
-import type { AdapterInstallConfig, AdapterVerifyCheck } from '../types.js';
-import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
+import type { AdapterInstallConfig, AdapterVerifyCheck, LayoutConfig } from '../types.js';
+import type { AdapterLayout } from '../../core/layout-types.js';
 import type { HeuristicConfig } from '../base-adapter.js';
 import { BaseAdapter } from '../base-adapter.js';
 
@@ -41,207 +41,108 @@ const MEMORY_SEED_FILES = [
   'sessions.jsonl',
 ] as const;
 
-// ─── 布局构建器 ────────────────────────────────────────────
+// ─── 声明式布局配置 ──────────────────────────────────────────
 
 /**
- * 构建 Claude Code 适配器安装的声明式布局。
- *
- * 支持双层安装：
- *   1. 全局：~/.claude/
- *   2. 项目（可选）：.claude/ + 项目根目录文件
- *
- * 布局使用全局目录作为 targetDir；项目级
- * 文件在其 dst/dstDir 字段中使用绝对路径。
+ * Claude Code 适配器的声明式布局配置。
+ * 由 BaseAdapter.buildStandardLayout() 消费，自动构建完整的 AdapterLayout。
  */
-export function getLayout(opts: {
-  homeDir: string;
-  projectDir?: string;
-  templateDir: string;
-  allowWorkflow?: boolean;
-}): AdapterLayout {
-  const { homeDir, projectDir, templateDir, allowWorkflow = false } = opts;
-  const claudeDir = path.join(homeDir, '.claude');
-  const claudeTemplateDir = path.join(templateDir, 'claude');
+const LAYOUT_CONFIG: LayoutConfig = {
+  globalDirs: [...CLAUDE_GLOBAL_SUBDIRS],
 
-  const sections: AdapterSection[] = [];
-
-  // ═══════════════════════════════════════════════════════════
-  // GLOBAL INSTALL: ~/.claude/
-  // ═══════════════════════════════════════════════════════════
-
-  // ── 1. 目录 ──────────────────────────────────────────
-  sections.push({
-    type: 'dirs',
-    paths: [...CLAUDE_GLOBAL_SUBDIRS],
-  });
-
-  // ── 2. CLAUDE.md（全局，复制或追加协议段落）──────────
-  sections.push({
-    type: 'copy',
-    src: path.join(claudeTemplateDir, 'CLAUDE.md'),
-    dst: path.join(homeDir, 'CLAUDE.md'),
+  // 认知核心：CLAUDE.md 放在 homeDir 根目录（而非 adapterHome 内）
+  cognitiveCore: {
+    templateName: 'CLAUDE.md',
+    dstInHome: true,
     strategy: 'skip-if-exists',
     appendMarker: 'Self-Evolving System Protocol',
-  });
+  },
 
-  // ── 3. MEMORY.md ────────────────────────────────────
-  sections.push({
-    type: 'copy',
-    src: path.join(claudeTemplateDir, 'MEMORY.md'),
-    dst: path.join(claudeDir, 'MEMORY.md'),
-    strategy: 'always',
-  });
+  // 额外全局文件：MEMORY.md
+  extraGlobalCopies: [{ templateName: 'MEMORY.md', targetName: 'MEMORY.md', strategy: 'always' }],
 
-  // ── 4. settings.json（全局，合并或新建）───────────
-  sections.push({
-    type: 'merge-settings',
-    srcPath: path.join(claudeTemplateDir, 'settings.json'),
-    dstPath: path.join(claudeDir, 'settings.json'),
-    replaceHome: true,
-    allowWorkflow,
-  });
-
-  // ── 5. Hooks（全局，复制并替换 __HOME__，始终覆盖）──
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(claudeTemplateDir, 'hooks'),
-    dstDir: path.join(claudeDir, 'hooks'),
-    strategy: 'always',
-    replaceHome: true,
-    counter: 'hooksInstalled',
-  });
-
-  // ── 6. Rules（全局，复制，覆盖 — 升级路径）──────────
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(claudeTemplateDir, 'rules'),
-    dstDir: path.join(claudeDir, 'rules'),
-    filter: '.md',
-    strategy: 'always',
-    counter: 'rulesInstalled',
-  });
-
-  // ── 7. Commands（全局，复制，覆盖）──────────────────
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(claudeTemplateDir, 'commands'),
-    dstDir: path.join(claudeDir, 'commands'),
-    filter: '.md',
-    strategy: 'always',
-    counter: 'commandsInstalled',
-  });
-
-  // ── 8. Agents（全局，frontmatter 合并）──────────────
-  sections.push({
-    type: 'merge-agents',
-    srcDir: path.join(claudeTemplateDir, 'agents'),
-    dstDir: path.join(claudeDir, 'agents'),
-  });
-
-  // ── 9. Skills（全局）──────────────────────────────────────
-  sections.push({
-    type: 'copy-skills',
-    srcDir: path.join(claudeTemplateDir, 'skills'),
-    dstDir: path.join(claudeDir, 'skills'),
-  });
-
-  // ── 10. Memory 初始化（全局，仅在不存在时）────────
-  sections.push({
-    type: 'seed-memory',
-    srcDir: path.join(claudeTemplateDir, 'memory'),
-    dstDir: path.join(claudeDir, 'memory'),
-    files: [...MEMORY_SEED_FILES],
-  });
-
-  // ═══════════════════════════════════════════════════════════
-  // PROJECT INSTALL (optional): .claude/  +  project root files
-  // ═══════════════════════════════════════════════════════════
-
-  if (projectDir) {
-    const claudeProjectDir = path.join(projectDir, '.claude');
-
-    // 11. CLAUDE.md (project root, skip-if-exists, with __HOME__)
-    sections.push({
-      type: 'copy',
-      src: path.join(claudeTemplateDir, 'CLAUDE.md'),
-      dst: path.join(projectDir, 'CLAUDE.md'),
-      strategy: 'skip-if-exists',
-      replaceHome: true,
-    });
-
-    // 12. settings.json (project-level, merge-settings)
-    sections.push({
+  // 配置文件：settings.json（深度合并）
+  configFiles: [
+    {
+      templateName: 'settings.json',
+      targetName: 'settings.json',
       type: 'merge-settings',
-      srcPath: path.join(claudeTemplateDir, 'settings.json'),
-      dstPath: path.join(claudeProjectDir, 'settings.json'),
       replaceHome: true,
-    });
+      allowWorkflow: true,
+    },
+  ],
 
-    // 13. Rules (project-level, copy-dir)
-    sections.push({
-      type: 'copy-dir',
-      srcDir: path.join(claudeTemplateDir, 'rules'),
-      dstDir: path.join(claudeProjectDir, 'rules'),
+  // copy-dir 列表
+  copyDirs: [
+    {
+      templateName: 'hooks',
+      targetName: 'hooks',
+      strategy: 'always',
+      replaceHome: true,
+      counter: 'hooksInstalled',
+    },
+    {
+      templateName: 'rules',
+      targetName: 'rules',
       filter: '.md',
       strategy: 'always',
       counter: 'rulesInstalled',
-    });
-
-    // 14. Commands (project-level, copy-dir)
-    sections.push({
-      type: 'copy-dir',
-      srcDir: path.join(claudeTemplateDir, 'commands'),
-      dstDir: path.join(claudeProjectDir, 'commands'),
+    },
+    {
+      templateName: 'commands',
+      targetName: 'commands',
       filter: '.md',
       strategy: 'always',
       counter: 'commandsInstalled',
-    });
+    },
+  ],
 
-    // 15. Agents (project-level, merge-agents)
-    sections.push({
-      type: 'merge-agents',
-      srcDir: path.join(claudeTemplateDir, 'agents'),
-      dstDir: path.join(claudeProjectDir, 'agents'),
-    });
+  // merge-agents
+  mergeAgents: { templateName: 'agents', targetName: 'agents' },
 
-    // 16. Skills (project-level, copy-skills)
-    sections.push({
-      type: 'copy-skills',
-      srcDir: path.join(claudeTemplateDir, 'skills'),
-      dstDir: path.join(claudeProjectDir, 'skills'),
-    });
+  // copy-skills
+  copySkills: { templateName: 'skills', targetName: 'skills' },
 
-    // 17. Memory seed (project-level, skip-if-exists)
-    sections.push({
-      type: 'seed-memory',
-      srcDir: path.join(claudeTemplateDir, 'memory'),
-      dstDir: path.join(claudeProjectDir, 'memory'),
-      files: [...MEMORY_SEED_FILES],
-    });
-  }
+  // seed-memory
+  seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
 
-  // ═══════════════════════════════════════════════════════════
-  // PERMISSIONS
-  // ═══════════════════════════════════════════════════════════
+  // 全局权限
+  permissions: [
+    { dir: 'hooks', extension: '.sh', mode: 0o755 },
+    { dir: 'memory', extension: '.jsonl', mode: 0o600 },
+  ],
 
-  // 18. Hooks — executable
-  sections.push({
-    type: 'permissions',
-    dir: path.join(claudeDir, 'hooks'),
-    extension: '.sh',
-    mode: 0o755,
-  });
-
-  // 19. Memory JSONL files — 600 (personal data)
-  sections.push({
-    type: 'permissions',
-    dir: path.join(claudeDir, 'memory'),
-    extension: '.jsonl',
-    mode: 0o600,
-  });
-
-  return { targetDir: claudeDir, sections };
-}
+  // 项目级配置
+  project: {
+    configFiles: [
+      {
+        templateName: 'settings.json',
+        targetName: 'settings.json',
+        type: 'merge-settings',
+        replaceHome: true,
+      },
+    ],
+    copyDirs: [
+      {
+        templateName: 'rules',
+        targetName: 'rules',
+        filter: '.md',
+        strategy: 'always',
+        counter: 'rulesInstalled',
+      },
+      {
+        templateName: 'commands',
+        targetName: 'commands',
+        filter: '.md',
+        strategy: 'always',
+        counter: 'commandsInstalled',
+      },
+    ],
+    mergeAgents: { templateName: 'agents', targetName: 'agents' },
+    copySkills: { templateName: 'skills', targetName: 'skills' },
+    seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
+  },
+};
 
 // ─── ClaudeAdapter ─────────────────────────────────────
 
@@ -296,7 +197,7 @@ export class ClaudeAdapter extends BaseAdapter {
     templateDir: string;
     allowWorkflow?: boolean;
   }): AdapterLayout {
-    return getLayout(opts);
+    return this.buildStandardLayout(LAYOUT_CONFIG, opts);
   }
 
   protected verifyChecks(config: AdapterInstallConfig): AdapterVerifyCheck[] {
@@ -391,4 +292,21 @@ export function verifyClaudeInstallation(
   }
 
   return checks;
+}
+
+// ─── 向后兼容导出 ──────────────────────────────────────────
+
+/**
+ * @deprecated 使用 ClaudeAdapter.buildLayout() 或 buildStandardLayout() 代替。
+ * 保留此函数仅为向后兼容（独立 API 和测试可能直接调用）。
+ */
+export function getLayout(opts: {
+  homeDir: string;
+  projectDir?: string;
+  templateDir: string;
+  allowWorkflow?: boolean;
+}): AdapterLayout {
+  // 使用临时适配器实例构建布局，保持与原 getLayout 完全一致的行为
+  const adapter = new ClaudeAdapter();
+  return adapter.buildStandardLayout(LAYOUT_CONFIG, opts);
 }

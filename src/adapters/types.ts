@@ -11,6 +11,164 @@
 
 import type { HeuristicConfig } from './base-adapter.js';
 
+// ─── 声明式布局配置 ──────────────────────────────────────────
+
+/**
+ * 配置文件声明 —— 描述单个配置文件的安装方式。
+ *
+ * - `type: 'copy'` — 直接复制（对应 CopySection）
+ * - `type: 'merge-settings'` — 深度合并 JSON（对应 MergeSettingsSection）
+ */
+export interface LayoutConfigFile {
+  /** 模板中的文件名（相对于 adapterTemplateDir） */
+  templateName: string;
+  /** 目标文件名（全局时相对于 adapterHome；项目级时相对于 projectAdapterDir 或 projectDir） */
+  targetName: string;
+  /** 安装方式 */
+  type: 'copy' | 'merge-settings';
+  /** 复制策略（仅 type: 'copy' 时有效） */
+  strategy?: 'always' | 'skip-if-exists';
+  /** 是否替换 __HOME__ 占位符 */
+  replaceHome?: boolean;
+  /** 是否合并 permissions.allow 工作流规则（仅 type: 'merge-settings' 时有效） */
+  allowWorkflow?: boolean;
+  /** 追加标记（仅 type: 'copy' + strategy: 'skip-if-exists' 时有效） */
+  appendMarker?: string;
+  /**
+   * 项目级时，目标文件是否放在 projectDir 根目录（而非 projectAdapterDir 内）。
+   * 例如 Pi 的 settings.json 和 OpenCode 的 opencode.json 放在项目根目录。
+   * 默认 false（放在 projectAdapterDir 内）。
+   */
+  dstInProjectRoot?: boolean;
+}
+
+/**
+ * copy-dir 声明 —— 描述目录级文件复制。
+ */
+export interface LayoutConfigCopyDir {
+  /** 模板中的目录名（相对于 adapterTemplateDir） */
+  templateName: string;
+  /** 目标目录名（相对于 adapterHome；项目级时相对于 projectAdapterDir） */
+  targetName: string;
+  /** 文件扩展名过滤（如 '.md'、'.sh'） */
+  filter?: string;
+  /** 复制策略 */
+  strategy: 'always' | 'skip-if-exists';
+  /** 是否替换 __HOME__ 占位符 */
+  replaceHome?: boolean;
+  /** 计数器类型 */
+  counter?: 'filesCreated' | 'hooksInstalled' | 'rulesInstalled' | 'commandsInstalled';
+}
+
+/**
+ * 权限声明 —— 描述目录内容的文件系统权限设置。
+ */
+export interface LayoutConfigPermission {
+  /** 目录名（相对于 adapterHome；或绝对路径） */
+  dir: string;
+  /** 文件扩展名过滤 */
+  extension: string;
+  /** 八进制权限模式 */
+  mode: number;
+  /** 是否为绝对路径（默认 false，相对于 adapterHome） */
+  absolute?: boolean;
+}
+
+/**
+ * 项目级配置声明 —— 描述项目级安装的文件和目录。
+ *
+ * 与全局配置结构类似，但：
+ * - 认知核心文件始终放在 projectDir 根目录
+ * - 配置文件可放在 projectDir 根目录或 projectAdapterDir 内
+ * - copy-dir / merge-agents / copy-skills / seed-memory 放在 projectAdapterDir 内
+ */
+export interface LayoutConfigProject {
+  /** 项目级配置文件（放在 projectDir 根目录或 projectAdapterDir 内） */
+  configFiles: LayoutConfigFile[];
+  /** 项目级 copy-dir 列表 */
+  copyDirs: LayoutConfigCopyDir[];
+  /** 是否包含 merge-agents section */
+  mergeAgents?: { templateName: string; targetName: string };
+  /** 是否包含 copy-skills section */
+  copySkills?: { templateName: string; targetName: string };
+  /** 是否包含 seed-memory section */
+  seedMemory?: { templateName: string; files: string[] };
+  /** 项目级权限设置 */
+  permissions?: LayoutConfigPermission[];
+}
+
+/**
+ * 声明式布局配置 —— 适配器只需声明此配置，
+ * 即可由 BaseAdapter.buildStandardLayout() 自动构建完整的 AdapterLayout。
+ *
+ * 各适配器的 getLayout() 差异仅在于：
+ * - 目录列表不同
+ * - 配置文件名和安装方式不同
+ * - copy-dir 列表不同
+ * - 是否包含 merge-agents / copy-skills / seed-memory
+ * - 项目级结构不同
+ * - 权限设置不同
+ *
+ * @public
+ */
+export interface LayoutConfig {
+  // ── 全局安装 ──
+
+  /** 全局子目录列表（相对于 adapterHome） */
+  globalDirs: string[];
+
+  /**
+   * 认知核心文件配置。
+   * - templateName: 模板中的文件名
+   * - dstInHome: true 表示目标在 homeDir 根目录（Claude 的 CLAUDE.md），
+   *   false 表示目标在 adapterHome 内（其余适配器的 AGENTS.md）
+   */
+  cognitiveCore: {
+    templateName: string;
+    dstInHome: boolean;
+    strategy: 'always' | 'skip-if-exists';
+    replaceHome?: boolean;
+    appendMarker?: string;
+  };
+
+  /**
+   * 额外的全局 copy 文件（如 Claude 的 MEMORY.md）。
+   * templateName 和 targetName 均相对于 adapterTemplateDir / adapterHome。
+   */
+  extraGlobalCopies?: Array<{
+    templateName: string;
+    targetName: string;
+    strategy: 'always' | 'skip-if-exists';
+    replaceHome?: boolean;
+  }>;
+
+  /** 全局配置文件列表 */
+  configFiles: LayoutConfigFile[];
+
+  /** 全局 copy-dir 列表 */
+  copyDirs: LayoutConfigCopyDir[];
+
+  /** 全局 merge-agents 配置（省略则不生成此 section） */
+  mergeAgents?: { templateName: string; targetName: string };
+
+  /** 全局 copy-skills 配置（省略则不生成此 section） */
+  copySkills?: { templateName: string; targetName: string };
+
+  /** 全局 seed-memory 配置（省略则不生成此 section） */
+  seedMemory?: { templateName: string; files: string[] };
+
+  /** 全局权限设置 */
+  permissions: LayoutConfigPermission[];
+
+  // ── 项目级安装 ──
+
+  /**
+   * 项目级配置（省略则不支持项目级安装）。
+   * OpenCode 始终有项目级安装（projectDir 默认回退到 cwd）。
+   */
+  project?: LayoutConfigProject;
+}
+
 /**
  * @public — 此类型是公共适配器 API 的一部分。
  * 第三方适配器实现者应使用此类型。
