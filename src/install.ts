@@ -20,6 +20,7 @@ import { resolveTemplateDir } from './core/download.js';
 import { selectAdapters } from './core/interactive.js';
 import { spinner, intro, outro, note, log } from '@clack/prompts';
 import type { AdapterInstallResult, AdapterVerifyCheck } from './adapters/types.js';
+import { resolveHomeDir, resolveAdapter, printNextStepsClack } from './commands/shared.js';
 
 /**
  * 在管道上下文（如 curl | bash）中尝试让 stdin 变为交互模式。
@@ -59,10 +60,11 @@ export const installCommand = new Command('install')
   .option('--project-dir <path>', '项目目录（用于 OpenCode 等项目级适配器）')
   .option('--allow-workflow', '允许开发工作流命令（npm test/lint 等）免确认')
   .action(async (options) => {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-    if (!homeDir) {
-      log.error('错误：无法确定主目录。');
-      log.error('请设置 $HOME 环境变量后重试。');
+    let homeDir: string;
+    try {
+      homeDir = resolveHomeDir();
+    } catch (err: any) {
+      log.error(`错误：${err.message}`);
       process.exit(1);
     }
 
@@ -110,19 +112,14 @@ export const installCommand = new Command('install')
     let allPass = true;
 
     for (const id of adapterIds) {
-      let installer;
-      try {
-        installer = getInstaller(id);
-      } catch {
-        log.error(`未知适配器："${id}"`);
-        log.error(
-          `可用适配器：${listAdapters()
-            .map((a) => a.id)
-            .join(', ')}`,
-        );
+      const resolved = resolveAdapter(id);
+      if (!resolved.ok) {
+        log.error(resolved.error.message);
+        log.error(resolved.error.availableAdapters);
         allPass = false;
         continue;
       }
+      const installer = resolved.installer;
 
       const config = {
         homeDir,
@@ -167,7 +164,7 @@ export const installCommand = new Command('install')
 
     // 首个适配器安装后的指引
     if (adapterIds.length > 0 && !options.dryRun) {
-      printNextSteps(adapterIds);
+      printNextStepsClack(adapterIds);
     }
   });
 
@@ -196,38 +193,4 @@ function printVerification(installer: { label: string }, checks: AdapterVerifyCh
       log.error(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
     }
   }
-}
-
-function printNextSteps(adapterIds: string[]): void {
-  const steps: string[] = [];
-
-  for (const id of adapterIds) {
-    switch (id) {
-      case 'claude':
-        steps.push('📖 Claude Code：\n' + '  1. 启动 Claude Code\n' + '  2. 运行 /boot 进行验证');
-        break;
-      case 'codex':
-        steps.push(
-          '📖 Codex CLI：\n' +
-            '  1. 启动 Codex（钩子自动运行）\n' +
-            '  2. 运行：npx evokit doctor --adapter codex',
-        );
-        break;
-      case 'opencode':
-        steps.push(
-          '📖 OpenCode CLI：\n' +
-            '  1. 进入项目目录并启动 OpenCode\n' +
-            '  2. 运行 evokit-boot 工具进行验证',
-        );
-        break;
-      default:
-        steps.push(`📖 ${id}：已就绪`);
-    }
-  }
-
-  steps.push('💡 命令行用法：npx evokit doctor');
-  steps.push('   或全局安装：npm install -g @zythegit/evokit');
-  steps.push('📚 文档：https://github.com/zyTheGit/EvoKit');
-
-  note(steps.join('\n\n'), '后续步骤');
 }

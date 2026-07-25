@@ -30,6 +30,7 @@ export {
   ClaudeAdapter,
   getLayout as getClaudeLayout,
   verifyClaudeInstallation,
+  buildClaudeExtraChecks,
 } from './claude/adapter.js';
 export { CodexAdapter, resolveCodexHome } from './codex/adapter.js';
 export { OpenCodeAdapter, resolveOpenCodeProjectDir } from './opencode/adapter.js';

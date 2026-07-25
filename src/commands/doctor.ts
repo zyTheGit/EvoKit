@@ -4,16 +4,16 @@
  * 验证 EvoKit 系统完整性。
  * 通过适配器注册表遍历所有已安装适配器，
  * 调用 adapter.status() 获取检查结果 —— 不再直接导入适配器实现函数。
+ * 适配器特有检查（如 Claude 的 CLAUDE.md 行数限制、记忆文件检查）
+ * 通过 status().extraChecks 暴露，doctor 不硬编码任何适配器特有逻辑。
  *
  * @packageDocumentation
  */
 
 import { Command } from 'commander';
 import pc from 'picocolors';
-import fse from 'fs-extra';
-import path from 'node:path';
 import { listAdapters } from '../adapters/registry.js';
-import { getFileLineCount } from '../core/memory.js';
+import { resolveHomeDir } from './shared.js';
 
 export const doctorCommand = new Command('doctor')
   .description('验证 EvoKit 系统完整性')
@@ -23,9 +23,11 @@ export const doctorCommand = new Command('doctor')
   .option('--all', '检查所有适配器（--adapter all 的快捷方式）')
   .option('--project-dir <path>', '项目目录（用于 OpenCode 等项目级适配器）')
   .action(async (options) => {
-    const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
-    if (!homeDir) {
-      console.error(pc.red('错误：无法确定主目录。'));
+    let homeDir: string;
+    try {
+      homeDir = resolveHomeDir({ home: options.home });
+    } catch (err: any) {
+      console.error(pc.red(`错误：${err.message}`));
       process.exit(1);
     }
 
@@ -44,11 +46,9 @@ export const doctorCommand = new Command('doctor')
 
     let allPass = true;
     const adapters = listAdapters();
-    let checkedCount = 0;
 
     for (const installer of adapters) {
       if (adapter !== 'all' && adapter !== installer.id) continue;
-      checkedCount++;
 
       const config = { homeDir, templateDir: '', projectDir };
       const status = installer.status(config);
@@ -71,26 +71,19 @@ export const doctorCommand = new Command('doctor')
         if (!check.pass) pass = false;
       }
 
-      if (!pass) allPass = false;
-
-      // Claude 特有：文件大小限制检查
-      if (installer.id === 'claude') {
-        console.log(pc.cyan('\n📏 Claude Code — 文件大小限制...'));
-        const rootClaudeMd = path.join(homeDir, 'CLAUDE.md');
-        if (fse.existsSync(rootClaudeMd)) {
-          const lines = getFileLineCount(rootClaudeMd);
-          if (lines > 150) {
-            console.log(`  ${pc.yellow('⚠️')} CLAUDE.md：${lines} 行（限制：150）`);
-            allPass = false;
-          } else {
-            console.log(`  ${pc.green('✓')} CLAUDE.md：${lines}/150 行`);
-          }
+      // 遍历适配器特有的额外检查项（如 Claude 的 CLAUDE.md 行数限制、记忆文件检查）
+      // 不硬编码任何适配器特有逻辑 —— 全部通过 status().extraChecks 暴露
+      if (status.extraChecks && status.extraChecks.length > 0) {
+        for (const check of status.extraChecks) {
+          const icon = check.pass ? pc.green('✓') : pc.red('✗');
+          console.log(
+            `  ${icon} ${check.name}${check.detail ? pc.yellow(` — ${check.detail}`) : ''}`,
+          );
+          if (!check.pass) pass = false;
         }
-
-        // 记忆文件检查
-        const memoryPass = checkMemory(homeDir, '.claude');
-        if (!memoryPass) allPass = false;
       }
+
+      if (!pass) allPass = false;
     }
 
     // 汇总 — allPass 仅基于实际检查的适配器结果
@@ -102,33 +95,3 @@ export const doctorCommand = new Command('doctor')
     }
     console.log('');
   });
-
-function checkMemory(homeDir: string, subDir: string): boolean {
-  const memoryDir = path.join(homeDir, subDir, 'memory');
-  console.log(pc.cyan(`\n💾 记忆文件 (${subDir}/memory/)...`));
-
-  if (!fse.existsSync(memoryDir)) {
-    console.log(`  ${pc.yellow('⚠')} 记忆目录未找到`);
-    return false;
-  }
-
-  const memoryFiles = [
-    'corrections.jsonl',
-    'observations.jsonl',
-    'sessions.jsonl',
-    'violations.jsonl',
-    'learned-rules.md',
-    'evolution-log.md',
-    'README.md',
-  ];
-
-  let allExist = true;
-  for (const file of memoryFiles) {
-    const fp = path.join(memoryDir, file);
-    const exists = fse.existsSync(fp);
-    console.log(`  ${exists ? pc.green('✓') : pc.yellow('⚠')} ${file}${!exists ? '（可选）' : ''}`);
-    if (!exists && file !== 'README.md') allExist = false;
-  }
-
-  return allExist;
-}

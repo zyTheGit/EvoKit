@@ -14,13 +14,13 @@
  */
 
 import { Command } from 'commander';
-import path from 'node:path';
 import { getInstaller, getAdapterInternal, listAdapters } from '../adapters/index.js';
 import type { AdapterInternal } from '../adapters/types.js';
 import { readManifest } from '../core/manifest.js';
 import { executeUninstall } from '../core/reverse-layout-engine.js';
 import { spinner, intro, outro, note, log, confirm, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
+import { resolveHomeDir, resolveAdapter } from './shared.js';
 
 export const uninstallCommand = new Command('uninstall')
   .description('卸载 AI 编码助手的 EvoKit')
@@ -57,10 +57,11 @@ export const uninstallCommand = new Command('uninstall')
   备份位于 ~/.evokit/backup/uninstall-YYYYMMDD/`,
   )
   .action(async (adapterArg: string | undefined, options: any) => {
-    const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
-    if (!homeDir) {
-      log.error('错误：无法确定主目录。');
-      log.error('请设置 $HOME 后重试。');
+    let homeDir: string;
+    try {
+      homeDir = resolveHomeDir({ home: options.home });
+    } catch (err: any) {
+      log.error(`错误：${err.message}`);
       process.exit(1);
     }
 
@@ -70,15 +71,10 @@ export const uninstallCommand = new Command('uninstall')
     if (adapterArg) {
       adapterId = adapterArg.trim().toLowerCase();
       // 验证适配器是否存在于注册表中
-      try {
-        getInstaller(adapterId);
-      } catch {
-        log.error(`未知适配器："${adapterArg}"`);
-        log.error(
-          `可用适配器：${listAdapters()
-            .map((a) => a.id)
-            .join(', ')}`,
-        );
+      const resolved = resolveAdapter(adapterId);
+      if (!resolved.ok) {
+        log.error(resolved.error.message);
+        log.error(resolved.error.availableAdapters);
         process.exit(1);
       }
     } else {
