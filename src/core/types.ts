@@ -107,6 +107,7 @@ export interface InstallSummary {
   commandsInstalled: number;
   rulesInstalled: number;
   agentsInstalled: number;
+  skillsInstalled: number;
 }
 
 /** 按助手标记的共享内存记录 */

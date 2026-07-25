@@ -47,6 +47,7 @@ export function executeLayout(
     commandsInstalled: 0,
     rulesInstalled: 0,
     agentsInstalled: 0,
+    skillsInstalled: 0,
   };
 
   // 确保目标目录存在（dry-run 模式下也创建，以便路径解析）
@@ -217,6 +218,7 @@ function executeCopySkills(
           fse.copySync(skillMd, path.join(dstDir, entry, 'SKILL.md'));
         }
         summary.filesCreated++;
+        summary.skillsInstalled++;
         collector?.recordSkillDir(entry);
         collector?.recordFile({
           path: path.join(dstDir, entry, 'SKILL.md'),

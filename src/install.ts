@@ -178,6 +178,7 @@ function printResult(installer: { label: string }, result: AdapterInstallResult)
   if (result.rulesInstalled > 0) lines.push(`规则：已安装 ${result.rulesInstalled} 个`);
   if (result.agentsInstalled > 0) lines.push(`代理：已安装 ${result.agentsInstalled} 个`);
   if (result.commandsInstalled > 0) lines.push(`命令：已安装 ${result.commandsInstalled} 个`);
+  if (result.skillsInstalled > 0) lines.push(`技能：已安装 ${result.skillsInstalled} 个`);
 
   note(lines.join('\n'), `EvoKit — ${installer.label} 安装结果`);
 }

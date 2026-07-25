@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, mkdirSync, appendFileSync } from 'fs';
-import { join, homedir } from 'path';
+import { join } from 'path';
+import { homedir } from 'os';
 
 const MEMORY_DIR = join(homedir(), '.pi', 'agent', 'memory');
 

@@ -20,6 +20,7 @@ export const doctorCommand = new Command('doctor')
   .option('--home <path>', 'EvoKit 主目录（默认: $HOME）')
   .option('--fix', '尝试修复常见问题')
   .option('--adapter <name>', '检查指定适配器（claude | codex | opencode | pi | all）', 'all')
+  .option('--all', '检查所有适配器（--adapter all 的快捷方式）')
   .option('--project-dir <path>', '项目目录（用于 OpenCode 等项目级适配器）')
   .action(async (options) => {
     const homeDir = options.home || process.env.HOME || process.env.USERPROFILE || '';
@@ -28,7 +29,8 @@ export const doctorCommand = new Command('doctor')
       process.exit(1);
     }
 
-    const adapter = options.adapter || 'all';
+    // --all 是 --adapter all 的快捷方式
+    const adapter = options.all ? 'all' : options.adapter || 'all';
     const projectDir = options.projectDir || undefined;
 
     console.log(pc.cyan('╔═══════════════════════════════════════════╗'));

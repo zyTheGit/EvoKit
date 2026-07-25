@@ -429,6 +429,7 @@ export abstract class BaseAdapter {
       commandsInstalled: summary.commandsInstalled,
       rulesInstalled: summary.rulesInstalled,
       agentsInstalled: summary.agentsInstalled,
+      skillsInstalled: summary.skillsInstalled,
       adapterHome,
     };
   }
@@ -478,6 +479,8 @@ export abstract class BaseAdapter {
       agentFieldsRemoved: result.agentFieldsRemoved,
       permissionsAllowRemoved: result.permissionsAllowRemoved,
       directoriesRemoved: result.directoriesRemoved,
+      adapterHome: result.adapterHome,
+      deletedFiles: result.deletedFiles,
       backupPath: result.backupPath,
       heuristic: result.heuristic,
       warnings: result.warnings,

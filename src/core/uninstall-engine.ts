@@ -57,6 +57,8 @@ export interface UninstallOptions {
 export interface UninstallResult {
   /** 已卸载的适配器 ID */
   adapterId: string;
+  /** 适配器家目录（用于显示） */
+  adapterHome: string;
   /** 删除的文件数 */
   filesDeleted: number;
   /** 保留的文件数（非清除模式下的用户数据） */
@@ -71,6 +73,8 @@ export interface UninstallResult {
   permissionsAllowRemoved: number;
   /** 移除的空目录数 */
   directoriesRemoved: number;
+  /** 已删除的文件相对路径列表（用于摘要显示） */
+  deletedFiles: string[];
   /** 备份目录路径（如已创建） */
   backupPath?: string;
   /** 是否使用了启发式（无清单）模式 */
@@ -106,6 +110,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
 
   const result: UninstallResult = {
     adapterId,
+    adapterHome: '',
     filesDeleted: 0,
     filesPreserved: 0,
     hooksRemoved: 0,
@@ -113,6 +118,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     agentFieldsRemoved: 0,
     permissionsAllowRemoved: 0,
     directoriesRemoved: 0,
+    deletedFiles: [],
     heuristic: false,
     warnings: [],
   };
@@ -127,6 +133,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
   }
 
   const adapterHome = adapterRecord.adapterHome;
+  result.adapterHome = adapterHome;
 
   // 2. 收集要备份的文件
   const filesToBackup: string[] = [];
@@ -200,6 +207,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
     result.permissionsAllowRemoved = reverseResult.permissionsAllowRemoved;
     if (reverseResult.fileDeleted) {
       result.filesDeleted++;
+      result.deletedFiles.push(path.relative(homeDir, settingsPath));
     }
   }
 
@@ -274,6 +282,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
       fse.removeSync(filePath);
     }
     result.filesDeleted++;
+    result.deletedFiles.push(path.relative(homeDir, filePath));
   }
 
   // 删除技能目录
@@ -284,6 +293,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
         fse.removeSync(skillPath);
       }
       result.filesDeleted++;
+      result.deletedFiles.push(path.relative(homeDir, skillPath) + '/');
     }
   }
 
@@ -303,6 +313,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
           fse.removeSync(memDir);
         }
         result.filesDeleted++;
+        result.deletedFiles.push(path.relative(homeDir, memDir) + '/');
       }
     }
   }
@@ -315,6 +326,7 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
       fse.removeSync(settingsPath);
     }
     result.filesDeleted++;
+    result.deletedFiles.push(path.relative(homeDir, settingsPath));
   }
 
   // 8. 清理空目录（最深优先）
@@ -361,6 +373,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
 
   const result: UninstallResult = {
     adapterId,
+    adapterHome: '',
     filesDeleted: 0,
     filesPreserved: 0,
     hooksRemoved: 0,
@@ -368,12 +381,14 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
     agentFieldsRemoved: 0,
     permissionsAllowRemoved: 0,
     directoriesRemoved: 0,
+    deletedFiles: [],
     heuristic: true,
     warnings: ['未找到清单文件 — 使用启发式卸载。部分文件可能被遗漏。'],
   };
 
   // 根据适配器 ID 确定适配器家目录
   const adapterHome = getAdapterHome(homeDir, adapterId, adapter);
+  result.adapterHome = adapterHome;
 
   // 根据适配器 ID 确定已知的目录结构和文件扩展名
   const adapterConfig = getAdapterHeuristicConfig(adapterId, adapterHome, adapter);
@@ -465,6 +480,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
         fse.removeSync(cfgPath);
       }
       result.filesDeleted++;
+      result.deletedFiles.push(path.relative(homeDir, cfgPath));
     }
   }
 
@@ -489,6 +505,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
         fse.removeSync(cognitiveCorePath);
       }
       result.filesDeleted++;
+      result.deletedFiles.push(path.relative(homeDir, cognitiveCorePath));
     }
   }
 
@@ -505,6 +522,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
           fse.removeSync(filePath);
         }
         result.filesDeleted++;
+        result.deletedFiles.push(path.relative(homeDir, filePath));
       }
     } catch {
       // 跳过不可读的目录
@@ -517,6 +535,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
       fse.removeSync(adapterConfig.skillsDir);
     }
     result.filesDeleted++;
+    result.deletedFiles.push(path.relative(homeDir, adapterConfig.skillsDir) + '/');
   }
 
   // Memory/README.md（EvoKit 种子）
@@ -525,6 +544,7 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
       fse.removeSync(memoryReadme);
     }
     result.filesDeleted++;
+    result.deletedFiles.push(path.relative(homeDir, memoryReadme));
   }
 
   // 4. Agent frontmatter 启发式
