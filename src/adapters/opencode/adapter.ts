@@ -13,7 +13,7 @@
  * - .opencode/tools/ 作为自定义工具
  * - .opencode/agent/ 作为项目级代理覆盖
  *
- * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎。
+ * 使用声明式 `LayoutConfig` + `BaseAdapter.buildStandardLayout()` 引擎。
  *
  * @packageDocumentation
  */
@@ -22,10 +22,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
 import { BaseAdapter, type HeuristicConfig } from '../base-adapter.js';
-import type { AdapterVerifyCheck } from '../types.js';
+import type { AdapterVerifyCheck, LayoutConfig } from '../types.js';
 import type { InstallSummary, SessionEntry } from '../../core/types.js';
 import type { OpenCodeAdapterOptions, OpenCodeInstallConfig } from './types.js';
-import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
+import type { AdapterLayout } from '../../core/layout-types.js';
 import { executeLayout } from '../../core/layout-engine.js';
 
 export const OPENCODE_ADAPTER_VERSION = '0.5.0';
@@ -57,155 +57,77 @@ export function resolveOpenCodeConfigHome(homeDir: string): string {
   return path.join(homeDir, '.config', 'opencode');
 }
 
-// ─── 布局构建器 ────────────────────────────────────────────
+// ─── 声明式布局配置 ──────────────────────────────────────────
 
 /**
- * 构建 OpenCode CLI 适配器安装的声明式布局。
+ * OpenCode CLI 适配器的声明式布局配置。
+ * 由 BaseAdapter.buildStandardLayout() 消费，自动构建完整的 AdapterLayout。
  *
- * OpenCode 安装到两个位置：
- *   1. 全局：~/.config/opencode/
- *   2. 项目：.opencode/ + 项目根目录文件
- *
- * 布局使用全局目录作为 targetDir；项目级
- * 文件在其 dst/dstDir 字段中使用绝对路径。
+ * 注意：OpenCode 的项目级安装始终存在（projectDir 默认回退到 cwd），
+ * 且项目级配置文件（opencode.json）放在 projectDir 根目录而非 .opencode/ 内。
+ * 这些差异通过 LayoutConfigProject 的 configFiles 配置来处理。
  */
-export function getLayout(opts: {
-  homeDir: string;
-  projectDir: string;
-  templateDir: string;
-}): AdapterLayout {
-  const { homeDir, projectDir, templateDir } = opts;
-  const opencodeDir = path.join(projectDir, '.opencode');
-  const opencodeTemplateDir = path.join(templateDir, 'opencode');
-  const globalDir = resolveOpenCodeConfigHome(homeDir);
+const LAYOUT_CONFIG: LayoutConfig = {
+  globalDirs: [...GLOBAL_DIRS],
 
-  const sections: AdapterSection[] = [];
-
-  // ═══════════════════════════════════════════════════════════
-  // GLOBAL INSTALL: ~/.config/opencode/
-  // ═══════════════════════════════════════════════════════════
-
-  // 1. Global directories
-  sections.push({
-    type: 'dirs',
-    paths: [...GLOBAL_DIRS],
-  });
-
-  // 2. AGENTS.md (global, skip-if-exists, with __HOME__ replacement)
-  sections.push({
-    type: 'copy',
-    src: path.join(opencodeTemplateDir, 'AGENTS.md'),
-    dst: path.join(globalDir, 'AGENTS.md'),
+  // 认知核心：AGENTS.md 放在 adapterHome（即 globalDir）内
+  cognitiveCore: {
+    templateName: 'AGENTS.md',
+    dstInHome: false,
     strategy: 'skip-if-exists',
     replaceHome: true,
-  });
+  },
 
-  // 3. opencode.json (global, skip-if-exists, with __HOME__)
-  sections.push({
-    type: 'copy',
-    src: path.join(opencodeTemplateDir, 'opencode.json'),
-    dst: path.join(globalDir, 'opencode.json'),
-    strategy: 'skip-if-exists',
-    replaceHome: true,
-  });
+  // 配置文件：opencode.json（skip-if-exists，copy 方式）
+  configFiles: [
+    {
+      templateName: 'opencode.json',
+      targetName: 'opencode.json',
+      type: 'copy',
+      strategy: 'skip-if-exists',
+      replaceHome: true,
+    },
+  ],
 
-  // 4. Agent definitions (global ~/.config/opencode/agent/)
-  sections.push({
-    type: 'merge-agents',
-    srcDir: path.join(opencodeTemplateDir, 'agent'),
-    dstDir: path.join(globalDir, 'agent'),
-  });
+  // merge-agents
+  mergeAgents: { templateName: 'agent', targetName: 'agent' },
 
-  // 5. Memory seed (global, skip-if-exists)
-  sections.push({
-    type: 'seed-memory',
-    srcDir: path.join(opencodeTemplateDir, 'memory'),
-    dstDir: path.join(globalDir, 'memory'),
-    files: [...MEMORY_SEED_FILES],
-  });
+  // seed-memory
+  seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
 
-  // 6. Skills (seed, skip-if-exists per file via copy-dir)
-  sections.push({
-    type: 'copy-skills',
-    srcDir: path.join(opencodeTemplateDir, 'skills'),
-    dstDir: path.join(globalDir, 'skills'),
-  });
+  // copy-skills
+  copySkills: { templateName: 'skills', targetName: 'skills' },
 
-  // ═══════════════════════════════════════════════════════════
-  // PROJECT INSTALL: .opencode/  +  project root files
-  // ═══════════════════════════════════════════════════════════
+  // 全局权限
+  permissions: [{ dir: 'memory', extension: '.jsonl', mode: 0o600 }],
 
-  // Note: Project directories are outside targetDir (globalDir).
-  // They will be created by the individual sections (copy-dir, merge-agents, etc.)
-  // via ensureDirSync on their dstDir. We add a dirs section for the
-  // project base directory using a relative path that will be resolved
-  // correctly by the engine (the engine creates targetDir at the start).
-
-  // 8. AGENTS.md (project root, skip-if-exists, with __HOME__)
-  sections.push({
-    type: 'copy',
-    src: path.join(opencodeTemplateDir, 'AGENTS.md'),
-    dst: path.join(projectDir, 'AGENTS.md'),
-    strategy: 'skip-if-exists',
-    replaceHome: true,
-  });
-
-  // 9. opencode.json (project root, skip-if-exists, with __HOME__)
-  sections.push({
-    type: 'copy',
-    src: path.join(opencodeTemplateDir, 'opencode.json'),
-    dst: path.join(projectDir, 'opencode.json'),
-    strategy: 'skip-if-exists',
-    replaceHome: true,
-  });
-
-  // 10. Tools (always copy — upgrade path, with __HOME__)
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(opencodeTemplateDir, 'tools'),
-    dstDir: path.join(opencodeDir, 'tools'),
-    filter: '.ts',
-    strategy: 'always',
-    replaceHome: true,
-  });
-
-  // 11. Project-level agents (merge, path .opencode/agent/)
-  sections.push({
-    type: 'merge-agents',
-    srcDir: path.join(opencodeTemplateDir, 'agent'),
-    dstDir: path.join(opencodeDir, 'agent'),
-  });
-
-  // 12. Project-level memory seed (skip-if-exists)
-  sections.push({
-    type: 'seed-memory',
-    srcDir: path.join(opencodeTemplateDir, 'memory'),
-    dstDir: path.join(opencodeDir, 'memory'),
-    files: [...MEMORY_SEED_FILES],
-  });
-
-  // ═══════════════════════════════════════════════════════════
-  // PERMISSIONS
-  // ═══════════════════════════════════════════════════════════
-
-  // 13. Tools — readable
-  sections.push({
-    type: 'permissions',
-    dir: path.join(opencodeDir, 'tools'),
-    extension: '.ts',
-    mode: 0o644,
-  });
-
-  // 14. Global memory JSONL files — 600 (personal data)
-  sections.push({
-    type: 'permissions',
-    dir: path.join(globalDir, 'memory'),
-    extension: '.jsonl',
-    mode: 0o600,
-  });
-
-  return { targetDir: globalDir, sections };
-}
+  // 项目级配置（OpenCode 始终有项目级安装）
+  project: {
+    // 项目级配置文件：opencode.json 放在 projectDir 根目录
+    configFiles: [
+      {
+        templateName: 'opencode.json',
+        targetName: 'opencode.json',
+        type: 'copy',
+        strategy: 'skip-if-exists',
+        replaceHome: true,
+        dstInProjectRoot: true,
+      },
+    ],
+    copyDirs: [
+      {
+        templateName: 'tools',
+        targetName: 'tools',
+        filter: '.ts',
+        strategy: 'always',
+        replaceHome: true,
+      },
+    ],
+    mergeAgents: { templateName: 'agent', targetName: 'agent' },
+    seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
+    permissions: [{ dir: 'tools', extension: '.ts', mode: 0o644 }],
+  },
+};
 
 // ─── BaseAdapter 子类实现 ─────────────────────────────────────────
 
@@ -241,10 +163,11 @@ export class OpenCodeAdapter extends BaseAdapter {
     templateDir: string;
     allowWorkflow?: boolean;
   }): AdapterLayout {
-    return getLayout({
-      homeDir: opts.homeDir,
-      projectDir: opts.projectDir || process.cwd(),
-      templateDir: opts.templateDir,
+    // OpenCode 的 projectDir 默认回退到 cwd
+    const effectiveProjectDir = opts.projectDir || process.cwd();
+    return this.buildStandardLayout(LAYOUT_CONFIG, {
+      ...opts,
+      projectDir: effectiveProjectDir,
     });
   }
 
@@ -262,6 +185,25 @@ export class OpenCodeAdapter extends BaseAdapter {
   protected override resolveProjectDir(config: import('../types.js').AdapterInstallConfig): string {
     return config.projectDir || process.cwd();
   }
+}
+
+// ─── 向后兼容导出 ──────────────────────────────────────────
+
+/**
+ * @deprecated 使用 OpenCodeAdapter.buildLayout() 或 buildStandardLayout() 代替。
+ * 保留此函数仅为向后兼容（独立 API 和测试可能直接调用）。
+ */
+export function getLayout(opts: {
+  homeDir: string;
+  projectDir: string;
+  templateDir: string;
+}): AdapterLayout {
+  const adapter = new OpenCodeAdapter();
+  return adapter.buildStandardLayout(LAYOUT_CONFIG, {
+    homeDir: opts.homeDir,
+    projectDir: opts.projectDir,
+    templateDir: opts.templateDir,
+  });
 }
 
 // ─── Standalone API ──────────────────────────────────────────────

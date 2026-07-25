@@ -14,7 +14,7 @@
  *
  * Pi CLI 没有内置 hooks 系统 — 生命周期逻辑通过 TypeScript 扩展实现。
  *
- * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎。
+ * 使用声明式 `LayoutConfig` + `BaseAdapter.buildStandardLayout()` 引擎。
  *
  * @packageDocumentation
  */
@@ -22,11 +22,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
-import { type AdapterInstallConfig, type AdapterVerifyCheck } from '../types.js';
+import { type AdapterInstallConfig, type AdapterVerifyCheck, type LayoutConfig } from '../types.js';
 import { BaseAdapter } from '../base-adapter.js';
 import type { InstallSummary, SessionEntry } from '../../core/types.js';
 import type { PiAdapterOptions, PiInstallConfig } from './types.js';
-import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
+import type { AdapterLayout } from '../../core/layout-types.js';
 import { executeLayout } from '../../core/layout-engine.js';
 
 export const PI_ADAPTER_VERSION = '0.6.0';
@@ -61,148 +61,85 @@ export function resolvePiProjectDir(projectDir: string): string {
   return path.join(projectDir, '.pi');
 }
 
-// ─── 布局构建器 ────────────────────────────────────────────
+// ─── 声明式布局配置 ──────────────────────────────────────────
 
 /**
- * 构建 Pi CLI 适配器安装的声明式布局。
- *
- * Pi 安装到两个位置：
- *   1. 全局：~/.pi/agent/
- *   2. 项目（可选）：.pi/
- *
- * 布局使用全局目录作为 targetDir；项目级
- * 文件在其 dst/dstDir 字段中使用绝对路径。
+ * Pi CLI 适配器的声明式布局配置。
+ * 由 BaseAdapter.buildStandardLayout() 消费，自动构建完整的 AdapterLayout。
  */
-export function getLayout(opts: {
-  homeDir: string;
-  projectDir?: string;
-  templateDir: string;
-}): AdapterLayout {
-  const { homeDir, projectDir, templateDir } = opts;
-  const piHome = resolvePiHome(homeDir);
-  const piTemplateDir = path.join(templateDir, 'pi');
+const LAYOUT_CONFIG: LayoutConfig = {
+  globalDirs: [...GLOBAL_DIRS],
 
-  const sections: AdapterSection[] = [];
-
-  // ═══════════════════════════════════════════════════════════
-  // GLOBAL INSTALL: ~/.pi/agent/
-  // ═══════════════════════════════════════════════════════════
-
-  // 1. Global directories
-  sections.push({
-    type: 'dirs',
-    paths: [...GLOBAL_DIRS],
-  });
-
-  // 2. AGENTS.md (global, skip-if-exists, with __HOME__ replacement)
-  sections.push({
-    type: 'copy',
-    src: path.join(piTemplateDir, 'AGENTS.md'),
-    dst: path.join(piHome, 'AGENTS.md'),
+  // 认知核心：AGENTS.md 放在 adapterHome 内
+  cognitiveCore: {
+    templateName: 'AGENTS.md',
+    dstInHome: false,
     strategy: 'skip-if-exists',
     replaceHome: true,
-  });
+  },
 
-  // 3. settings.json (global, skip-if-exists, with __HOME__)
-  sections.push({
-    type: 'copy',
-    src: path.join(piTemplateDir, 'settings.json'),
-    dst: path.join(piHome, 'settings.json'),
-    strategy: 'skip-if-exists',
-    replaceHome: true,
-  });
-
-  // 4. Extensions (TypeScript, always copy — upgrade path, with __HOME__)
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(piTemplateDir, 'extensions'),
-    dstDir: path.join(piHome, 'extensions'),
-    filter: '.ts',
-    strategy: 'always',
-    replaceHome: true,
-    counter: 'hooksInstalled',
-  });
-
-  // 5. Agent definitions (global ~/.pi/agent/agent/)
-  sections.push({
-    type: 'merge-agents',
-    srcDir: path.join(piTemplateDir, 'agent'),
-    dstDir: path.join(piHome, 'agent'),
-  });
-
-  // 6. Skills (seed, skip-if-exists per file via copy-skills)
-  sections.push({
-    type: 'copy-skills',
-    srcDir: path.join(piTemplateDir, 'skills'),
-    dstDir: path.join(piHome, 'skills'),
-  });
-
-  // 7. Memory seed (global, skip-if-exists)
-  sections.push({
-    type: 'seed-memory',
-    srcDir: path.join(piTemplateDir, 'memory'),
-    dstDir: path.join(piHome, 'memory'),
-    files: [...MEMORY_SEED_FILES],
-  });
-
-  // ═══════════════════════════════════════════════════════════
-  // PROJECT INSTALL (optional): .pi/
-  // ═══════════════════════════════════════════════════════════
-
-  if (projectDir) {
-    const piProjectDir = resolvePiProjectDir(projectDir);
-
-    // 8. AGENTS.md (project root, skip-if-exists, with __HOME__)
-    sections.push({
+  // 配置文件：settings.json（skip-if-exists，copy 方式）
+  configFiles: [
+    {
+      templateName: 'settings.json',
+      targetName: 'settings.json',
       type: 'copy',
-      src: path.join(piTemplateDir, 'AGENTS.md'),
-      dst: path.join(projectDir, 'AGENTS.md'),
       strategy: 'skip-if-exists',
       replaceHome: true,
-    });
+    },
+  ],
 
-    // 9. settings.json (project root, skip-if-exists, with __HOME__)
-    sections.push({
-      type: 'copy',
-      src: path.join(piTemplateDir, 'settings.json'),
-      dst: path.join(projectDir, 'settings.json'),
-      strategy: 'skip-if-exists',
-      replaceHome: true,
-    });
-
-    // 10. Project-level extensions (.pi/extensions/)
-    sections.push({
-      type: 'copy-dir',
-      srcDir: path.join(piTemplateDir, 'extensions'),
-      dstDir: path.join(piProjectDir, 'extensions'),
+  // copy-dir 列表
+  copyDirs: [
+    {
+      templateName: 'extensions',
+      targetName: 'extensions',
       filter: '.ts',
       strategy: 'always',
       replaceHome: true,
-    });
-  }
+      counter: 'hooksInstalled',
+    },
+  ],
 
-  // ═══════════════════════════════════════════════════════════
-  // PERMISSIONS
-  // ═══════════════════════════════════════════════════════════
+  // merge-agents
+  mergeAgents: { templateName: 'agent', targetName: 'agent' },
 
-  // 11. Extensions — readable
-  sections.push({
-    type: 'permissions',
-    dir: path.join(piHome, 'extensions'),
-    extension: '.ts',
-    mode: 0o644,
-  });
+  // copy-skills
+  copySkills: { templateName: 'skills', targetName: 'skills' },
 
-  // 12. Global memory JSONL files — 600 (personal data)
-  sections.push({
-    type: 'permissions',
-    dir: path.join(piHome, 'memory'),
-    extension: '.jsonl',
-    mode: 0o600,
-  });
+  // seed-memory
+  seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
 
-  return { targetDir: piHome, sections };
-}
+  // 全局权限
+  permissions: [
+    { dir: 'extensions', extension: '.ts', mode: 0o644 },
+    { dir: 'memory', extension: '.jsonl', mode: 0o600 },
+  ],
+
+  // 项目级配置
+  project: {
+    // Pi 的项目级 settings.json 放在 projectDir 根目录（而非 .pi/ 内）
+    configFiles: [
+      {
+        templateName: 'settings.json',
+        targetName: 'settings.json',
+        type: 'copy',
+        strategy: 'skip-if-exists',
+        replaceHome: true,
+        dstInProjectRoot: true,
+      },
+    ],
+    copyDirs: [
+      {
+        templateName: 'extensions',
+        targetName: 'extensions',
+        filter: '.ts',
+        strategy: 'always',
+        replaceHome: true,
+      },
+    ],
+  },
+};
 
 // ─── BaseAdapter 实现 ──────────────────────────────────────
 
@@ -227,12 +164,31 @@ export class PiAdapter extends BaseAdapter {
     templateDir: string;
     allowWorkflow?: boolean;
   }): AdapterLayout {
-    return getLayout(opts);
+    return this.buildStandardLayout(LAYOUT_CONFIG, opts);
   }
 
   protected verifyChecks(config: AdapterInstallConfig): AdapterVerifyCheck[] {
     return verifyPiInstallation(resolvePiHome(config.homeDir));
   }
+}
+
+// ─── 向后兼容导出 ──────────────────────────────────────────
+
+/**
+ * @deprecated 使用 PiAdapter.buildLayout() 或 buildStandardLayout() 代替。
+ * 保留此函数仅为向后兼容（独立 API 和测试可能直接调用）。
+ */
+export function getLayout(opts: {
+  homeDir: string;
+  projectDir?: string;
+  templateDir: string;
+}): AdapterLayout {
+  const adapter = new PiAdapter();
+  return adapter.buildStandardLayout(LAYOUT_CONFIG, {
+    homeDir: opts.homeDir,
+    projectDir: opts.projectDir,
+    templateDir: opts.templateDir,
+  });
 }
 
 // ─── 独立 API ──────────────────────────────────────────────

@@ -11,7 +11,7 @@
  * - .codex/rules/ 用于 Starlark 权限规则
  * - ~/.codex/memory/ 用于进化数据
  *
- * 使用声明式 `AdapterLayout` + `executeLayout()` 引擎。
+ * 使用声明式 `LayoutConfig` + `BaseAdapter.buildStandardLayout()` 引擎。
  * 通用安装/验证/状态/卸载管线由 BaseAdapter 提供。
  *
  * @packageDocumentation
@@ -23,10 +23,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fse from 'fs-extra';
 import { BaseAdapter } from '../base-adapter.js';
-import type { AdapterInstallConfig, AdapterVerifyCheck } from '../types.js';
+import type { AdapterInstallConfig, AdapterVerifyCheck, LayoutConfig } from '../types.js';
 import type { CodexAdapterOptions, CodexInstallConfig } from './types.js';
 import type { VerifyResult, InstallSummary, SessionEntry } from '../../core/types.js';
-import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
+import type { AdapterLayout } from '../../core/layout-types.js';
 import { executeLayout } from '../../core/layout-engine.js';
 import { CodexHooksBuilder } from './hooks.js';
 
@@ -45,186 +45,101 @@ export function resolveCodexHome(homeDir: string): string {
   return process.env.CODEX_HOME || path.join(homeDir, '.codex');
 }
 
-// ─── 布局构建器 ────────────────────────────────────────────
+// ─── 声明式布局配置 ──────────────────────────────────────────
 
 /**
- * 构建 Codex CLI 适配器安装的声明式布局。
- *
- * 支持双层安装：
- *   1. 全局：~/.codex/
- *   2. 项目（可选）：.codex/ + 项目根目录文件
- *
- * 布局使用全局目录作为 targetDir；项目级
- * 文件在其 dst/dstDir 字段中使用绝对路径。
+ * Codex CLI 适配器的声明式布局配置。
+ * 由 BaseAdapter.buildStandardLayout() 消费，自动构建完整的 AdapterLayout。
  */
-export function getLayout(opts: {
-  homeDir: string;
-  projectDir?: string;
-  templateDir: string;
-}): AdapterLayout {
-  const { homeDir, projectDir, templateDir } = opts;
-  const codexHome = resolveCodexHome(homeDir);
-  const codexTemplateDir = path.join(templateDir, 'codex');
+const LAYOUT_CONFIG: LayoutConfig = {
+  globalDirs: [...CODEX_SUBDIRS],
 
-  const sections: AdapterSection[] = [];
-
-  // ── 1. 目录 ──────────────────────────────────────────
-  sections.push({
-    type: 'dirs',
-    paths: [...CODEX_SUBDIRS],
-  });
-
-  // ── 2. AGENTS.md（skip-if-exists，替换 __HOME__）──
-  sections.push({
-    type: 'copy',
-    src: path.join(codexTemplateDir, 'AGENTS.md'),
-    dst: path.join(codexHome, 'AGENTS.md'),
+  // 认知核心：AGENTS.md 放在 adapterHome 内
+  cognitiveCore: {
+    templateName: 'AGENTS.md',
+    dstInHome: false,
     strategy: 'skip-if-exists',
     replaceHome: true,
-  });
+  },
 
-  // ── 3. hooks.json（始终复制 — 升级路径，替换 __HOME__）──
-  sections.push({
-    type: 'copy',
-    src: path.join(codexTemplateDir, 'hooks.json'),
-    dst: path.join(codexHome, 'hooks.json'),
-    strategy: 'always',
-    replaceHome: true,
-  });
-
-  // ── 4. config.toml（skip-if-exists，不替换 __HOME__）──
-  sections.push({
-    type: 'copy',
-    src: path.join(codexTemplateDir, 'config.toml'),
-    dst: path.join(codexHome, 'config.toml'),
-    strategy: 'skip-if-exists',
-  });
-
-  // ── 5. Rules（始终复制 — 升级路径）────────────────────
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(codexTemplateDir, 'rules'),
-    dstDir: path.join(codexHome, 'rules'),
-    filter: '.rules',
-    strategy: 'always',
-    counter: 'rulesInstalled',
-  });
-
-  // ── 6. Hook 脚本（始终复制，替换 __HOME__）──────────────
-  sections.push({
-    type: 'copy-dir',
-    srcDir: path.join(codexTemplateDir, 'hooks-scripts'),
-    dstDir: path.join(codexHome, 'hooks-scripts'),
-    filter: '.sh',
-    strategy: 'always',
-    replaceHome: true,
-    counter: 'hooksInstalled',
-  });
-
-  // ── 7. Memory 初始化（skip-if-exists）────────────────────
-  sections.push({
-    type: 'seed-memory',
-    srcDir: path.join(codexTemplateDir, 'memory'),
-    dstDir: path.join(codexHome, 'memory'),
-    files: [...MEMORY_SEED_FILES],
-  });
-
-  // ═══════════════════════════════════════════════════════════
-  // PROJECT INSTALL (optional): .codex/  +  project root files
-  // ═══════════════════════════════════════════════════════════
-
-  if (projectDir) {
-    const codexProjectDir = path.join(projectDir, '.codex');
-
-    // 8. AGENTS.md (project root, skip-if-exists, with __HOME__)
-    sections.push({
+  // 配置文件：hooks.json（始终覆盖）+ config.toml（skip-if-exists）
+  configFiles: [
+    {
+      templateName: 'hooks.json',
+      targetName: 'hooks.json',
       type: 'copy',
-      src: path.join(codexTemplateDir, 'AGENTS.md'),
-      dst: path.join(projectDir, 'AGENTS.md'),
-      strategy: 'skip-if-exists',
+      strategy: 'always',
       replaceHome: true,
-    });
-
-    // 9. config.toml (project-level, skip-if-exists)
-    sections.push({
+    },
+    {
+      templateName: 'config.toml',
+      targetName: 'config.toml',
       type: 'copy',
-      src: path.join(codexTemplateDir, 'config.toml'),
-      dst: path.join(codexProjectDir, 'config.toml'),
       strategy: 'skip-if-exists',
-    });
+    },
+  ],
 
-    // 10. Rules (project-level, copy-dir)
-    sections.push({
-      type: 'copy-dir',
-      srcDir: path.join(codexTemplateDir, 'rules'),
-      dstDir: path.join(codexProjectDir, 'rules'),
+  // copy-dir 列表
+  copyDirs: [
+    {
+      templateName: 'rules',
+      targetName: 'rules',
       filter: '.rules',
       strategy: 'always',
       counter: 'rulesInstalled',
-    });
-
-    // 11. Agents (project-level, merge-agents)
-    sections.push({
-      type: 'merge-agents',
-      srcDir: path.join(codexTemplateDir, 'agents'),
-      dstDir: path.join(codexProjectDir, 'agents'),
-    });
-
-    // 12. Skills (project-level, copy-skills)
-    sections.push({
-      type: 'copy-skills',
-      srcDir: path.join(codexTemplateDir, 'skills'),
-      dstDir: path.join(codexProjectDir, 'skills'),
-    });
-
-    // 13. Hooks (project-level, copy-dir)
-    sections.push({
-      type: 'copy-dir',
-      srcDir: path.join(codexTemplateDir, 'hooks-scripts'),
-      dstDir: path.join(codexProjectDir, 'hooks'),
+    },
+    {
+      templateName: 'hooks-scripts',
+      targetName: 'hooks-scripts',
       filter: '.sh',
       strategy: 'always',
       replaceHome: true,
       counter: 'hooksInstalled',
-    });
+    },
+  ],
 
-    // 14. Memory seed (project-level, skip-if-exists)
-    sections.push({
-      type: 'seed-memory',
-      srcDir: path.join(codexTemplateDir, 'memory'),
-      dstDir: path.join(codexProjectDir, 'memory'),
-      files: [...MEMORY_SEED_FILES],
-    });
-  }
+  // seed-memory
+  seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
 
-  // ── 15. 权限 ─────────────────────────────────────────────
-  sections.push({
-    type: 'permissions',
-    dir: path.join(codexHome, 'hooks-scripts'),
-    extension: '.sh',
-    mode: 0o755,
-  });
+  // 全局权限
+  permissions: [
+    { dir: 'hooks-scripts', extension: '.sh', mode: 0o755 },
+    { dir: 'memory', extension: '.jsonl', mode: 0o600 },
+  ],
 
-  // ── 16. Memory JSONL 文件权限（个人数据）──────────────
-  sections.push({
-    type: 'permissions',
-    dir: path.join(codexHome, 'memory'),
-    extension: '.jsonl',
-    mode: 0o600,
-  });
-
-  // ── 17. 项目级 Hook 脚本权限 ──────────────────────────────
-  if (projectDir) {
-    sections.push({
-      type: 'permissions',
-      dir: path.join(projectDir, '.codex', 'hooks'),
-      extension: '.sh',
-      mode: 0o755,
-    });
-  }
-
-  return { targetDir: codexHome, sections };
-}
+  // 项目级配置
+  project: {
+    configFiles: [
+      {
+        templateName: 'config.toml',
+        targetName: 'config.toml',
+        type: 'copy',
+        strategy: 'skip-if-exists',
+      },
+    ],
+    copyDirs: [
+      {
+        templateName: 'rules',
+        targetName: 'rules',
+        filter: '.rules',
+        strategy: 'always',
+        counter: 'rulesInstalled',
+      },
+      {
+        templateName: 'hooks-scripts',
+        targetName: 'hooks',
+        filter: '.sh',
+        strategy: 'always',
+        replaceHome: true,
+        counter: 'hooksInstalled',
+      },
+    ],
+    mergeAgents: { templateName: 'agents', targetName: 'agents' },
+    copySkills: { templateName: 'skills', targetName: 'skills' },
+    seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
+    permissions: [{ dir: 'hooks', extension: '.sh', mode: 0o755 }],
+  },
+};
 
 // ─── BaseAdapter 子类实现 ──────────────────────────────────
 
@@ -245,14 +160,14 @@ export class CodexAdapter extends BaseAdapter {
     return resolveCodexHome(homeDir);
   }
 
-  /** 构建声明式安装布局，委托给公共 getLayout() 函数。 */
+  /** 构建声明式安装布局，委托给 buildStandardLayout()。 */
   protected buildLayout(opts: {
     homeDir: string;
     projectDir?: string;
     templateDir: string;
     allowWorkflow?: boolean;
   }): AdapterLayout {
-    return getLayout(opts);
+    return this.buildStandardLayout(LAYOUT_CONFIG, opts);
   }
 
   /** 验证检查项，委托给公共 verifyCodexInstallation() 函数。 */
@@ -260,6 +175,25 @@ export class CodexAdapter extends BaseAdapter {
     const codexHome = resolveCodexHome(config.homeDir);
     return verifyCodexInstallation(codexHome, config.projectDir);
   }
+}
+
+// ─── 向后兼容导出 ──────────────────────────────────────────
+
+/**
+ * @deprecated 使用 CodexAdapter.buildLayout() 或 buildStandardLayout() 代替。
+ * 保留此函数仅为向后兼容（独立 API 和测试可能直接调用）。
+ */
+export function getLayout(opts: {
+  homeDir: string;
+  projectDir?: string;
+  templateDir: string;
+}): AdapterLayout {
+  const adapter = new CodexAdapter();
+  return adapter.buildStandardLayout(LAYOUT_CONFIG, {
+    homeDir: opts.homeDir,
+    projectDir: opts.projectDir,
+    templateDir: opts.templateDir,
+  });
 }
 
 // ─── 独立 API ──────────────────────────────────────────────

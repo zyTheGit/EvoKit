@@ -19,8 +19,9 @@ import type {
   AdapterUninstallConfig,
   AdapterUninstallResult,
   AdapterVerifyCheck,
+  LayoutConfig,
 } from './types.js';
-import type { AdapterLayout } from '../core/layout-types.js';
+import type { AdapterLayout, AdapterSection } from '../core/layout-types.js';
 import { executeLayout } from '../core/layout-engine.js';
 import { ManifestCollector } from '../core/manifest-collector.js';
 import { updateAdapterManifest } from '../core/manifest.js';
@@ -120,6 +121,245 @@ export abstract class BaseAdapter {
    */
   cognitiveCoreAppendMarker(): string | null {
     return null;
+  }
+
+  /**
+   * 基于声明式 LayoutConfig 构建标准 AdapterLayout。
+   *
+   * 将四个适配器中重复的 13 步布局构建过程统一为配置驱动：
+   * 子类只需声明 layoutConfig（~15 行配置），不再手写布局构建过程。
+   *
+   * @param config - 声明式布局配置
+   * @param opts - 安装选项（homeDir、projectDir、templateDir、allowWorkflow）
+   * @returns 完整的 AdapterLayout，可直接传给 executeLayout()
+   */
+  protected buildStandardLayout(
+    config: LayoutConfig,
+    opts: {
+      homeDir: string;
+      projectDir?: string;
+      templateDir: string;
+      allowWorkflow?: boolean;
+    },
+  ): AdapterLayout {
+    const { homeDir, projectDir, templateDir, allowWorkflow = false } = opts;
+    const adapterHome = this.resolveHome(homeDir);
+    const adapterTemplateDir = path.join(templateDir, this.templateSubdir);
+    const sections: AdapterSection[] = [];
+
+    // ═══════════════════════════════════════════════════════════
+    // 全局安装
+    // ═══════════════════════════════════════════════════════════
+
+    // 1. 全局目录
+    if (config.globalDirs.length > 0) {
+      sections.push({
+        type: 'dirs',
+        paths: [...config.globalDirs],
+      });
+    }
+
+    // 2. 认知核心文件（AGENTS.md / CLAUDE.md）
+    const coreDst = config.cognitiveCore.dstInHome
+      ? path.join(homeDir, config.cognitiveCore.templateName)
+      : path.join(adapterHome, config.cognitiveCore.templateName);
+    sections.push({
+      type: 'copy',
+      src: path.join(adapterTemplateDir, config.cognitiveCore.templateName),
+      dst: coreDst,
+      strategy: config.cognitiveCore.strategy,
+      replaceHome: config.cognitiveCore.replaceHome,
+      ...(config.cognitiveCore.appendMarker && {
+        appendMarker: config.cognitiveCore.appendMarker,
+      }),
+    });
+
+    // 3. 额外的全局 copy 文件（如 Claude 的 MEMORY.md）
+    if (config.extraGlobalCopies) {
+      for (const extra of config.extraGlobalCopies) {
+        sections.push({
+          type: 'copy',
+          src: path.join(adapterTemplateDir, extra.templateName),
+          dst: path.join(adapterHome, extra.targetName),
+          strategy: extra.strategy,
+          replaceHome: extra.replaceHome,
+        });
+      }
+    }
+
+    // 4. 全局配置文件
+    for (const cf of config.configFiles) {
+      if (cf.type === 'merge-settings') {
+        sections.push({
+          type: 'merge-settings',
+          srcPath: path.join(adapterTemplateDir, cf.templateName),
+          dstPath: path.join(adapterHome, cf.targetName),
+          replaceHome: cf.replaceHome,
+          allowWorkflow: cf.allowWorkflow ? allowWorkflow : undefined,
+        });
+      } else {
+        // type: 'copy'
+        sections.push({
+          type: 'copy',
+          src: path.join(adapterTemplateDir, cf.templateName),
+          dst: path.join(adapterHome, cf.targetName),
+          strategy: cf.strategy ?? 'skip-if-exists',
+          replaceHome: cf.replaceHome,
+          ...(cf.appendMarker && { appendMarker: cf.appendMarker }),
+        });
+      }
+    }
+
+    // 5. 全局 copy-dir
+    for (const cd of config.copyDirs) {
+      sections.push({
+        type: 'copy-dir',
+        srcDir: path.join(adapterTemplateDir, cd.templateName),
+        dstDir: path.join(adapterHome, cd.targetName),
+        filter: cd.filter,
+        strategy: cd.strategy,
+        replaceHome: cd.replaceHome,
+        counter: cd.counter,
+      });
+    }
+
+    // 6. 全局 merge-agents
+    if (config.mergeAgents) {
+      sections.push({
+        type: 'merge-agents',
+        srcDir: path.join(adapterTemplateDir, config.mergeAgents.templateName),
+        dstDir: path.join(adapterHome, config.mergeAgents.targetName),
+      });
+    }
+
+    // 7. 全局 copy-skills
+    if (config.copySkills) {
+      sections.push({
+        type: 'copy-skills',
+        srcDir: path.join(adapterTemplateDir, config.copySkills.templateName),
+        dstDir: path.join(adapterHome, config.copySkills.targetName),
+      });
+    }
+
+    // 8. 全局 seed-memory
+    if (config.seedMemory) {
+      sections.push({
+        type: 'seed-memory',
+        srcDir: path.join(adapterTemplateDir, config.seedMemory.templateName),
+        dstDir: path.join(adapterHome, 'memory'),
+        files: [...config.seedMemory.files],
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 项目级安装（可选）
+    // ═══════════════════════════════════════════════════════════
+
+    if (projectDir && config.project) {
+      const proj = config.project;
+      const projectAdapterDir = path.join(projectDir, this.projectSubdir);
+
+      // 项目级认知核心文件（始终放在 projectDir 根目录）
+      sections.push({
+        type: 'copy',
+        src: path.join(adapterTemplateDir, config.cognitiveCore.templateName),
+        dst: path.join(projectDir, config.cognitiveCore.templateName),
+        strategy: 'skip-if-exists',
+        replaceHome: true,
+      });
+
+      // 项目级配置文件
+      for (const cf of proj.configFiles) {
+        // dstInProjectRoot: 文件放在 projectDir 根目录（如 Pi 的 settings.json、OpenCode 的 opencode.json）
+        // 否则放在 projectAdapterDir 内（如 Claude 的 settings.json、Codex 的 config.toml）
+        const dstBase = cf.dstInProjectRoot ? projectDir : projectAdapterDir;
+        if (cf.type === 'merge-settings') {
+          sections.push({
+            type: 'merge-settings',
+            srcPath: path.join(adapterTemplateDir, cf.templateName),
+            dstPath: path.join(dstBase, cf.targetName),
+            replaceHome: cf.replaceHome,
+          });
+        } else {
+          // type: 'copy'
+          sections.push({
+            type: 'copy',
+            src: path.join(adapterTemplateDir, cf.templateName),
+            dst: path.join(dstBase, cf.targetName),
+            strategy: cf.strategy ?? 'skip-if-exists',
+            replaceHome: cf.replaceHome,
+          });
+        }
+      }
+
+      // 项目级 copy-dir
+      for (const cd of proj.copyDirs) {
+        sections.push({
+          type: 'copy-dir',
+          srcDir: path.join(adapterTemplateDir, cd.templateName),
+          dstDir: path.join(projectAdapterDir, cd.targetName),
+          filter: cd.filter,
+          strategy: cd.strategy,
+          replaceHome: cd.replaceHome,
+          counter: cd.counter,
+        });
+      }
+
+      // 项目级 merge-agents
+      if (proj.mergeAgents) {
+        sections.push({
+          type: 'merge-agents',
+          srcDir: path.join(adapterTemplateDir, proj.mergeAgents.templateName),
+          dstDir: path.join(projectAdapterDir, proj.mergeAgents.targetName),
+        });
+      }
+
+      // 项目级 copy-skills
+      if (proj.copySkills) {
+        sections.push({
+          type: 'copy-skills',
+          srcDir: path.join(adapterTemplateDir, proj.copySkills.templateName),
+          dstDir: path.join(projectAdapterDir, proj.copySkills.targetName),
+        });
+      }
+
+      // 项目级 seed-memory
+      if (proj.seedMemory) {
+        sections.push({
+          type: 'seed-memory',
+          srcDir: path.join(adapterTemplateDir, proj.seedMemory.templateName),
+          dstDir: path.join(projectAdapterDir, 'memory'),
+          files: [...proj.seedMemory.files],
+        });
+      }
+
+      // 项目级权限
+      if (proj.permissions) {
+        for (const perm of proj.permissions) {
+          sections.push({
+            type: 'permissions',
+            dir: perm.absolute ? perm.dir : path.join(projectAdapterDir, perm.dir),
+            extension: perm.extension,
+            mode: perm.mode,
+          });
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 全局权限
+    // ═══════════════════════════════════════════════════════════
+
+    for (const perm of config.permissions) {
+      sections.push({
+        type: 'permissions',
+        dir: perm.absolute ? perm.dir : path.join(adapterHome, perm.dir),
+        extension: perm.extension,
+        mode: perm.mode,
+      });
+    }
+
+    return { targetDir: adapterHome, sections };
   }
 
   /** 构建声明式安装布局。 */
