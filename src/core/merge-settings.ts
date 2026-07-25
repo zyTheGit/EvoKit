@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import fse from 'fs-extra';
 import { replaceHomeInObject } from './replace-home.js';
+import { atomicWriteFile } from './atomic-write.js';
 
 export interface SettingsMergeResult {
   changed: boolean;
@@ -175,38 +176,22 @@ export function mergeSettings(
     return { changed: false, reason: 'SKIPPED' };
   }
 
-  // 6. 原子写入：临时文件 → 备份 → 重命名
-  const tmpPath = settingsPath + '.merge.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+  // 6. 原子写入：临时文件 → 验证 → 备份 → 重命名
+  const writeResult = atomicWriteFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
+    tmpSuffix: '.merge.tmp',
+    validate: (tmpPath) => {
+      try {
+        JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    backup: '.bak.evokit',
+  });
 
-  // 验证写入的 JSON
-  try {
-    JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
-  } catch {
-    fse.removeSync(tmpPath);
-    return { changed: false, reason: '写入验证失败' };
-  }
-
-  const backupPath = settingsPath + '.bak.evokit';
-  fse.removeSync(backupPath);
-  try {
-    fs.renameSync(settingsPath, backupPath);
-  } catch (e: any) {
-    fse.removeSync(tmpPath);
-    return { changed: false, reason: `无法备份: ${e.message}` };
-  }
-
-  try {
-    fs.renameSync(tmpPath, settingsPath);
-  } catch (e: any) {
-    // 回滚
-    try {
-      fs.renameSync(backupPath, settingsPath);
-    } catch {
-      // 备份也失败——灾难性错误
-    }
-    fse.removeSync(tmpPath);
-    return { changed: false, reason: `无法写入: ${e.message}` };
+  if (!writeResult.ok) {
+    return { changed: false, reason: writeResult.error! };
   }
 
   fse.removeSync(settingsPath + '.bak.merge');

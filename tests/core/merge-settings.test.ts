@@ -193,10 +193,7 @@ describe('merge-settings', () => {
       ]);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      expect(updated.permissions.allow).toEqual([
-        'Bash(bash .claude/hooks/*.sh)',
-        'Read',
-      ]);
+      expect(updated.permissions.allow).toEqual(['Bash(bash .claude/hooks/*.sh)', 'Read']);
     });
 
     it('已有 permissions.allow 时不覆盖，仅添加缺失的', () => {
@@ -221,17 +218,11 @@ describe('merge-settings', () => {
 
       expect(result.changed).toBe(true);
       // Read 已存在，仅添加缺失的：Bash 规则，Read 已存在不重复添加
-      expect(result.detail?.permissionsAllowAdded).toEqual([
-        'Bash(bash .claude/hooks/*.sh)',
-      ]);
+      expect(result.detail?.permissionsAllowAdded).toEqual(['Bash(bash .claude/hooks/*.sh)']);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       // 用户已有的 Read 和 Write 保留，仅新增 Bash
-      expect(updated.permissions.allow).toEqual([
-        'Read',
-        'Write',
-        'Bash(bash .claude/hooks/*.sh)',
-      ]);
+      expect(updated.permissions.allow).toEqual(['Read', 'Write', 'Bash(bash .claude/hooks/*.sh)']);
     });
 
     it('permissionsAllowAdded detail 正确记录实际添加的规则', () => {

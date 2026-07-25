@@ -15,14 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
 
-const KEY_ORDER = [
-  'name',
-  'description',
-  'model',
-  'permission',
-  'memory',
-  'maxTurns',
-];
+const KEY_ORDER = ['name', 'description', 'model', 'permission', 'memory', 'maxTurns'];
 
 /**
  * @internal — 内部辅助工具，不属于公共适配器 API。

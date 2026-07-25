@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
+import { atomicWriteFile } from './atomic-write.js';
 import { parseFrontmatter, serializeFrontmatter } from './merge-agents.js';
 import type { ManifestAgentFrontmatter } from './manifest.js';
 
@@ -99,14 +100,7 @@ export function reverseMergeAgents(
       }
 
       // 原子写入
-      const tmpPath = filePath + '.reverse.tmp';
-      fs.writeFileSync(tmpPath, newContent, 'utf-8');
-      try {
-        fs.renameSync(tmpPath, filePath);
-      } catch {
-        /* 原子重命名失败（跨设备或权限问题）— 丢弃临时文件 */
-        fse.removeSync(tmpPath);
-      }
+      atomicWriteFile(filePath, newContent, { tmpSuffix: '.reverse.tmp' });
     }
 
     results.push({ file: record.file, action: 'cleaned', fieldsRemoved });

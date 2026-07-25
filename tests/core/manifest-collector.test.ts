@@ -177,10 +177,7 @@ describe('ManifestCollector', () => {
         adapterHome: '/home/user/.claude',
       });
 
-      expect(result.permissionsAllow).toEqual([
-        'Bash(bash .claude/hooks/*.sh)',
-        'Read',
-      ]);
+      expect(result.permissionsAllow).toEqual(['Bash(bash .claude/hooks/*.sh)', 'Read']);
     });
 
     it('defaults to empty array when no rules recorded', () => {

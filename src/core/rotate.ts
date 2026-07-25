@@ -13,7 +13,13 @@ import {
   CorrectionEntry,
   ObservationEntry,
 } from './types.js';
-import { readJsonlFile, writeJsonlFile, getMemoryDir, getArchiveDir, isOlderThanDays } from './memory.js';
+import {
+  readJsonlFile,
+  writeJsonlFile,
+  getMemoryDir,
+  getArchiveDir,
+  isOlderThanDays,
+} from './memory.js';
 
 /**
  * 轮换 JSONL 文件：将超过 maxDays 的记录归档。

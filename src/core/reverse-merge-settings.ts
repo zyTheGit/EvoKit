@@ -10,6 +10,7 @@
 
 import fs from 'node:fs';
 import fse from 'fs-extra';
+import { atomicWriteFile } from './atomic-write.js';
 import type { AdapterManifest } from './manifest.js';
 
 /** 反向合并 settings.json 的结果 */
@@ -185,25 +186,18 @@ export function reverseMergeSettings(
     return result;
   }
 
-  // 8. 原子写入：临时文件 → 重命名
-  const tmpPath = settingsPath + '.reverse.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
-
-  // 验证写入的 JSON
-  try {
-    JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
-  } catch {
-    /* 写入的 JSON 已损坏 — 丢弃临时文件并中止写入 */
-    fse.removeSync(tmpPath);
-    return result;
-  }
-
-  try {
-    fs.renameSync(tmpPath, settingsPath);
-  } catch {
-    /* 原子重命名失败（跨设备或权限问题）— 丢弃临时文件 */
-    fse.removeSync(tmpPath);
-  }
+  // 8. 原子写入：临时文件 → 验证 → 重命名
+  atomicWriteFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
+    tmpSuffix: '.reverse.tmp',
+    validate: (tmpPath) => {
+      try {
+        JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  });
 
   return result;
 }
