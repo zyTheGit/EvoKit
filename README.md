@@ -43,22 +43,14 @@ _让 AI 编程助手越用越聪明 — 跨会话持久化纠错、观察和规�
 ║   EvoKit — Self-Evolving System Install   ║
 ╚═══════════════════════════════════════════╝
 
-  ┌─────────────────────────────────────────────┐
-  │  Select AI assistants to configure:          │
-  ├─────────────────────────────────────────────┤
-  │                                             │
-  │  [1] Claude Code (recommended)  ~/.claude/  │
-  │  [2] Codex CLI (v0.4.0)         ~/.codex/   │
-  │  [3] OpenCode CLI (v0.5.0)      .opencode/  │
-  │  [4] Pi CLI (v0.6.0)            ~/.pi/      │
-  │                                             │
-  │  [5] All of the above                       │
-  │                                             │
-  │  Enter numbers separated by spaces.          │
-  │  Press ENTER for default: [1] Claude Code    │
-  └─────────────────────────────────────────────┘
-
-  → 1
+  ◇ 选择要配置的 AI 助手
+  │
+  ├  ◉ Claude Code（推荐）
+  │  ◯ Codex CLI (v0.145.0)
+  │  ◯ OpenCode CLI (v1.18.4)
+  │  ◯ Pi CLI (v0.82.0)
+  │
+  └  ↑↓ 导航 · 空格切换 · 回车确认
 
 📁 Creating directories...
   ✓ .claude/rules/    ✓ .claude/agents/
@@ -126,7 +118,7 @@ CLAUDE.md / rules/ ← 毕业为永久规则
 
 ### 前置条件
 
-- [Claude Code](https://claude.ai/code) ≥ v0.1.0（或其他支持钩子/工具的 AI 编程助手）
+- [Claude Code](https://claude.ai/code) ≥ 2.1.220（或其他支持钩子/工具的 AI 编程助手）
 - **bash 4.0+**（Linux / macOS / WSL / Git Bash）— 钩子脚本必需
 - **Node.js ≥ 20.12.0**（用于 npm 安装或 CLI 使用）
 
@@ -160,7 +152,8 @@ bash bin/install.sh
 - **Claude Code**（推荐）— `~/.claude/`
 - **Codex CLI** — `~/.codex/`
 - **OpenCode CLI** — `.opencode/`（项目级）
-- 也支持多选：输入 `1 3` 同时安装 Claude Code + OpenCode
+- **Pi CLI** — `~/.pi/agent/`
+- 支持多选：↑↓ 导航、空格切换选中、回车确认
 
 也可以使用 `--adapter` 参数跳过菜单直接指定（适用于 CI 自动化）：
 
@@ -247,12 +240,12 @@ evokit evolve --help
 
 EvoKit 通过统一的适配器接口支持多种 AI 编程助手。每个适配器独立迭代，版本号与当前支持的助手版本对应。
 
-| 适配器           | 版本   | 状态            | 安装目录               | 助手版本兼容                 |
-| ---------------- | ------ | --------------- | ---------------------- | ---------------------------- |
-| **Claude Code**  | v0.2.0 | ✅ **完整支持** | `~/.claude/`           | Claude Code ≥ v0.1.0（CLI）  |
-| **Codex CLI**    | v0.4.0 | ✅ **完整支持** | `~/.codex/`            | Codex CLI ≥ v0.3.0（OpenAI） |
-| **OpenCode CLI** | v0.5.0 | ✅ **完整支持** | `.opencode/`（项目级） | OpenCode CLI ≥ v0.4.0        |
-| **Pi CLI**       | v0.6.0 | ✅ **完整支持** | `~/.pi/agent/`         | Pi CLI ≥ 0.81.0              |
+| 适配器           | 版本   | 状态            | 安装目录               | 助手版本兼容                  |
+| ---------------- | ------ | --------------- | ---------------------- | ----------------------------- |
+| **Claude Code**  | v0.2.0 | ✅ **完整支持** | `~/.claude/`           | Claude Code ≥ 2.1.220（CLI）  |
+| **Codex CLI**    | v0.4.0 | ✅ **完整支持** | `~/.codex/`            | Codex CLI ≥ 0.145.0（OpenAI） |
+| **OpenCode CLI** | v0.5.0 | ✅ **完整支持** | `.opencode/`（项目级） | OpenCode CLI ≥ 1.18.4         |
+| **Pi CLI**       | v0.6.0 | ✅ **完整支持** | `~/.pi/agent/`         | Pi CLI ≥ 0.82.0               |
 
 > **适配器版本说明**：每个适配器的 `version` 字段在其源码中定义（`src/adapters/*/adapter.ts`），匹配该助手首次获得完整支持的 EvoKit 里程碑版本。插件的后续迭代随 EvoKit 主版本同步发布。
 

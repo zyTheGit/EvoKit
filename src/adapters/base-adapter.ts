@@ -140,7 +140,7 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
    * @param opts - 安装选项（homeDir、projectDir、templateDir、allowWorkflow）
    * @returns 完整的 AdapterLayout，可直接传给 executeLayout()
    */
-  protected buildStandardLayout(
+  public buildStandardLayout(
     config: LayoutConfig,
     opts: {
       homeDir: string;

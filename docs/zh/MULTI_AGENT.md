@@ -259,7 +259,7 @@ project-root/
 | 配置     | `~/.pi/agent/settings.json`（skills + extensions）                         |
 | 技能     | `~/.pi/agent/skills/evokit/`（Agent Skills 标准）                          |
 | 子智能体 | `~/.pi/agent/agent/` Markdown 文件（architect, reviewer）                  |
-| 状态     | ✅ v0.6.0 — 已完成（Pi CLI ≥ 0.81.0）                                      |
+| 状态     | ✅ v0.6.0 — 已完成（Pi CLI ≥ 0.82.0）                                      |
 
 #### EvoKit → Pi CLI 映射
 

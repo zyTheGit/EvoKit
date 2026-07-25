@@ -3,10 +3,10 @@
 ## 前置要求
 
 - **支持的 AI 编码助手：**
-  - **Claude Code**（通过 `~/.claude/`）— ✅ v0.4+
-  - **Codex CLI**（通过 `~/.codex/`）— ✅ v0.3.0+
-  - **OpenCode**（通过 `~/.config/opencode/` + `.opencode/`）— ✅ v0.5.0+
-  - **Pi CLI**（通过 `~/.pi/agent/` + `.pi/`）— ✅ v0.6.0+
+  - **Claude Code**（通过 `~/.claude/`）— ✅ ≥ 2.1.220
+  - **Codex CLI**（通过 `~/.codex/`）— ✅ ≥ 0.145.0
+  - **OpenCode**（通过 `~/.config/opencode/` + `.opencode/`）— ✅ ≥ 1.18.4
+  - **Pi CLI**（通过 `~/.pi/agent/` + `.pi/`）— ✅ ≥ 0.82.0
 - **操作系统：** Linux、macOS 或 Windows（WSL/Git Bash）
 - **Shell：** bash 4.0+
 - **工具：** `curl` 或 `wget`（用于远程安装）
@@ -130,7 +130,7 @@ evokit install --adapter codex --verify
 evokit install --adapter codex --dry-run
 ```
 
-**注意：** Codex CLI 支持需要 Codex v0.1+ 并启用 hooks 功能（默认启用）。
+**注意：** Codex CLI 支持需要 Codex ≥ 0.145.0 并启用 hooks 功能（默认启用）。
 
 ### OpenCode CLI
 

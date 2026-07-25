@@ -26,7 +26,7 @@ describe('pi-adapter metadata', () => {
     expect(adapter.id).toBe('pi');
     expect(adapter.label).toBe('Pi CLI');
     expect(adapter.version).toBe('0.6.0');
-    expect(adapter.supportedAgentVersion).toBe('>=0.81.0');
+    expect(adapter.supportedAgentVersion).toBe('>=0.82.0');
   });
 
   it('is no longer experimental', () => {

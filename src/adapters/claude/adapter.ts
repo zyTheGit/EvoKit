@@ -157,7 +157,7 @@ export class ClaudeAdapter extends BaseAdapter {
   readonly label = 'Claude Code';
   readonly description = '~/.claude/ + .claude/';
   readonly version = CLAUDE_ADAPTER_VERSION;
-  readonly supportedAgentVersion = '>=2.1.0';
+  readonly supportedAgentVersion = '>=2.1.220';
 
   // ── BaseAdapter 抽象实现 ──
 

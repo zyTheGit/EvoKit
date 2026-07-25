@@ -3,10 +3,10 @@
 ## Prerequisites
 
 - **Supported AI coding assistants:**
-  - **Claude Code** (via `~/.claude/`) — ✅ v0.4+
-  - **Codex CLI** (via `~/.codex/`) — ✅ v0.3.0+
-  - **OpenCode** (via `~/.config/opencode/` + `.opencode/`) — ✅ v0.5.0+
-  - **Pi CLI** (via `~/.pi/agent/` + `.pi/`) — ✅ v0.6.0+
+  - **Claude Code** (via `~/.claude/`) — ✅ ≥ 2.1.220
+  - **Codex CLI** (via `~/.codex/`) — ✅ ≥ 0.145.0
+  - **OpenCode** (via `~/.config/opencode/` + `.opencode/`) — ✅ ≥ 1.18.4
+  - **Pi CLI** (via `~/.pi/agent/` + `.pi/`) — ✅ ≥ 0.82.0
 - **OS:** Linux, macOS, or Windows (WSL/Git Bash)
 - **Shell:** bash 4.0+
 - **Tools:** `curl` or `wget` (for remote install)
@@ -130,7 +130,7 @@ evokit install --adapter codex --verify
 evokit install --adapter codex --dry-run
 ```
 
-**Note:** Codex CLI support requires Codex v0.1+ with hooks feature enabled (default).
+**Note:** Codex CLI support requires Codex ≥ 0.145.0 with hooks feature enabled (default).
 
 ### OpenCode CLI
 

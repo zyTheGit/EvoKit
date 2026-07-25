@@ -362,7 +362,7 @@ describe('CodexAdapter class', () => {
     expect(adapter.id).toBe('codex');
     expect(adapter.label).toBe('Codex CLI');
     expect(adapter.description).toBe('~/.codex/ + .codex/');
-    expect(adapter.supportedAgentVersion).toBe('>=1.0.0');
+    expect(adapter.supportedAgentVersion).toBe('>=0.145.0');
   });
 
   describe('install', () => {

@@ -259,7 +259,7 @@ project-root/
 | Config         | `~/.pi/agent/settings.json` (skills + extensions)                                |
 | Skills         | `~/.pi/agent/skills/evokit/` (Agent Skills standard)                             |
 | Sub-agents     | `~/.pi/agent/agent/` Markdown files (architect, reviewer)                        |
-| Status         | ✅ v0.6.0 — Complete (Pi CLI ≥ 0.81.0)                                           |
+| Status         | ✅ v0.6.0 — Complete (Pi CLI ≥ 0.82.0)                                           |
 
 #### EvoKit → Pi CLI Mapping
 

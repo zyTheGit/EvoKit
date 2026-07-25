@@ -146,7 +146,7 @@ export class PiAdapter extends BaseAdapter {
   readonly label = 'Pi CLI';
   readonly description = '~/.pi/agent/';
   readonly version = PI_ADAPTER_VERSION;
-  readonly supportedAgentVersion = '>=0.81.0';
+  readonly supportedAgentVersion = '>=0.82.0';
 
   protected get projectSubdir(): string {
     return '.pi';
@@ -174,8 +174,9 @@ export class PiAdapter extends BaseAdapter {
     installed: boolean;
     adapterHome: string;
     agentsPresent: boolean;
-    extensionsPresent: boolean;
     configPresent: boolean;
+    memoryPresent: boolean;
+    extensionsPresent: boolean;
     skillsPresent: boolean;
     sharedMemoryPresent: boolean;
     extensionCount: number;
@@ -186,8 +187,9 @@ export class PiAdapter extends BaseAdapter {
       installed: false,
       adapterHome: piHome,
       agentsPresent: false,
-      extensionsPresent: false,
       configPresent: false,
+      memoryPresent: false,
+      extensionsPresent: false,
       skillsPresent: false,
       sharedMemoryPresent: false,
       extensionCount: 0,
@@ -207,6 +209,7 @@ export class PiAdapter extends BaseAdapter {
       result.skillsPresent = fse.existsSync(path.join(piHome, 'skills'));
 
       const memDir = path.join(piHome, 'memory');
+      result.memoryPresent = fse.existsSync(memDir);
       result.sharedMemoryPresent = fse.existsSync(memDir);
 
       result.installed = result.agentsPresent || result.configPresent || result.extensionsPresent;

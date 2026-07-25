@@ -43,22 +43,14 @@ _Make AI coding assistants learn and evolve across sessions_
 ║   EvoKit — Self-Evolving System Install   ║
 ╚═══════════════════════════════════════════╝
 
-  ┌─────────────────────────────────────────────┐
-  │  Select AI assistants to configure:          │
-  ├─────────────────────────────────────────────┤
-  │                                             │
-  │  [1] Claude Code (recommended)  ~/.claude/  │
-  │  [2] Codex CLI (v0.4.0)         ~/.codex/   │
-  │  [3] OpenCode CLI (v0.5.0)      .opencode/  │
-  │  [4] Pi CLI (v0.6.0)            ~/.pi/      │
-  │                                             │
-  │  [5] All of the above                       │
-  │                                             │
-  │  Enter numbers separated by spaces.          │
-  │  Press ENTER for default: [1] Claude Code    │
-  └─────────────────────────────────────────────┘
-
-  → 1
+  ◇ Select AI assistants to configure
+  │
+  ├  ◉ Claude Code (recommended)
+  │  ◯ Codex CLI (v0.145.0)
+  │  ◯ OpenCode CLI (v1.18.4)
+  │  ◯ Pi CLI (v0.82.0)
+  │
+  └  ↑↓ navigate · space toggle · enter confirm
 
 📁 Creating directories...
   ✓ .claude/rules/    ✓ .claude/agents/
@@ -126,7 +118,7 @@ See [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) and [EVOLUTION.md](docs/en/EVOLUT
 
 ### Prerequisites
 
-- [Claude Code](https://claude.ai/code) ≥ v0.1.0 (or any AI coding assistant with hook/tool support)
+- [Claude Code](https://claude.ai/code) ≥ 2.1.220 (or any AI coding assistant with hook/tool support)
 - **bash 4.0+** (Linux / macOS / WSL / Git Bash) — required for hook scripts
 - **Node.js ≥ 20.12.0** (for npm install or CLI usage)
 
@@ -160,7 +152,8 @@ The installer shows an interactive menu to choose which AI assistants to configu
 - **Claude Code** (recommended) — `~/.claude/`
 - **Codex CLI** — `~/.codex/`
 - **OpenCode CLI** — `.opencode/` (project-level)
-- Multi-select supported: type `1 3` to install both Claude Code + OpenCode
+- **Pi CLI** — `~/.pi/agent/`
+- Multi-select: ↑↓ navigate, space to toggle, enter to confirm
 
 Use `--adapter` to bypass the menu for non-interactive setups (CI, cron).
 
@@ -247,12 +240,12 @@ See the [examples/](examples/) directory for full customization samples:
 
 EvoKit supports multiple AI coding assistants through a unified adapter interface. Each adapter is versioned independently, matching the supported assistant's milestone.
 
-| Adapter          | Version | Status              | Install Target               | Assistant Compatibility     |
-| ---------------- | ------- | ------------------- | ---------------------------- | --------------------------- |
-| **Claude Code**  | v0.2.0  | ✅ **Full support** | `~/.claude/`                 | Claude Code ≥ v0.1.0 (CLI)  |
-| **Codex CLI**    | v0.4.0  | ✅ **Full support** | `~/.codex/`                  | Codex CLI ≥ v0.3.0 (OpenAI) |
-| **OpenCode CLI** | v0.5.0  | ✅ **Full support** | `.opencode/` (project-level) | OpenCode CLI ≥ v0.4.0       |
-| **Pi CLI**       | v0.6.0  | ✅ **Full support** | `~/.pi/agent/`               | Pi CLI ≥ 0.81.0             |
+| Adapter          | Version | Status              | Install Target               | Assistant Compatibility      |
+| ---------------- | ------- | ------------------- | ---------------------------- | ---------------------------- |
+| **Claude Code**  | v0.2.0  | ✅ **Full support** | `~/.claude/`                 | Claude Code ≥ 2.1.220 (CLI)  |
+| **Codex CLI**    | v0.4.0  | ✅ **Full support** | `~/.codex/`                  | Codex CLI ≥ 0.145.0 (OpenAI) |
+| **OpenCode CLI** | v0.5.0  | ✅ **Full support** | `.opencode/` (project-level) | OpenCode CLI ≥ 1.18.4        |
+| **Pi CLI**       | v0.6.0  | ✅ **Full support** | `~/.pi/agent/`               | Pi CLI ≥ 0.82.0              |
 
 > **Adapter versioning**: Each adapter's `version` field is defined in its source (`src/adapters/*/adapter.ts`) and corresponds to the EvoKit milestone where that assistant first received full support. Subsequent iterations ship with the main EvoKit release cycle.
 

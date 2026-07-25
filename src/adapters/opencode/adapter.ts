@@ -90,6 +90,9 @@ const LAYOUT_CONFIG: LayoutConfig = {
   // merge-agents
   mergeAgents: { templateName: 'agent', targetName: 'agent' },
 
+  // 全局 copy-dir（OpenCode 无全局 copy-dir）
+  copyDirs: [],
+
   // seed-memory
   seedMemory: { templateName: 'memory', files: [...MEMORY_SEED_FILES] },
 
@@ -134,7 +137,7 @@ export class OpenCodeAdapter extends BaseAdapter {
   readonly label = 'OpenCode CLI';
   readonly description = '~/.config/opencode/ + .opencode/';
   readonly version = OPENCODE_ADAPTER_VERSION;
-  readonly supportedAgentVersion = '>=0.1.0';
+  readonly supportedAgentVersion = '>=1.18.4';
 
   /** OpenCode 全局配置目录，支持 XDG_CONFIG_HOME。 */
   resolveHome(homeDir: string): string {

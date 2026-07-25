@@ -140,7 +140,7 @@ export class CodexAdapter extends BaseAdapter {
   readonly label = 'Codex CLI';
   readonly description = '~/.codex/ + .codex/';
   readonly version = CODEX_ADAPTER_VERSION;
-  readonly supportedAgentVersion = '>=1.0.0';
+  readonly supportedAgentVersion = '>=0.145.0';
 
   /** 项目级配置目录名 */
   protected override get projectSubdir(): string {
@@ -173,8 +173,9 @@ export class CodexAdapter extends BaseAdapter {
     installed: boolean;
     adapterHome: string;
     agentsPresent: boolean;
-    hooksPresent: boolean;
     configPresent: boolean;
+    memoryPresent: boolean;
+    hooksPresent: boolean;
     sharedMemoryPresent: boolean;
     ruleCount: number;
     error?: string;
@@ -184,8 +185,9 @@ export class CodexAdapter extends BaseAdapter {
       installed: false,
       adapterHome: codexHome,
       agentsPresent: false,
-      hooksPresent: false,
       configPresent: false,
+      memoryPresent: false,
+      hooksPresent: false,
       sharedMemoryPresent: false,
       ruleCount: 0,
     };
@@ -201,6 +203,7 @@ export class CodexAdapter extends BaseAdapter {
       }
 
       const memDir = path.join(homeDir, '.codex', 'memory');
+      result.memoryPresent = fse.existsSync(memDir);
       result.sharedMemoryPresent = fse.existsSync(memDir);
 
       result.installed = result.agentsPresent || result.hooksPresent || result.configPresent;
