@@ -16,6 +16,8 @@ import path from 'node:path';
 import type {
   AdapterInstallConfig,
   AdapterInstallResult,
+  AdapterInternal,
+  AdapterInstaller,
   AdapterStatus,
   AdapterUninstallConfig,
   AdapterUninstallResult,
@@ -48,6 +50,9 @@ export interface HeuristicConfig {
 /**
  * 所有内置适配器的抽象基类。
  *
+ * 同时实现 {@link AdapterInstaller}（公共接口）和 {@link AdapterInternal}（框架内部接口），
+ * 子类继承 BaseAdapter 即自动满足两个接口的约束。
+ *
  * 子类实现以下抽象成员即可获得完整的 install/verify/status/uninstall：
  * - {@link resolveHome} — 解析适配器全局目录（含环境变量支持）
  * - {@link buildLayout} — 构建声明式 AdapterLayout
@@ -58,7 +63,7 @@ export interface HeuristicConfig {
  * - {@link templateSubdir} — 模板子目录名（默认与 id 相同）
  * - {@link templateEntryPoint} — 模板入口校验文件（默认 'AGENTS.md'）
  */
-export abstract class BaseAdapter {
+export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
   abstract readonly id: string;
   abstract readonly label: string;
   abstract readonly description: string;

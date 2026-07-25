@@ -248,19 +248,22 @@ export interface AdapterUninstallResult {
 }
 
 /**
- * 每个适配器安装器必须实现此接口。
- * 要添加新的 AI 助手（Cursor、Pi CLI、Windsurf 等），
- * 实现此类并调用 registerAdapter()。
+ * 适配器公共接口 —— 命令层和外部调用者只依赖此接口。
+ *
+ * 包含安装、验证、状态检查、卸载等面向用户的操作，
+ * 以及最基本的标识信息（id、label）。
+ *
+ * 要添加新的 AI 助手（Cursor、Windsurf 等），
+ * 实现 {@link AdapterInstaller} 与 {@link AdapterInternal} 两个接口，
+ * 或继承 {@link BaseAdapter}（同时实现两者）。
+ *
+ * @public — 公共适配器 API 的一部分。
  */
 export interface AdapterInstaller {
+  /** 适配器唯一标识（如 'claude'、'codex'、'opencode'、'pi'） */
   readonly id: string;
+  /** 适配器显示名称（如 'Claude Code'、'Codex CLI'） */
   readonly label: string;
-  readonly description: string;
-  readonly version: string;
-  /** 该适配器支持的 AI 助手 CLI 版本范围（如 '>=0.81.0'）*/
-  readonly supportedAgentVersion: string;
-  /** 标记为实验性 — 尚未完全实现 */
-  readonly experimental?: boolean;
 
   /** 安装此适配器的模板文件 */
   install(config: AdapterInstallConfig): AdapterInstallResult;
@@ -273,6 +276,26 @@ export interface AdapterInstaller {
 
   /** 卸载此适配器的模板文件。可选 — 默认使用清单驱动的卸载方式。 */
   uninstall?(config: AdapterUninstallConfig): AdapterUninstallResult;
+}
+
+/**
+ * 适配器框架内部接口 —— 仅框架内部代码（reverse-layout-engine 等）依赖。
+ *
+ * 包含路径解析、启发式配置、布局构建等框架运行所需的成员。
+ * 命令层和外部调用者不应使用此接口。
+ *
+ * BaseAdapter 同时实现 {@link AdapterInstaller} 与 {@link AdapterInternal}，
+ * 子类继承 BaseAdapter 即自动满足两个接口。
+ */
+export interface AdapterInternal {
+  /** 适配器描述（用于交互式选择菜单的提示信息） */
+  readonly description: string;
+  /** 适配器版本 */
+  readonly version: string;
+  /** 该适配器支持的 AI 助手 CLI 版本范围（如 '>=0.81.0'）*/
+  readonly supportedAgentVersion: string;
+  /** 标记为实验性 — 尚未完全实现 */
+  readonly experimental?: boolean;
 
   /** 解析适配器全局安装目录（支持环境变量覆盖） */
   resolveHome(homeDir: string): string;

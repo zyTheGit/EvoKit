@@ -10,10 +10,17 @@
 // 注册内置适配器（副作用导入 — 触发 register.ts 中的 registerAdapter 调用）
 import './register.js';
 
-export { registerAdapter, getInstaller, listAdapters, hasAdapter } from './registry.js';
+export {
+  registerAdapter,
+  getInstaller,
+  getAdapterInternal,
+  listAdapters,
+  hasAdapter,
+} from './registry.js';
 export { BaseAdapter } from './base-adapter.js';
 export type {
   AdapterInstaller,
+  AdapterInternal,
   AdapterInstallConfig,
   AdapterInstallResult,
   AdapterVerifyCheck,
