@@ -6,10 +6,9 @@ template/memory/observations.jsonl
 template/memory/violations.jsonl
 template/memory/sessions.jsonl
 
-# User's own .claude directory (personal)
-.claude/
+# User's own .claude directory (personal) — but track rules/
+.claude/*
 !.claude/rules/
-*.claude/
 
 # Adapter test residuals (installed instances, not source)
 .codex/
