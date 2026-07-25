@@ -3,8 +3,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import fse from 'fs-extra';
-import { executeUninstall } from '../../src/core/uninstall-engine.js';
-import type { UninstallOptions, UninstallResult } from '../../src/core/uninstall-engine.js';
+import { executeUninstall } from '../../src/core/reverse-layout-engine.js';
+import type { UninstallOptions, UninstallResult } from '../../src/core/reverse-layout-engine.js';
 import type { AdapterManifest, EvoKitManifest } from '../../src/core/manifest.js';
 import { writeManifest, manifestPath } from '../../src/core/manifest.js';
 
@@ -163,7 +163,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -207,7 +206,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -236,7 +234,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -262,7 +259,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -287,7 +283,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: true,
         dryRun: false,
         noBackup: true,
@@ -308,7 +303,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -335,7 +329,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -352,7 +345,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: false,
@@ -371,7 +363,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: false,
@@ -396,7 +387,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: true,
         dryRun: false,
         noBackup: true,
@@ -457,7 +447,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -474,7 +463,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,
@@ -504,7 +492,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: true,
         noBackup: true,
@@ -543,7 +530,6 @@ describe('uninstall-engine', () => {
       const options: UninstallOptions = {
         homeDir: tmpHome,
         adapterId: 'claude',
-        force: false,
         purge: false,
         dryRun: false,
         noBackup: true,

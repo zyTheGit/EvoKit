@@ -18,7 +18,7 @@ import path from 'node:path';
 import { getInstaller, listAdapters } from '../adapters/index.js';
 import type { AdapterInstaller } from '../adapters/types.js';
 import { readManifest } from '../core/manifest.js';
-import { executeUninstall } from '../core/uninstall-engine.js';
+import { executeUninstall } from '../core/reverse-layout-engine.js';
 import { spinner, intro, outro, note, log, confirm, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 
@@ -145,7 +145,6 @@ export const uninstallCommand = new Command('uninstall')
       const result = executeUninstall({
         homeDir,
         adapterId,
-        force: options.force ?? false,
         purge: options.purge ?? false,
         dryRun: options.dryRun ?? false,
         noBackup: options.backup === false,

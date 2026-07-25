@@ -27,12 +27,12 @@ import type { SessionEntry } from '../core/types.js';
 import { executeLayout } from '../core/layout-engine.js';
 import { ManifestCollector } from '../core/manifest-collector.js';
 import { updateAdapterManifest } from '../core/manifest.js';
-import { executeUninstall } from '../core/uninstall-engine.js';
+import { executeUninstall } from '../core/reverse-layout-engine.js';
 import { getEvokitVersion } from '../core/version.js';
 
 /**
  * 启发式卸载配置 —— 描述适配器的文件结构，用于清单缺失时的回退卸载。
- * 与 uninstall-engine.ts 的 AdapterHeuristicConfig 对应。
+ * 与 reverse-layout-engine.ts 的 AdapterHeuristicConfig 对应。
  */
 export interface HeuristicConfig {
   /** 配置文件名列表（相对于 adapterHome） */
@@ -464,7 +464,6 @@ export abstract class BaseAdapter {
     const result = executeUninstall({
       homeDir: config.homeDir,
       adapterId: this.id,
-      force: false,
       purge: config.purge ?? false,
       dryRun: config.dryRun ?? false,
       noBackup: config.noBackup ?? false,
