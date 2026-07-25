@@ -6,11 +6,6 @@ import fse from 'fs-extra';
 import {
   resolveCodexHome,
   verifyCodexInstallation,
-  installCodex,
-  injectCodexMemory,
-  exportCodexMemory,
-  recordCodexSession,
-  getCodexStatus,
   CodexAdapter,
 } from '../../src/adapters/codex/adapter.js';
 import {
@@ -19,7 +14,6 @@ import {
   mergeHooksConfigs,
 } from '../../src/adapters/codex/hooks.js';
 import { CodexHooksJson } from '../../src/adapters/codex/types.js';
-import { SessionEntry } from '../../src/core/types.js';
 import { readManifest, manifestPath } from '../../src/core/manifest.js';
 
 let tmpHome: string;
@@ -54,12 +48,14 @@ describe('codex-installer', () => {
     });
   });
 
-  describe('installCodex', () => {
+  describe('installCodex (via adapter.install)', () => {
+    const adapter = new CodexAdapter();
+
     it('creates directory structure and copies files', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const summary = installCodex({ homeDir, templateDir, dryRun: false });
+      const summary = adapter.install({ homeDir, templateDir, dryRun: false });
 
       const codexHome = resolveCodexHome(homeDir);
       expect(fs.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(true);
@@ -88,7 +84,7 @@ describe('codex-installer', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const summary = installCodex({ homeDir, templateDir, dryRun: true });
+      const summary = adapter.install({ homeDir, templateDir, dryRun: true });
 
       const codexHome = resolveCodexHome(homeDir);
       expect(fs.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(false);
@@ -100,15 +96,15 @@ describe('codex-installer', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const first = installCodex({ homeDir, templateDir, dryRun: false });
-      const second = installCodex({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
+      const second = adapter.install({ homeDir, templateDir, dryRun: false });
 
       expect(second.filesSkipped).toBeGreaterThan(0);
     });
 
     it('throws with invalid template path', () => {
-      expect(() => installCodex({ homeDir: tmpDir(), templateDir: '/nonexistent' })).toThrow(
-        'Codex 模板未找到',
+      expect(() => adapter.install({ homeDir: tmpDir(), templateDir: '/nonexistent' })).toThrow(
+        'Codex CLI 模板未找到',
       );
     });
   });
@@ -125,7 +121,8 @@ describe('codex-installer', () => {
     it('passes for complete installation', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
-      installCodex({ homeDir, templateDir, dryRun: false });
+      const adapter = new CodexAdapter();
+      adapter.install({ homeDir, templateDir, dryRun: false });
       // Create shared memory (for fully complete setup)
       fs.mkdirSync(path.join(homeDir, '.codex', 'memory'), { recursive: true });
 
@@ -263,14 +260,15 @@ describe('codex-hooks', () => {
 
 describe('codex-adapter memory', () => {
   let homeDir: string;
+  const adapter = new CodexAdapter();
 
   beforeEach(() => {
     homeDir = tmpDir();
   });
 
-  describe('injectCodexMemory', () => {
+  describe('injectMemory', () => {
     it('writes corrections to shared memory', () => {
-      const files = injectCodexMemory(homeDir, {
+      const files = adapter.injectMemory(homeDir, {
         corrections: [{ pattern: 'test pattern', context: 'test context' }],
       });
 
@@ -287,7 +285,7 @@ describe('codex-adapter memory', () => {
     });
 
     it('writes observations to shared memory', () => {
-      injectCodexMemory(homeDir, {
+      adapter.injectMemory(homeDir, {
         observations: [{ pattern: 'obs pattern', confidence: 0.8, source: 'test' }],
       });
 
@@ -298,30 +296,30 @@ describe('codex-adapter memory', () => {
     });
   });
 
-  describe('exportCodexMemory', () => {
+  describe('exportMemory', () => {
     it('reads injected data back', () => {
-      injectCodexMemory(homeDir, {
+      adapter.injectMemory(homeDir, {
         corrections: [{ pattern: 'test pattern', context: 'test' }],
         observations: [{ pattern: 'obs', confidence: 0.5, source: 'test' }],
       });
 
-      const data = exportCodexMemory(homeDir);
+      const data = adapter.exportMemory(homeDir);
       expect(data.corrections).toHaveLength(1);
       expect(data.observations).toHaveLength(1);
       expect(data.corrections[0]).toHaveProperty('pattern', 'test pattern');
     });
 
     it('returns empty arrays when no memory exists', () => {
-      const data = exportCodexMemory(homeDir);
+      const data = adapter.exportMemory(homeDir);
       expect(data.corrections).toHaveLength(0);
       expect(data.observations).toHaveLength(0);
       expect(data.learnedRules).toBe('');
     });
   });
 
-  describe('recordCodexSession', () => {
+  describe('recordSession', () => {
     it('records a session tagged as codex', () => {
-      recordCodexSession(homeDir, {
+      adapter.recordSession(homeDir, {
         duration_seconds: 300,
         corrections: 2,
         observations: 1,
@@ -336,17 +334,17 @@ describe('codex-adapter memory', () => {
     });
   });
 
-  describe('getCodexStatus', () => {
+  describe('getStatus', () => {
     it('reports not installed when empty', () => {
-      const status = getCodexStatus(homeDir);
+      const status = adapter.getStatus(homeDir);
       expect(status.installed).toBe(false);
     });
 
     it('reports installed after template install', () => {
       const templateDir = path.resolve('template');
-      installCodex({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
 
-      const status = getCodexStatus(homeDir);
+      const status = adapter.getStatus(homeDir);
       expect(status.installed).toBe(true);
       expect(status.agentsPresent).toBe(true);
       expect(status.hooksPresent).toBe(true);
