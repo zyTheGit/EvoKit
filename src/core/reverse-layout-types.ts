@@ -22,6 +22,8 @@ export interface ReverseMergeSettingsSection {
   settingsPath: string;
   /** 适配器安装清单（包含 hooks/envVars/permissions 等记录） */
   manifest: AdapterManifest;
+  /** 是否为 purge 模式（purge 时移除更多条目） */
+  purge: boolean;
 }
 
 /** 反向合并 agents — 移除 EvoKit 添加的 frontmatter 字段。 */
