@@ -2,16 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import {
-  PiAdapter,
-  resolvePiHome,
-  installPi,
-  verifyPiInstallation,
-  injectPiMemory,
-  exportPiMemory,
-  recordPiSession,
-  getPiStatus,
-} from '../../src/adapters/pi/adapter.js';
+import { PiAdapter, resolvePiHome, verifyPiInstallation } from '../../src/adapters/pi/adapter.js';
 
 beforeEach(() => {
   delete process.env.PI_CODING_AGENT_DIR;
@@ -68,12 +59,14 @@ describe('pi-adapter path resolution', () => {
 // ─── 安装测试 ──────────────────────────────────────────────
 
 describe('pi-adapter installer', () => {
-  describe('installPi', () => {
+  const adapter = new PiAdapter();
+
+  describe('installPi (via adapter.install)', () => {
     it('creates directory structure and copies files', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const summary = installPi({ homeDir, templateDir, dryRun: false });
+      const summary = adapter.install({ homeDir, templateDir, dryRun: false });
 
       const piHome = resolvePiHome(homeDir);
       expect(fs.existsSync(path.join(piHome, 'AGENTS.md'))).toBe(true);
@@ -101,7 +94,7 @@ describe('pi-adapter installer', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      const summary = installPi({ homeDir, templateDir, dryRun: true });
+      const summary = adapter.install({ homeDir, templateDir, dryRun: true });
 
       const piHome = resolvePiHome(homeDir);
       expect(fs.existsSync(path.join(piHome, 'AGENTS.md'))).toBe(false);
@@ -112,15 +105,15 @@ describe('pi-adapter installer', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      installPi({ homeDir, templateDir, dryRun: false });
-      const second = installPi({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
+      const second = adapter.install({ homeDir, templateDir, dryRun: false });
 
       expect(second.filesSkipped).toBeGreaterThan(0);
     });
 
     it('throws with invalid template path', () => {
-      expect(() => installPi({ homeDir: tmpDir(), templateDir: '/nonexistent' })).toThrow(
-        'Pi 模板未找到',
+      expect(() => adapter.install({ homeDir: tmpDir(), templateDir: '/nonexistent' })).toThrow(
+        'Pi CLI 模板未找到',
       );
     });
 
@@ -128,7 +121,7 @@ describe('pi-adapter installer', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      installPi({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
 
       const extDir = path.join(resolvePiHome(homeDir), 'extensions');
       expect(fs.existsSync(path.join(extDir, 'evokit-lifecycle.ts'))).toBe(true);
@@ -142,7 +135,7 @@ describe('pi-adapter installer', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
 
-      installPi({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
 
       const agentDir = path.join(resolvePiHome(homeDir), 'agent');
       expect(fs.existsSync(path.join(agentDir, 'architect.md'))).toBe(true);
@@ -162,7 +155,7 @@ describe('pi-adapter installer', () => {
     it('passes for complete installation', () => {
       const homeDir = tmpDir();
       const templateDir = path.resolve('template');
-      installPi({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
       // 创建 memory 目录以确保完整
       fs.mkdirSync(path.join(resolvePiHome(homeDir), 'memory'), { recursive: true });
 
@@ -218,14 +211,15 @@ describe('pi-adapter interface', () => {
 
 describe('pi-adapter memory', () => {
   let homeDir: string;
+  const adapter = new PiAdapter();
 
   beforeEach(() => {
     homeDir = tmpDir();
   });
 
-  describe('injectPiMemory', () => {
+  describe('injectMemory', () => {
     it('writes corrections to memory', () => {
-      const files = injectPiMemory(homeDir, {
+      const files = adapter.injectMemory(homeDir, {
         corrections: [{ pattern: 'test pattern', context: 'test context' }],
       });
 
@@ -242,7 +236,7 @@ describe('pi-adapter memory', () => {
     });
 
     it('writes observations to memory', () => {
-      injectPiMemory(homeDir, {
+      adapter.injectMemory(homeDir, {
         observations: [{ pattern: 'obs pattern', confidence: 0.8, source: 'test' }],
       });
 
@@ -253,30 +247,30 @@ describe('pi-adapter memory', () => {
     });
   });
 
-  describe('exportPiMemory', () => {
+  describe('exportMemory', () => {
     it('reads injected data back', () => {
-      injectPiMemory(homeDir, {
+      adapter.injectMemory(homeDir, {
         corrections: [{ pattern: 'test pattern', context: 'test' }],
         observations: [{ pattern: 'obs', confidence: 0.5, source: 'test' }],
       });
 
-      const data = exportPiMemory(homeDir);
+      const data = adapter.exportMemory(homeDir);
       expect(data.corrections).toHaveLength(1);
       expect(data.observations).toHaveLength(1);
       expect(data.corrections[0]).toHaveProperty('pattern', 'test pattern');
     });
 
     it('returns empty arrays when no memory exists', () => {
-      const data = exportPiMemory(homeDir);
+      const data = adapter.exportMemory(homeDir);
       expect(data.corrections).toHaveLength(0);
       expect(data.observations).toHaveLength(0);
       expect(data.learnedRules).toBe('');
     });
   });
 
-  describe('recordPiSession', () => {
+  describe('recordSession', () => {
     it('records a session tagged as pi', () => {
-      recordPiSession(homeDir, {
+      adapter.recordSession(homeDir, {
         duration_seconds: 300,
         corrections: 2,
         observations: 1,
@@ -291,17 +285,17 @@ describe('pi-adapter memory', () => {
     });
   });
 
-  describe('getPiStatus', () => {
+  describe('getStatus', () => {
     it('reports not installed when empty', () => {
-      const status = getPiStatus(homeDir);
+      const status = adapter.getStatus(homeDir);
       expect(status.installed).toBe(false);
     });
 
     it('reports installed after template install', () => {
       const templateDir = path.resolve('template');
-      installPi({ homeDir, templateDir, dryRun: false });
+      adapter.install({ homeDir, templateDir, dryRun: false });
 
-      const status = getPiStatus(homeDir);
+      const status = adapter.getStatus(homeDir);
       expect(status.installed).toBe(true);
       expect(status.agentsPresent).toBe(true);
       expect(status.extensionsPresent).toBe(true);

@@ -26,13 +26,4 @@ export {
 } from './claude/adapter.js';
 export { CodexAdapter, resolveCodexHome } from './codex/adapter.js';
 export { OpenCodeAdapter, resolveOpenCodeProjectDir } from './opencode/adapter.js';
-export {
-  PiAdapter,
-  resolvePiHome,
-  installPi,
-  verifyPiInstallation,
-  injectPiMemory,
-  exportPiMemory,
-  recordPiSession,
-  getPiStatus,
-} from './pi/adapter.js';
+export { PiAdapter, resolvePiHome } from './pi/adapter.js';
