@@ -24,8 +24,8 @@ import type { AdapterManifest, ManifestAgentFrontmatter } from './manifest.js';
 import { reverseMergeSettings } from './reverse-merge-settings.js';
 import { reverseMergeAgents } from './reverse-merge-agents.js';
 import { removeClaudeMdSection } from './remove-claude-md.js';
-import { getInstaller } from '../adapters/registry.js';
-import type { AdapterInstaller } from '../adapters/types.js';
+import { getAdapterInternal } from '../adapters/registry.js';
+import type { AdapterInternal } from '../adapters/types.js';
 
 /** 卸载操作的选项 */
 export interface UninstallOptions {
@@ -46,11 +46,11 @@ export interface UninstallOptions {
   /** 项目目录（用于项目级适配器） */
   projectDir?: string;
   /**
-   * 适配器实例（可选）。
+   * 适配器实例（可选，框架内部接口）。
    * 传入后可避免通过 registry 查找，解决循环依赖问题。
    * BaseAdapter.uninstall() 会传入 this；CLI 命令通过 registry 查找。
    */
-  adapter?: AdapterInstaller;
+  adapter?: AdapterInternal;
 }
 
 /** 卸载操作的结果 */
@@ -576,12 +576,12 @@ function executeHeuristicUninstall(options: UninstallOptions): UninstallResult {
  */
 function getAdapterBoolean(
   adapterId: string,
-  fn: (a: AdapterInstaller) => boolean,
+  fn: (a: AdapterInternal) => boolean,
   fallback = false,
-  adapter?: AdapterInstaller,
+  adapter?: AdapterInternal,
 ): boolean {
   try {
-    return fn(adapter ?? getInstaller(adapterId));
+    return fn(adapter ?? getAdapterInternal(adapterId));
   } catch {
     return fallback;
   }
@@ -594,12 +594,12 @@ function getAdapterBoolean(
  */
 function getAdapterNullable<T>(
   adapterId: string,
-  fn: (a: AdapterInstaller) => T | null,
+  fn: (a: AdapterInternal) => T | null,
   fallback: T | null = null,
-  adapter?: AdapterInstaller,
+  adapter?: AdapterInternal,
 ): T | null {
   try {
-    return fn(adapter ?? getInstaller(adapterId));
+    return fn(adapter ?? getAdapterInternal(adapterId));
   } catch {
     return fallback;
   }
@@ -610,9 +610,9 @@ function getAdapterNullable<T>(
  * 优先使用传入的 adapter 实例，否则通过 registry 查找。
  * 替代旧的硬编码 adapterHomes 映射。
  */
-function getAdapterHome(homeDir: string, adapterId: string, adapter?: AdapterInstaller): string {
+function getAdapterHome(homeDir: string, adapterId: string, adapter?: AdapterInternal): string {
   try {
-    const inst = adapter ?? getInstaller(adapterId);
+    const inst = adapter ?? getAdapterInternal(adapterId);
     return inst.resolveHome(homeDir);
   } catch {
     // 适配器未注册 —— 回退
@@ -649,10 +649,10 @@ interface AdapterHeuristicConfig {
 function getAdapterHeuristicConfig(
   adapterId: string,
   adapterHome: string,
-  adapter?: AdapterInstaller,
+  adapter?: AdapterInternal,
 ): AdapterHeuristicConfig {
   try {
-    const inst = adapter ?? getInstaller(adapterId);
+    const inst = adapter ?? getAdapterInternal(adapterId);
     return inst.getHeuristicConfig(adapterHome);
   } catch {
     // 适配器未注册 —— 回退

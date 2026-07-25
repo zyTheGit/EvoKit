@@ -15,7 +15,7 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import { ReadStream } from 'node:tty';
-import { getInstaller, listAdapters } from './adapters/index.js';
+import { getInstaller, getAdapterInternal, listAdapters } from './adapters/index.js';
 import { resolveTemplateDir } from './core/download.js';
 import { selectAdapters } from './core/interactive.js';
 import { spinner, intro, outro, note, log } from '@clack/prompts';
@@ -76,11 +76,15 @@ export const installCommand = new Command('install')
         .filter(Boolean);
     } else if (ensureInteractive()) {
       adapterIds = await selectAdapters(
-        listAdapters().map((a) => ({
-          key: a.id,
-          label: a.label,
-          description: a.description,
-        })),
+        listAdapters().map((a) => {
+          // description 属于框架内部接口，命令层通过 getAdapterInternal 获取
+          const internal = getAdapterInternal(a.id);
+          return {
+            key: a.id,
+            label: a.label,
+            description: internal.description,
+          };
+        }),
       );
     } else {
       log.info('检测到非交互终端——默认使用 Claude Code。');

@@ -15,8 +15,8 @@
 
 import { Command } from 'commander';
 import path from 'node:path';
-import { getInstaller, listAdapters } from '../adapters/index.js';
-import type { AdapterInstaller } from '../adapters/types.js';
+import { getInstaller, getAdapterInternal, listAdapters } from '../adapters/index.js';
+import type { AdapterInternal } from '../adapters/types.js';
 import { readManifest } from '../core/manifest.js';
 import { executeUninstall } from '../core/uninstall-engine.js';
 import { spinner, intro, outro, note, log, confirm, isCancel, cancel } from '@clack/prompts';
@@ -111,6 +111,7 @@ export const uninstallCommand = new Command('uninstall')
 
     // ── 获取适配器信息 ──────────────────────────────────
     const installer = getInstaller(adapterId);
+    const adapterInternal = getAdapterInternal(adapterId);
     const manifest = readManifest(homeDir);
     const adapterRecord = manifest?.adapters?.[adapterId];
     const isHeuristic = !manifest || !adapterRecord;
@@ -123,7 +124,13 @@ export const uninstallCommand = new Command('uninstall')
       log.warn('部分 EvoKit 痕迹可能未被移除。卸载后请运行 `evokit doctor` 验证。');
     }
 
-    const previewLines = buildPreview(adapterId, adapterRecord, homeDir, options.purge, installer);
+    const previewLines = buildPreview(
+      adapterId,
+      adapterRecord,
+      homeDir,
+      options.purge,
+      adapterInternal,
+    );
     note(previewLines.join('\n'), `卸载：${installer.label}`);
 
     // ── 确认 ──────────────────────────────────────
@@ -150,7 +157,7 @@ export const uninstallCommand = new Command('uninstall')
         dryRun: options.dryRun ?? false,
         noBackup: options.backup === false,
         backupDir: options.backupDir,
-        adapter: installer, // 传入适配器实例，避免通过 registry 查找
+        adapter: adapterInternal, // 传入适配器内部接口，避免通过 registry 查找
       });
 
       s.stop(`${installer.label} 已卸载`);
@@ -201,7 +208,7 @@ function buildPreview(
   adapterRecord: any,
   homeDir: string,
   purge: boolean,
-  installer: AdapterInstaller,
+  adapterInternal: AdapterInternal,
 ): string[] {
   const lines: string[] = [];
 
@@ -248,9 +255,9 @@ function buildPreview(
     }
   } else {
     // Heuristic preview — 根据适配器动态生成
-    const adapterHome = installer.resolveHome(homeDir);
+    const adapterHome = adapterInternal.resolveHome(homeDir);
     const displayHome = tildePath(adapterHome, homeDir);
-    const heuristicConfig = installer.getHeuristicConfig(adapterHome);
+    const heuristicConfig = adapterInternal.getHeuristicConfig(adapterHome);
 
     lines.push(pc.red('将移除（启发式）：'));
 
