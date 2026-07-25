@@ -18,10 +18,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
 
-import type { AdapterInstallConfig, AdapterVerifyCheck } from '../types.js';
+import type { AdapterInstallConfig, AdapterStatus, AdapterVerifyCheck } from '../types.js';
 import type { AdapterLayout, AdapterSection } from '../../core/layout-types.js';
 import type { HeuristicConfig } from '../base-adapter.js';
 import { BaseAdapter } from '../base-adapter.js';
+import { getFileLineCount } from '../../core/memory.js';
 
 export const CLAUDE_ADAPTER_VERSION = '0.2.0';
 
@@ -302,6 +303,26 @@ export class ClaudeAdapter extends BaseAdapter {
   protected verifyChecks(config: AdapterInstallConfig): AdapterVerifyCheck[] {
     return verifyClaudeInstallation(config.homeDir, config.projectDir);
   }
+
+  /**
+   * Claude 特有的状态检查 —— 在通用检查基础上增加：
+   * 1. CLAUDE.md 行数限制检查（≤150 行）
+   * 2. 记忆文件完整性检查
+   *
+   * 这些检查原本硬编码在 doctor 命令中（if installer.id === 'claude'），
+   * 现在移入适配器自身，消除抽象泄漏。
+   */
+  override status(config: AdapterInstallConfig): AdapterStatus {
+    const baseStatus = super.status(config);
+    const extraChecks = buildClaudeExtraChecks(config.homeDir);
+    const allPass = baseStatus.allPass && extraChecks.every((c) => c.pass);
+
+    return {
+      ...baseStatus,
+      allPass,
+      extraChecks,
+    };
+  }
 }
 
 // ─── 验证 ─────────────────────────────────────────────
@@ -388,6 +409,57 @@ export function verifyClaudeInstallation(
         detail: exists ? undefined : '目录缺失',
       });
     }
+  }
+
+  return checks;
+}
+
+// ─── Claude 特有的额外检查 ──────────────────────────────────────
+
+/**
+ * 构建 Claude 适配器特有的额外检查项。
+ *
+ * 这些检查原本硬编码在 doctor 命令中（`if installer.id === 'claude'`），
+ * 现在移入适配器自身，通过 `status().extraChecks` 暴露，
+ * doctor 命令只需遍历 extraChecks 即可，无需硬编码任何适配器特有逻辑。
+ *
+ * @param homeDir 用户主目录
+ * @returns 额外验证检查项数组
+ */
+export function buildClaudeExtraChecks(homeDir: string): AdapterVerifyCheck[] {
+  const checks: AdapterVerifyCheck[] = [];
+
+  // CLAUDE.md 行数限制检查（≤150 行）
+  const rootClaudeMd = path.join(homeDir, 'CLAUDE.md');
+  if (fse.existsSync(rootClaudeMd)) {
+    const lines = getFileLineCount(rootClaudeMd);
+    checks.push({
+      name: 'CLAUDE.md 行数限制',
+      pass: lines <= 150,
+      detail: lines > 150 ? `${lines} 行（限制：150）` : `${lines}/150 行`,
+    });
+  }
+
+  // 记忆文件完整性检查
+  const memoryDir = path.join(homeDir, '.claude', 'memory');
+  const memoryFiles = [
+    'corrections.jsonl',
+    'observations.jsonl',
+    'sessions.jsonl',
+    'violations.jsonl',
+    'learned-rules.md',
+    'evolution-log.md',
+    'README.md',
+  ];
+
+  for (const file of memoryFiles) {
+    const fp = path.join(memoryDir, file);
+    const exists = fse.existsSync(fp);
+    checks.push({
+      name: `.claude/memory/${file}`,
+      pass: exists || file === 'README.md', // README.md 为可选
+      detail: !exists && file !== 'README.md' ? '（可选）' : undefined,
+    });
   }
 
   return checks;

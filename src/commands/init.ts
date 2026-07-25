@@ -11,14 +11,13 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import {
   type AdapterInstallConfig,
-  type AdapterInstaller,
   type AdapterInstallResult,
-  getInstaller,
   listAdapters,
 } from '../adapters/index.js';
 import { resolveTemplateDir } from '../core/download.js';
 import { intro, outro, multiselect, isCancel, cancel, spinner, note } from '@clack/prompts';
 import type { AdapterVerifyCheck } from '../adapters/types.js';
+import { resolveHomeDir, resolveAdapter, printNextStepsConsole } from './shared.js';
 
 /**
  * 所有已知适配器（用于 init 提示）。
@@ -48,9 +47,11 @@ export const initCommand = new Command('init')
   .option('--adapter <name>', '目标 AI 助手（claude | codex | opencode | pi）。省略则交互式选择。')
   .option('--allow-workflow', '允许开发工作流命令（npm test/lint 等）免确认')
   .action(async (directory, options) => {
-    const homeDir = directory || process.env.HOME || process.env.USERPROFILE || '';
-    if (!homeDir) {
-      console.error(pc.red('错误：无法确定主目录。'));
+    let homeDir: string;
+    try {
+      homeDir = resolveHomeDir({ directory });
+    } catch (err: any) {
+      console.error(pc.red(`错误：${err.message}`));
       console.error('  请通过参数指定：evokit init /path/to/home');
       process.exit(1);
     }
@@ -87,14 +88,13 @@ export const initCommand = new Command('init')
     let allPass = true;
 
     for (const id of adapterIds) {
-      let installer: AdapterInstaller;
-      try {
-        installer = getInstaller(id);
-      } catch {
-        console.error(pc.red(`\n❌ 未知适配器："${id}"`));
+      const resolved = resolveAdapter(id);
+      if (!resolved.ok) {
+        console.error(pc.red(`\n❌ ${resolved.error.message}`));
         process.exit(1);
         return;
       }
+      const installer = resolved.installer;
 
       const config: AdapterInstallConfig = {
         homeDir,
@@ -129,7 +129,7 @@ export const initCommand = new Command('init')
     if (cleanup) cleanup();
 
     if (!options.dryRun && allPass) {
-      printInitNextSteps(adapterIds);
+      printNextStepsConsole(adapterIds);
     }
   });
 
@@ -188,30 +188,5 @@ function printInitVerify(checks: AdapterVerifyCheck[]): void {
     }
   } else {
     console.log(pc.green('\n✅ 验证通过'));
-  }
-}
-
-function printInitNextSteps(adapterIds: string[]): void {
-  for (const id of adapterIds) {
-    switch (id) {
-      case 'claude':
-        console.log(pc.cyan('  后续步骤（Claude Code）：'));
-        console.log('  1. 启动 Claude Code');
-        console.log('  2. 运行 /boot 验证系统健康状态');
-        console.log('');
-        break;
-      case 'codex':
-        console.log(pc.cyan('  后续步骤（Codex CLI）：'));
-        console.log('  1. 启动 Codex（钩子自动运行）');
-        console.log('  2. 运行：evokit doctor --adapter codex');
-        console.log('');
-        break;
-      case 'opencode':
-        console.log(pc.cyan('  后续步骤（OpenCode CLI）：'));
-        console.log('  1. 进入项目目录并启动 OpenCode');
-        console.log('  2. 调用 evokit-boot 工具验证系统健康状态');
-        console.log('');
-        break;
-    }
   }
 }

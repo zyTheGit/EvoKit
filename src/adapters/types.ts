@@ -51,6 +51,11 @@ export interface AdapterStatus {
   checks: AdapterVerifyCheck[];
   /** 项目目录（用于安装项目级文件的适配器，如 OpenCode） */
   projectDir?: string;
+  /**
+   * 适配器特有的额外检查项（如 Claude 的 CLAUDE.md 行数限制、记忆文件检查）。
+   * doctor 命令会遍历这些检查项并纳入 allPass 计算，无需硬编码适配器特有逻辑。
+   */
+  extraChecks?: AdapterVerifyCheck[];
 }
 
 /** 适配器卸载操作的配置 */
