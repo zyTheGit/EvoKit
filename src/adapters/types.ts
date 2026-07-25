@@ -33,6 +33,7 @@ export interface AdapterInstallResult {
   commandsInstalled: number;
   rulesInstalled: number;
   agentsInstalled: number;
+  skillsInstalled: number;
   adapterHome: string;
 }
 
@@ -78,6 +79,10 @@ export interface AdapterUninstallResult {
   /** 卸载时移除的 permissions.allow 规则数量 */
   permissionsAllowRemoved: number;
   directoriesRemoved: number;
+  /** 适配器家目录（用于显示） */
+  adapterHome: string;
+  /** 已删除的文件相对路径列表（用于摘要显示） */
+  deletedFiles: string[];
   backupPath?: string;
   /** 是否为启发式（无清单）卸载 */
   heuristic: boolean;

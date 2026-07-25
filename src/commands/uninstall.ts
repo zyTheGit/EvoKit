@@ -156,7 +156,7 @@ export const uninstallCommand = new Command('uninstall')
       s.stop(`${installer.label} 已卸载`);
 
       // 打印结果
-      const resultLines = buildResultSummary(result);
+      const resultLines = buildResultSummary(result, homeDir);
       note(resultLines.join('\n'), `EvoKit — 卸载 ${installer.label}`);
 
       // 打印警告
@@ -296,8 +296,14 @@ function buildPreview(
   return lines;
 }
 
-function buildResultSummary(result: any): string[] {
+function buildResultSummary(result: any, homeDir: string): string[] {
   const lines: string[] = [];
+
+  // 目标目录
+  if (result.adapterHome) {
+    const displayHome = tildePath(result.adapterHome, homeDir);
+    lines.push(`目标：${displayHome}`);
+  }
 
   lines.push(`已删除文件：${result.filesDeleted}`);
   lines.push(`已保留文件：${result.filesPreserved}`);
@@ -306,6 +312,20 @@ function buildResultSummary(result: any): string[] {
   if (result.agentFieldsRemoved > 0) lines.push(`已移除代理字段：${result.agentFieldsRemoved}`);
   if (result.directoriesRemoved > 0) lines.push(`已清理空目录：${result.directoriesRemoved}`);
   if (result.heuristic) lines.push(pc.yellow('模式：启发式（无清单）'));
+
+  // 已删除文件列表（简化显示，最多 10 个）
+  if (result.deletedFiles && result.deletedFiles.length > 0) {
+    lines.push('');
+    lines.push('已删除：');
+    const maxShow = 10;
+    const shown = result.deletedFiles.slice(0, maxShow);
+    for (const f of shown) {
+      lines.push(`  ~/${f}`);
+    }
+    if (result.deletedFiles.length > maxShow) {
+      lines.push(`  ... 及其他 ${result.deletedFiles.length - maxShow} 个文件`);
+    }
+  }
 
   return lines;
 }

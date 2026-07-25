@@ -174,7 +174,8 @@ function printInitSummary(
       (summary.hooksInstalled > 0 ? `钩子：  ${summary.hooksInstalled} 个已安装\n` : '') +
       (summary.rulesInstalled > 0 ? `规则：  ${summary.rulesInstalled} 个已安装\n` : '') +
       (summary.agentsInstalled > 0 ? `代理：  ${summary.agentsInstalled} 个已安装\n` : '') +
-      (summary.commandsInstalled > 0 ? `命令：  ${summary.commandsInstalled} 个已安装\n` : ''),
+      (summary.commandsInstalled > 0 ? `命令：  ${summary.commandsInstalled} 个已安装\n` : '') +
+      (summary.skillsInstalled > 0 ? `技能：  ${summary.skillsInstalled} 个已安装\n` : ''),
     `EvoKit — 安装 ${installer.label}`,
   );
 }
