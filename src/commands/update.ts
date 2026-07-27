@@ -127,9 +127,7 @@ export const updateCommand = new Command('update')
       const installer = getInstaller(id);
       const record = manifest.adapters[id];
       if (record) {
-        previewLines.push(
-          `  ${pc.cyan(installer.label)} — 上次安装版本 ${record.adapterVersion}，路径 ${record.adapterHome}`,
-        );
+        previewLines.push(`  ${pc.cyan(installer.label)} — 路径 ${record.adapterHome}`);
       } else {
         previewLines.push(`  ${pc.cyan(installer.label)} — 新安装，路径 ${installer.id}`);
       }
