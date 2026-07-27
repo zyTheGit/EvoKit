@@ -181,6 +181,8 @@ export interface AdapterInstallConfig {
   dryRun?: boolean;
   /** 是否写入 permissions.allow 工作流规则（如 npm test/lint 免确认） */
   allowWorkflow?: boolean;
+  /** 安装配置文件 — 控制文件覆盖策略。upgrade 时保留用户数据，覆盖框架文件。 */
+  profile?: 'full' | 'minimal' | 'upgrade';
 }
 
 /** 适配器安装结果摘要 */

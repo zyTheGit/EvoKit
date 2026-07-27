@@ -142,7 +142,7 @@ describe('template', () => {
       const originalContent = fs.readFileSync(claudeMdPath, 'utf-8');
       fs.writeFileSync(claudeMdPath, 'MODIFIED CONTENT', 'utf-8');
 
-      // Upgrade should overwrite CLAUDE.md
+      // Upgrade should NOT overwrite CLAUDE.md (preserve user customizations)
       const summary = installPipeline({
         homeDir,
         templateDir,
@@ -151,9 +151,10 @@ describe('template', () => {
       });
 
       const newContent = fs.readFileSync(claudeMdPath, 'utf-8');
-      expect(newContent).not.toBe('MODIFIED CONTENT');
-      // Upgrade uses 'always' strategy for CLAUDE.md, so it should be overwritten
-      expect(summary.filesCreated).toBeGreaterThan(0);
+      expect(newContent).toBe('MODIFIED CONTENT');
+      // Upgrade uses 'skip-if-exists' strategy for CLAUDE.md, so user modifications preserved
+      // Other files (hooks, rules) are still updated via 'always' strategy
+      expect(summary.hooksInstalled).toBeGreaterThan(0);
     });
 
     it('exclude removes specific components from profile', () => {

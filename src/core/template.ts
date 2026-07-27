@@ -212,18 +212,18 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
       type: 'copy',
       src: path.join(claudeTemplateDir, 'CLAUDE.md'),
       dst: path.join(homeDir, 'CLAUDE.md'),
-      strategy: upgradeMode ? 'always' : 'skip-if-exists',
+      strategy: 'skip-if-exists',
       appendMarker: upgradeMode ? undefined : 'Self-Evolving System Protocol',
     });
   }
 
-  // ── 3. MEMORY.md ────────────────────────────────────────────
+  // ── 3. MEMORY.md（upgrade 时保留用户数据） ──────
   if (components.has('memory-md')) {
     sections.push({
       type: 'copy',
       src: path.join(claudeTemplateDir, 'MEMORY.md'),
       dst: path.join(targetDir, 'MEMORY.md'),
-      strategy: 'always',
+      strategy: upgradeMode ? 'skip-if-exists' : 'always',
     });
   }
 

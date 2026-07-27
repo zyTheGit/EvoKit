@@ -173,12 +173,14 @@ export interface AgentFileResult {
  * @internal — 内部辅助工具，不属于公共适配器 API。
  * 从源目录安装或合并 agent .md 文件到目标目录。
  *
+ * @param overwriteBody - upgrade 模式下覆盖 body（以模板为准），同时合并 frontmatter（保留用户字段）。
  * 返回每个文件处理结果的 { name, status } 数组。
  */
 export function installOrMergeAgents(
   srcDir: string,
   dstDir: string,
   dryRun = false,
+  overwriteBody = false,
 ): AgentFileResult[] {
   if (!fse.existsSync(srcDir)) return [];
   fse.ensureDirSync(dstDir);
@@ -228,6 +230,27 @@ export function installOrMergeAgents(
 
       const srcParsed = parseFrontmatter(srcContent);
       const dstParsed = parseFrontmatter(dstContent);
+
+      if (overwriteBody) {
+        // upgrade 模式：覆盖 body（以模板为准），合并 frontmatter（保留用户字段）
+        const [changed, merged] = mergeFrontmatter(dstParsed.frontmatter, srcParsed.frontmatter);
+        const fieldsAdded: Record<string, string> = {};
+        if (changed) {
+          for (const [key, value] of Object.entries(merged)) {
+            if (!(key in dstParsed.frontmatter)) {
+              fieldsAdded[key] = value;
+            }
+          }
+        }
+
+        const newContent = '---\n' + serializeFrontmatter(merged) + '\n---\n' + srcParsed.body;
+        if (!writeAtomic(dstPath, newContent)) {
+          results.push({ name: file, status: 'ERROR:write failed' });
+          continue;
+        }
+        results.push({ name: file, status: 'MERGED', fieldsAdded });
+        continue;
+      }
 
       if (!dstParsed.hasFrontmatter) {
         // 目标没有 frontmatter — 在前面添加模板的 frontmatter

@@ -147,9 +147,12 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
       projectDir?: string;
       templateDir: string;
       allowWorkflow?: boolean;
+      /** 安装配置文件 — upgrade 时调整文件覆盖策略 */
+      profile?: 'full' | 'minimal' | 'upgrade';
     },
   ): AdapterLayout {
-    const { homeDir, projectDir, templateDir, allowWorkflow = false } = opts;
+    const { homeDir, projectDir, templateDir, allowWorkflow = false, profile } = opts;
+    const isUpgrade = profile === 'upgrade';
     const adapterHome = this.resolveHome(homeDir);
     const adapterTemplateDir = path.join(templateDir, this.templateSubdir);
     const sections: AdapterSection[] = [];
@@ -167,6 +170,7 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
     }
 
     // 2. 认知核心文件（AGENTS.md / CLAUDE.md）
+    // upgrade 时始终 skip-if-exists —— 保留用户定制
     const coreDst = config.cognitiveCore.dstInHome
       ? path.join(homeDir, config.cognitiveCore.templateName)
       : path.join(adapterHome, config.cognitiveCore.templateName);
@@ -174,7 +178,7 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
       type: 'copy',
       src: path.join(adapterTemplateDir, config.cognitiveCore.templateName),
       dst: coreDst,
-      strategy: config.cognitiveCore.strategy,
+      strategy: isUpgrade ? 'skip-if-exists' : config.cognitiveCore.strategy,
       replaceHome: config.cognitiveCore.replaceHome,
       ...(config.cognitiveCore.appendMarker && {
         appendMarker: config.cognitiveCore.appendMarker,
@@ -182,13 +186,14 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
     });
 
     // 3. 额外的全局 copy 文件（如 Claude 的 MEMORY.md）
+    // upgrade 时始终 skip-if-exists —— 保留用户数据
     if (config.extraGlobalCopies) {
       for (const extra of config.extraGlobalCopies) {
         sections.push({
           type: 'copy',
           src: path.join(adapterTemplateDir, extra.templateName),
           dst: path.join(adapterHome, extra.targetName),
-          strategy: extra.strategy,
+          strategy: isUpgrade ? 'skip-if-exists' : extra.strategy,
           replaceHome: extra.replaceHome,
         });
       }
@@ -231,11 +236,13 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
     }
 
     // 6. 全局 merge-agents
+    // upgrade 时覆盖 body（框架逻辑更新），同时合并 frontmatter（保留用户字段）
     if (config.mergeAgents) {
       sections.push({
         type: 'merge-agents',
         srcDir: path.join(adapterTemplateDir, config.mergeAgents.templateName),
         dstDir: path.join(adapterHome, config.mergeAgents.targetName),
+        overwriteBody: isUpgrade || undefined,
       });
     }
 
@@ -313,11 +320,13 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
       }
 
       // 项目级 merge-agents
+      // upgrade 时覆盖 body，同时合并 frontmatter
       if (proj.mergeAgents) {
         sections.push({
           type: 'merge-agents',
           srcDir: path.join(adapterTemplateDir, proj.mergeAgents.templateName),
           dstDir: path.join(projectAdapterDir, proj.mergeAgents.targetName),
+          overwriteBody: isUpgrade || undefined,
         });
       }
 
@@ -375,6 +384,8 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
     projectDir?: string;
     templateDir: string;
     allowWorkflow?: boolean;
+    /** 安装配置文件 — upgrade 时调整文件覆盖策略 */
+    profile?: 'full' | 'minimal' | 'upgrade';
   }): AdapterLayout;
 
   /** 返回验证检查项。子类实现以适配各自的安装结构。 */
@@ -412,6 +423,7 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
       projectDir,
       templateDir,
       allowWorkflow: config.allowWorkflow,
+      profile: config.profile,
     });
     const summary = executeLayout(layout, { homeDir, dryRun, collector });
 

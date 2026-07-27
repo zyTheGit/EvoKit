@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.6.7 (2026-07-27)
+
+### Major
+
+- 🆕 **`evokit update` 命令** — 对已安装适配器执行升级安装，自动检测清单中的适配器，使用 upgrade profile 覆盖框架文件（hooks、rules、commands、agents、skills），保留用户数据（CLAUDE.md、MEMORY.md、memory/）
+- 🔄 **`/review` → `/evokit-review`** — 将内置代码审查命令改名，避免与用户项目自定义命令冲突
+- 🧹 **移除冗余 Skills** — 删除 `code-review`（与命令重复）和 `debug`（与规则重叠），保留 `learning-recorder`
+
+### Architecture
+
+- 🏗️ **AdapterInstallConfig 新增 profile 字段** — 支持 `full` / `minimal` / `upgrade` 三种安装配置
+- 🔧 **buildStandardLayout 根据 profile 动态调整策略** — upgrade 时认知核心/MEMORY.md 为 skip-if-exists、agents 覆盖 body + 合并 frontmatter、其余始终覆盖
+- 🐛 **修正 buildClaudeLayout upgradeMode 行为** — CLAUDE.md 从 always 改为 skip-if-exists，MEMORY.md 从 always 改为 skip-if-exists
+
+### Documentation
+
+- 📖 **README 同步** — 新增 `evokit update` 命令说明，更新 `/evokit-review` 引用
+
+### Internal
+
+- 🧪 **测试新增 12 个** — 覆盖 upgrade profile 文件策略（CLAUDE.md/MEMORY.md 保留、agents body 覆盖、hooks/rules/commands/skills 覆盖、seed-memory 保留、幂等性）和命令注册验证
+
 ## v0.6.0 (2026-07-23)
 
 ### Major

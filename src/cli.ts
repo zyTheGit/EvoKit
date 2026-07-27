@@ -29,6 +29,7 @@ import { exportCommand } from './commands/export_cmd.js';
 import { importCommand } from './commands/import_cmd.js';
 import { doctorCommand } from './commands/doctor.js';
 import { uninstallCommand } from './commands/uninstall.js';
+import { updateCommand } from './commands/update.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
@@ -45,6 +46,7 @@ program
 命令说明：
   install <适配器>     安装 EvoKit 到指定 AI 编程助手（claude | codex | opencode | pi）
   uninstall <适配器>   卸载指定 AI 编程助手的 EvoKit
+  update [适配器]      更新已安装适配器的模板文件（hooks、rules、commands、agents、skills）
   init                 install 的别名（向后兼容）
   project              在项目目录中生成 .claude/ 规范文件（规则、代理、命令）
   doctor               验证 EvoKit 系统完整性（钩子、清单、文件结构）
@@ -55,6 +57,7 @@ program
 快速上手：
   evokit install claude          安装 EvoKit 到 Claude Code
   evokit install                 交互式选择要安装的 AI 助手
+  evokit update                  更新所有适配器的模板文件
   evokit uninstall claude        卸载 Claude Code 的 EvoKit
   evokit doctor                  检查系统健康状态
   evokit project                 在当前项目生成规范文件
@@ -65,6 +68,7 @@ program
 
 program.addCommand(installCommand);
 program.addCommand(initCommand);
+program.addCommand(updateCommand);
 program.addCommand(projectCommand);
 program.addCommand(evolveCommand);
 program.addCommand(exportCommand);

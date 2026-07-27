@@ -163,6 +163,7 @@ export class OpenCodeAdapter extends BaseAdapter {
     projectDir?: string;
     templateDir: string;
     allowWorkflow?: boolean;
+    profile?: 'full' | 'minimal' | 'upgrade';
   }): AdapterLayout {
     // OpenCode 的 projectDir 默认回退到 cwd
     const effectiveProjectDir = opts.projectDir || process.cwd();

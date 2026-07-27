@@ -346,7 +346,7 @@ function executeMergeAgents(
   summary: InstallSummary,
   collector?: ManifestCollector,
 ): void {
-  const { srcDir, dstDir } = section;
+  const { srcDir, dstDir, overwriteBody } = section;
 
   if (!fse.existsSync(srcDir)) return;
 
@@ -356,7 +356,7 @@ function executeMergeAgents(
     return;
   }
 
-  const results = installOrMergeAgents(srcDir, dstDir);
+  const results = installOrMergeAgents(srcDir, dstDir, false, overwriteBody);
   summary.agentsInstalled += results.filter(
     (r) => r.status === 'COPY' || r.status === 'MERGED',
   ).length;

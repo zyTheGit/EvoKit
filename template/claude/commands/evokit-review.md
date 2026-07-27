@@ -2,7 +2,7 @@
 description: Review current changes using the reviewer agent
 ---
 
-# /review — Code Review
+# /evokit-review — Code Review
 
 Run this before committing to review all current changes.
 
@@ -16,16 +16,15 @@ Run this before committing to review all current changes.
 ## Usage
 
 ```
-/review           — Review all unstaged changes
-/review --staged  — Review staged changes only
-/review --all     — Review all changes (staged + unstaged)
+/evokit-review           — Review all unstaged changes
+/evokit-review --staged  — Review staged changes only
+/evokit-review --all     — Review all changes (staged + unstaged)
 ```
 
 ## Learning Integration
 
 - If the review finds recurring issues (same pattern across multiple files), record an **observation** in `observations.jsonl` so future sessions can avoid them.
 - If the user corrects a review finding, record a **correction** in `corrections.jsonl` for the `/evolve` pipeline.
-- The `code-review` skill (in `.claude/skills/`) provides detailed review dimension guidance.
 
 ## Self-Check Before Running
 
@@ -57,9 +56,9 @@ Run this before committing to review all current changes.
 
 ## Priority Guide
 
-| Priority | Label | Meaning | Action |
-|----------|-------|---------|--------|
-| P0 | Must fix | Bug or security issue | Fix before committing |
-| P1 | Should fix | Maintainability or correctness concern | Fix or document |
-| P2 | Nice to have | Minor improvement | Consider fixing |
-| P3 | Style | Convention or preference | Apply if low effort |
+| Priority | Label        | Meaning                                | Action                |
+| -------- | ------------ | -------------------------------------- | --------------------- |
+| P0       | Must fix     | Bug or security issue                  | Fix before committing |
+| P1       | Should fix   | Maintainability or correctness concern | Fix or document       |
+| P2       | Nice to have | Minor improvement                      | Consider fixing       |
+| P3       | Style        | Convention or preference               | Apply if low effort   |

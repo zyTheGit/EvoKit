@@ -92,7 +92,7 @@ EvoKit uses a **4-layer architecture** that progressively refines AI behavior fr
 ├─────────────────────────────────────────────────┤
 │  L4: Evolution Engine (.claude/memory/)          │
 │  corrections → observations → promotion → audit  │
-│  Commands: /boot · /evolve · /review              │
+│  Commands: /boot · /evolve · /evokit-review       │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -161,13 +161,14 @@ Use `--adapter` to bypass the menu for non-interactive setups (CI, cron).
 
 After installation, use the `evokit` command to manage your system:
 
-| Command                   | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| `evokit init`             | Initialize EvoKit (install template to `~/.claude/`) |
-| `evokit evolve`           | Run evolution audit (rotation, promotion, pruning)   |
-| `evokit export`           | Export system state for cross-machine migration      |
-| `evokit import <package>` | Import a migration package                           |
-| `evokit doctor`           | System health check and integrity verification       |
+| Command                   | Description                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| `evokit init`             | Initialize EvoKit (install template to `~/.claude/`)                                         |
+| `evokit update`           | Update template files for installed adapters (overwrite framework files, preserve user data) |
+| `evokit evolve`           | Run evolution audit (rotation, promotion, pruning)                                           |
+| `evokit export`           | Export system state for cross-machine migration                                              |
+| `evokit import <package>` | Import a migration package                                                                   |
+| `evokit doctor`           | System health check and integrity verification                                               |
 
 ```bash
 # View all commands
@@ -175,6 +176,7 @@ evokit --help
 
 # Command-specific help
 evokit init --help
+evokit update --help
 evokit evolve --help
 ```
 
@@ -207,11 +209,11 @@ Expected output:
 
 ### Built-in Commands
 
-| Command   | When                | What                                |
-| --------- | ------------------- | ----------------------------------- |
-| `/boot`   | Every session start | Verify system integrity             |
-| `/evolve` | Every ~10 sessions  | Promote patterns, prune stale rules |
-| `/review` | Before commit       | Code review via reviewer agent      |
+| Command          | When                | What                                |
+| ---------------- | ------------------- | ----------------------------------- |
+| `/boot`          | Every session start | Verify system integrity             |
+| `/evolve`        | Every ~10 sessions  | Promote patterns, prune stale rules |
+| `/evokit-review` | Before commit       | Code review via reviewer agent      |
 
 ### Key Files
 
@@ -220,7 +222,7 @@ Expected output:
 | `CLAUDE.md`         | Cognitive core — thinking framework, evolution protocol (max 150 lines) |
 | `.claude/rules/`    | Path-scoped rules (security, coding, invariants)                        |
 | `.claude/agents/`   | Sub-agent definitions (architect, reviewer)                             |
-| `.claude/commands/` | Slash commands (/boot, /evolve, /review)                                |
+| `.claude/commands/` | Slash commands (/boot, /evolve, /evokit-review)                         |
 | `.claude/memory/`   | Learning data — corrections, observations, learned rules, session logs  |
 | `.claude/hooks/`    | Session lifecycle hooks (start, stop, export)                           |
 

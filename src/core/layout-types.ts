@@ -71,11 +71,14 @@ export interface MergeSettingsSection {
 /**
  * 使用 frontmatter 合并方式合并代理 markdown 文件。
  * 已有代理不会被覆盖 —— 仅添加缺失的 frontmatter 字段。
+ * upgrade 模式下设置 overwriteBody: true 可覆盖 body 同时保留用户 frontmatter 字段。
  */
 export interface MergeAgentsSection {
   type: 'merge-agents';
   srcDir: string;
   dstDir: string;
+  /** upgrade 时覆盖 body（以模板为准），同时合并 frontmatter（保留用户字段）。 */
+  overwriteBody?: boolean;
 }
 
 /**

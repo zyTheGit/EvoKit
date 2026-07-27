@@ -202,6 +202,7 @@ export class ClaudeAdapter extends BaseAdapter {
     projectDir?: string;
     templateDir: string;
     allowWorkflow?: boolean;
+    profile?: 'full' | 'minimal' | 'upgrade';
   }): AdapterLayout {
     return this.buildStandardLayout(LAYOUT_CONFIG, opts);
   }
