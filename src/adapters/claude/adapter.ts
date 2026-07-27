@@ -278,8 +278,9 @@ export function verifyClaudeInstallation(
       const hp = path.join(hooksDir, hook);
       const exists = fse.existsSync(hp);
       if (exists) {
-        const stats = fs.statSync(hp);
-        const executable = !!(stats.mode & 0o111);
+        // Windows 没有 Unix 权限位概念，fs.statSync().mode & 0o111 始终为 0。
+        // 在 Windows 上跳过可执行位检查（文件由 EvoKit 安装，理应可执行）。
+        const executable = process.platform === 'win32' || !!(fs.statSync(hp).mode & 0o111);
         checks.push({
           name: `.claude/hooks/${hook}`,
           pass: executable,

@@ -296,11 +296,13 @@ export function verifyCodexInstallation(
       const sp = path.join(hooksDir, script);
       const exists = fse.existsSync(sp);
       if (exists) {
-        const stats = fs.statSync(sp);
+        // Windows 没有 Unix 权限位概念，fs.statSync().mode & 0o111 始终为 0。
+        // 在 Windows 上跳过可执行位检查（文件由 EvoKit 安装，理应可执行）。
+        const executable = process.platform === 'win32' || (fs.statSync(sp).mode & 0o111) !== 0;
         checks.push({
           name: `.codex/hooks-scripts/${script}`,
-          pass: (stats.mode & 0o111) !== 0,
-          detail: (stats.mode & 0o111) !== 0 ? undefined : '不可执行',
+          pass: executable,
+          detail: executable ? undefined : '不可执行',
         });
       } else {
         checks.push({

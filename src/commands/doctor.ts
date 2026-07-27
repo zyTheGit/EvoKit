@@ -55,13 +55,6 @@ export const doctorCommand = new Command('doctor')
 
       console.log(pc.cyan(`\n📁 ${installer.label} — ${status.adapterHome}`));
 
-      if (!status.installed) {
-        console.log(pc.yellow(`  ⚠ ${installer.label} 适配器：未安装`));
-        console.log(`    运行：evokit init --adapter ${installer.id}`);
-        allPass = false;
-        continue;
-      }
-
       let pass = true;
       for (const check of status.checks) {
         const icon = check.pass ? pc.green('✓') : pc.red('✗');
@@ -83,7 +76,13 @@ export const doctorCommand = new Command('doctor')
         }
       }
 
-      if (!pass) allPass = false;
+      if (!status.installed) {
+        console.log(pc.yellow(`  ⚠ ${installer.label} 适配器：未安装`));
+        console.log(`    运行：evokit init --adapter ${installer.id}`);
+        allPass = false;
+      } else if (!pass) {
+        allPass = false;
+      }
     }
 
     // 汇总 — allPass 仅基于实际检查的适配器结果
