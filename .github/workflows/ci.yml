@@ -31,11 +31,9 @@ jobs:
           test -f template/claude/agents/reviewer.md
           test -f template/claude/commands/boot.md
           test -f template/claude/commands/evolve.md
-          test -f template/claude/commands/review.md
+          test -f template/claude/commands/evokit-review.md
           test -f template/claude/memory/README.md
           test -f template/claude/skills/README.md
-          test -f template/claude/skills/debug/SKILL.md
-          test -f template/claude/skills/code-review/SKILL.md
           test -f template/claude/skills/learning-recorder/SKILL.md
 
           # Codex CLI template
