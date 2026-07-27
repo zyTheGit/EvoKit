@@ -95,6 +95,7 @@ jobs:
           test -f LICENSE
           test -f CONTRIBUTING.md
           test -f CHANGELOG.md
+          test -f ROADMAP.md
           # English docs
           test -f docs/en/ARCHITECTURE.md
           test -f docs/en/EVOLUTION.md
