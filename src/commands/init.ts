@@ -13,7 +13,6 @@ import {
   type AdapterInstallConfig,
   type AdapterInstallResult,
   getInstaller,
-  getAdapterInternal,
   listAdapters,
 } from '../adapters/index.js';
 import { resolveTemplateDir } from '../core/download.js';
@@ -24,7 +23,6 @@ import { resolveHomeDir, resolveAdapter, printNextStepsConsole } from './shared.
 /**
  * 所有已知适配器（用于 init 提示）。
  * 使用注册表以与可用适配器保持同步。
- * description 属于 AdapterInternal 接口，需通过 getAdapterInternal 获取。
  */
 function getAdapterChoices(): Array<{
   id: string;
@@ -32,16 +30,12 @@ function getAdapterChoices(): Array<{
   description: string;
   available: boolean;
 }> {
-  return listAdapters().map((a) => {
-    // description 属于框架内部接口，命令层通过 getAdapterInternal 获取
-    const internal = getAdapterInternal(a.id);
-    return {
-      id: a.id,
-      label: a.label,
-      description: internal.description,
-      available: true,
-    };
-  });
+  return listAdapters().map((a) => ({
+    id: a.id,
+    label: a.label,
+    description: a.description,
+    available: true,
+  }));
 }
 
 export const initCommand = new Command('init')

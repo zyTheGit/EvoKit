@@ -193,9 +193,11 @@ export const uninstallCommand = new Command('uninstall')
 /** 将绝对路径转为 ~/ 简写形式 */
 function tildePath(absPath: string, homeDir: string): string {
   if (absPath.startsWith(homeDir)) {
-    return '~' + absPath.slice(homeDir.length);
+    // 统一使用正斜杠，避免 Windows 上 \ 和 / 混用
+    return ('~' + absPath.slice(homeDir.length)).replace(/\\/g, '/');
   }
-  return absPath;
+  // 非主目录路径也统一正斜杠，确保显示一致
+  return absPath.replace(/\\/g, '/');
 }
 
 function buildPreview(
@@ -322,7 +324,8 @@ function buildResultSummary(result: any, homeDir: string): string[] {
     const maxShow = 10;
     const shown = result.deletedFiles.slice(0, maxShow);
     for (const f of shown) {
-      lines.push(`  ~/${f}`);
+      // 统一正斜杠，避免 Windows 上 \ 和 / 混用
+      lines.push(`  ~/${f.replace(/\\/g, '/')}`);
     }
     if (result.deletedFiles.length > maxShow) {
       lines.push(`  ... 及其他 ${result.deletedFiles.length - maxShow} 个文件`);

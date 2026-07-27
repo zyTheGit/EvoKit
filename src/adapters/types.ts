@@ -271,6 +271,8 @@ export interface AdapterInstaller {
   readonly id: string;
   /** 适配器显示名称（如 'Claude Code'、'Codex CLI'） */
   readonly label: string;
+  /** 适配器描述（用于交互式菜单和状态显示） */
+  readonly description: string;
 
   /** 安装此适配器的模板文件 */
   install(config: AdapterInstallConfig): AdapterInstallResult;
@@ -291,12 +293,13 @@ export interface AdapterInstaller {
  * 包含路径解析、启发式配置、布局构建等框架运行所需的成员。
  * 命令层和外部调用者不应使用此接口。
  *
+ * 注意：uninstall.ts 仍依赖此接口的 resolveHome() 和 getHeuristicConfig()
+ * 进行启发式卸载预览，这是已知限制，待后续深化时解决。
+ *
  * BaseAdapter 同时实现 {@link AdapterInstaller} 与 {@link AdapterInternal}，
  * 子类继承 BaseAdapter 即自动满足两个接口。
  */
 export interface AdapterInternal {
-  /** 适配器描述（用于交互式选择菜单的提示信息） */
-  readonly description: string;
   /** 适配器版本 */
   readonly version: string;
   /** 该适配器支持的 AI 助手 CLI 版本范围（如 '>=0.81.0'）*/
