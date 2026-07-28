@@ -13,6 +13,7 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 import fse from 'fs-extra';
 import { replaceHomeInObject } from './replace-home.js';
 import { atomicWriteFile } from './atomic-write.js';
@@ -36,6 +37,11 @@ export interface SettingsMergeResult {
  * 如果传入 collector，在合并过程中直接调用 collector.recordXxx() 记录
  * 本次新增的 hooks/env/autoMemory/permissions，省去 detail 中间对象。
  *
+ * 当 `settingsPath` 对应的文件不存在或 JSON 无效时：
+ * - 若 `allowCreate` 为 true（全新安装/损坏覆盖），将 settings 视为空对象 `{}`，
+ *   合并模板全部内容并写入新文件，collector 记录所有条目；
+ * - 否则返回 `{ changed: false }`（兼容旧行为）。
+ *
  * 通过临时文件 + 重命名实现原子写入，并创建 .bak.evokit 备份。
  */
 export function mergeSettings(
@@ -44,16 +50,23 @@ export function mergeSettings(
   homeDir: string = process.env.HOME || '',
   allowWorkflow: boolean = false,
   collector?: ManifestCollector,
+  allowCreate: boolean = false,
 ): SettingsMergeResult {
-  // 1. 读取现有设置
+  // 1. 读取现有设置 — 支持 allowCreate 模式
   let settings: Record<string, unknown>;
+  let isCreate = false;
   try {
     settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
   } catch (e: any) {
-    if (e.code === 'ENOENT') {
+    if (allowCreate) {
+      // allowCreate 模式：文件不存在或无效 JSON，均视为空对象
+      settings = {};
+      isCreate = true;
+    } else if (e.code === 'ENOENT') {
       return { changed: false, reason: `文件未找到: ${settingsPath}` };
+    } else {
+      return { changed: false, reason: `无效 JSON: ${e.message}` };
     }
-    return { changed: false, reason: `无效 JSON: ${e.message}` };
   }
 
   // 2. 读取并解析模板（在 __HOME__ 替换之前解析，
@@ -79,6 +92,44 @@ export function mergeSettings(
   // 在已解析的对象中替换 __HOME__ — JSON.stringify 写入时
   // 会自动转义反斜杠，生成有效的 JSON。
   template = replaceHomeInObject(template, homeDir);
+
+  // isCreate 模式（全新安装/损坏覆盖）：直接写入完整模板，记录所有条目
+  if (isCreate) {
+    settings = { ...template };
+    // 记录所有模板条目到清单
+    if (collector) {
+      const tHooks = (template.hooks as Record<string, unknown>) || {};
+      if (typeof tHooks === 'object') {
+        for (const [event, hooksList] of Object.entries(tHooks)) {
+          if (Array.isArray(hooksList)) {
+            for (const entry of hooksList) {
+              collector.recordHook(event, entry as Record<string, unknown>);
+            }
+          }
+        }
+      }
+      const tEnv = (template.env as Record<string, string>) || {};
+      if (typeof tEnv === 'object') {
+        for (const [key, value] of Object.entries(tEnv)) {
+          collector.recordEnvVar(key, value);
+        }
+      }
+      if ('autoMemoryEnabled' in template) {
+        collector.recordAutoMemoryEnabled();
+      }
+      const tPerms = (template.permissions as Record<string, unknown>) || {};
+      if (typeof tPerms === 'object' && Array.isArray(tPerms.allow)) {
+        for (const rule of tPerms.allow as string[]) {
+          collector.recordPermissionAllow(rule);
+        }
+      }
+    }
+
+    // 写入文件
+    fse.ensureDirSync(path.dirname(settingsPath));
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+    return { changed: true };
+  }
 
   let changed = false;
 
@@ -165,7 +216,7 @@ export function mergeSettings(
     return { changed: false, reason: 'SKIPPED' };
   }
 
-  // 7. 原子写入：临时文件 → 验证 → 备份 → 重命名
+  // 7. 增量合并 —— 原子写入：临时文件 → 验证 → 备份 → 重命名
   const writeResult = atomicWriteFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
     tmpSuffix: '.merge.tmp',
     validate: (tmpPath) => {

@@ -12,7 +12,7 @@ import path from 'node:path';
 import fse from 'fs-extra';
 import { mergeSettings } from './merge-settings.js';
 import { installOrMergeAgents } from './merge-agents.js';
-import { replaceHomeInString, replaceHomeInObject } from './replace-home.js';
+import { replaceHomeInString } from './replace-home.js';
 import type { InstallSummary } from './types.js';
 import type { ManifestCollector } from './manifest-collector.js';
 import type {
@@ -250,11 +250,11 @@ function executeMergeSettings(
   summary: InstallSummary,
   collector?: ManifestCollector,
 ): void {
-  const { srcPath, dstPath, replaceHome } = section;
+  const { srcPath, dstPath } = section;
 
   if (!fse.existsSync(srcPath)) return;
 
-  // 全新安装或损坏文件 —— 从模板写入（两种路径共用同一逻辑）
+  // 判断目标状态：不存在 / 损坏 / 有效 JSON
   const isFreshInstall = !fse.existsSync(dstPath);
   const isValid =
     !isFreshInstall &&
@@ -267,17 +267,9 @@ function executeMergeSettings(
       }
     })();
 
-  if (isFreshInstall || !isValid) {
-    if (!dryRun) {
-      fse.ensureDirSync(path.dirname(dstPath));
-      writeSettingsFromTemplate(srcPath, dstPath, homeDir, replaceHome, collector);
-    }
-    summary.filesCreated++;
-    collector?.recordFile({ path: dstPath, source: 'merge-settings', mode: 'created' });
-    return;
-  }
-
-  // 有效 JSON —— 深度合并（添加缺失的 hooks/env，绝不覆盖已有值）
+  // 统一走 mergeSettings：
+  // - 全新安装/损坏覆盖 → allowCreate: true（视目标为空对象，写入全部模板内容）
+  // - 有效 JSON → allowCreate: false（增量合并，仅添加缺失条目）
   if (!dryRun) {
     const result = mergeSettings(
       dstPath,
@@ -285,6 +277,7 @@ function executeMergeSettings(
       homeDir,
       section.allowWorkflow ?? false,
       collector,
+      !isValid, // allowCreate: 目标不存在或损坏时为 true
     );
     if (result.changed) {
       summary.filesCreated++;
@@ -294,37 +287,6 @@ function executeMergeSettings(
     }
   } else {
     summary.filesCreated++;
-  }
-}
-
-/**
- * 从模板写入 settings.json —— 全新安装或损坏文件覆盖时调用。
- *
- * 先解析 JSON 再在对象中替换 `__HOME__`（避免 Windows 反斜杠转义问题），
- * 记录所有模板条目到清单。若模板非有效 JSON，回退到字符串替换（不记录清单）。
- */
-function writeSettingsFromTemplate(
-  srcPath: string,
-  dstPath: string,
-  homeDir: string,
-  replaceHome: boolean,
-  collector?: ManifestCollector,
-): void {
-  const content = fs.readFileSync(srcPath, 'utf-8');
-
-  if (!replaceHome) {
-    fs.writeFileSync(dstPath, content, 'utf-8');
-    return;
-  }
-
-  try {
-    const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
-    fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
-    // 记录全新安装的所有模板条目
-    recordSettingsEntries(parsed, collector);
-  } catch {
-    // 回退方案：如果模板不是有效 JSON，执行字符串替换（无法记录清单）
-    fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
   }
 }
 
@@ -412,53 +374,6 @@ function executePermissions(section: PermissionsSection, dryRun: boolean): void 
       fs.chmodSync(fp, mode);
     } catch {
       // 跳过不可读文件
-    }
-  }
-}
-
-// ─── 清单辅助函数 ──────────────────────────────────────────
-
-/**
- * 记录全新写入的 settings 对象中的所有条目
- * （全新安装或覆盖损坏文件时调用）。对于全新安装，
- * 所有 hooks/env/autoMemoryEnabled 均来自模板。
- */
-function recordSettingsEntries(
-  settings: Record<string, unknown>,
-  collector?: ManifestCollector,
-): void {
-  if (!collector) return;
-
-  // 记录 hooks
-  const hooks = settings.hooks as Record<string, unknown> | undefined;
-  if (hooks && typeof hooks === 'object') {
-    for (const [event, hooksList] of Object.entries(hooks)) {
-      if (Array.isArray(hooksList)) {
-        for (const entry of hooksList) {
-          collector.recordHook(event, entry as Record<string, unknown>);
-        }
-      }
-    }
-  }
-
-  // 记录环境变量
-  const env = settings.env as Record<string, string> | undefined;
-  if (env && typeof env === 'object') {
-    for (const [key, value] of Object.entries(env)) {
-      collector.recordEnvVar(key, value);
-    }
-  }
-
-  // 记录 autoMemoryEnabled
-  if ('autoMemoryEnabled' in settings) {
-    collector.recordAutoMemoryEnabled();
-  }
-
-  // 记录 permissions.allow
-  const perms = settings.permissions as Record<string, unknown> | undefined;
-  if (perms && typeof perms === 'object' && Array.isArray(perms.allow)) {
-    for (const rule of perms.allow as string[]) {
-      collector.recordPermissionAllow(rule);
     }
   }
 }
