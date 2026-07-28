@@ -16,12 +16,17 @@
 
 import { Command } from 'commander';
 import pc from 'picocolors';
-import { spinner, intro, outro, note, log, confirm, isCancel, cancel } from '@clack/prompts';
+import { intro, log, confirm, isCancel, cancel, note } from '@clack/prompts';
 import { readManifest } from '../core/manifest.js';
 import { getEvokitVersion } from '../core/version.js';
 import { getInstaller } from '../adapters/index.js';
-import type { AdapterVerifyCheck } from '../adapters/types.js';
-import { resolveHomeDir, resolveAdapter } from './shared.js';
+import {
+  resolveHomeDir,
+  resolveAdapter,
+  printSummaryOutro,
+  printNextSteps,
+  runAdapterInstallLoop,
+} from './shared.js';
 import { resolveTemplateDir } from '../core/download.js';
 
 export const updateCommand = new Command('update')
@@ -159,85 +164,30 @@ export const updateCommand = new Command('update')
     }
 
     // ── 执行更新 ──────────────────────────────────
-    let allPass = true;
-
-    for (const id of adapterIds) {
-      const installer = getInstaller(id);
-
-      const config = {
+    const allPass = runAdapterInstallLoop(adapterIds, {
+      verb: '更新',
+      config: {
         homeDir,
         templateDir,
         projectDir: options.projectDir || undefined,
         dryRun: options.dryRun ?? false,
         allowWorkflow: false,
         profile: 'upgrade' as const,
-      };
-
-      const s = spinner();
-      s.start(`正在更新 ${installer.label}...`);
-
-      try {
-        const result = installer.install(config);
-        s.stop(`${installer.label} 更新完成`);
-
-        const resultLines: string[] = [`目标路径：${result.adapterHome}`];
-
-        const updates: string[] = [];
-        if (result.hooksInstalled > 0) updates.push(`钩子 ${result.hooksInstalled} 个`);
-        if (result.rulesInstalled > 0) updates.push(`规则 ${result.rulesInstalled} 个`);
-        if (result.commandsInstalled > 0) updates.push(`命令 ${result.commandsInstalled} 个`);
-        if (result.agentsInstalled > 0) updates.push(`代理 ${result.agentsInstalled} 个`);
-        if (result.skillsInstalled > 0) updates.push(`技能 ${result.skillsInstalled} 个`);
-        if (result.filesCreated > 0) updates.push(`文件 ${result.filesCreated} 个`);
-
-        if (updates.length > 0) {
-          resultLines.push(`已更新：${updates.join('，')}`);
-        }
-        if (result.filesSkipped > 0) {
-          resultLines.push(`已跳过：${result.filesSkipped} 个文件（用户数据保留）`);
-        }
-
-        note(resultLines.join('\n'), `EvoKit — ${installer.label} 更新结果`);
-
-        if (options.verify && !options.dryRun) {
-          const checks = installer.verify(config);
-          printVerification(installer, checks);
-          const pass = checks.every((c) => c.pass);
-          if (!pass) allPass = false;
-        }
-      } catch (err: any) {
-        s.stop(`更新失败`);
-        log.error(`${installer.label}：${err.message}`);
-        allPass = false;
-      }
-    }
+      },
+      verify: options.verify,
+      dryRun: options.dryRun ?? false,
+      skipHint: '用户数据保留',
+    });
 
     // 清理临时下载
     if (cleanup) cleanup();
 
     // ── 摘要 ──────────────────────────────────────
-    if (options.dryRun) {
-      outro('模拟运行完成 — 未修改任何文件');
-    } else if (allPass) {
-      outro('EvoKit 更新成功！');
-    } else {
-      log.warning('更新完成但有警告——请查看上方输出');
-    }
+    printSummaryOutro('更新', options.dryRun ?? false, allPass);
 
     if (!options.dryRun) {
-      log.info(`运行 ${pc.cyan('evokit doctor')} 验证系统健康状态。`);
+      printNextSteps(adapterIds, { brief: true });
     }
   });
 
 // ─── 显示辅助函数 ─────────────────────────────────────────
-
-function printVerification(installer: { label: string }, checks: AdapterVerifyCheck[]): void {
-  log.step(`正在验证 ${installer.label}...`);
-  for (const check of checks) {
-    if (check.pass) {
-      log.success(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-    } else {
-      log.error(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-    }
-  }
-}

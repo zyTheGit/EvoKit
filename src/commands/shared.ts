@@ -9,8 +9,13 @@
 
 import pc from 'picocolors';
 import { getInstaller, listAdapters } from '../adapters/index.js';
-import type { AdapterInstaller } from '../adapters/types.js';
-import { note } from '@clack/prompts';
+import type {
+  AdapterInstaller,
+  AdapterInstallResult,
+  AdapterInstallConfig,
+} from '../adapters/types.js';
+import { note, log, outro, spinner } from '@clack/prompts';
+import type { AdapterVerifyCheck } from '../adapters/types.js';
 
 // ─── resolveHomeDir ─────────────────────────────────────────
 
@@ -76,6 +81,181 @@ export function resolveAdapter(
   }
 }
 
+// ─── formatInstallResult ────────────────────────────────────
+
+/** formatInstallResult 的选项 */
+export interface FormatInstallResultOptions {
+  /** 适配器显示名称（如 'Claude Code'） */
+  label: string;
+  /** 动作词（如 '安装'、'更新'） */
+  verb: string;
+  /** 安装结果 */
+  result: AdapterInstallResult;
+  /** 是否显示目标路径（init 不显示） */
+  showTargetPath?: boolean;
+  /** 跳过文件的提示文案（如 update 的"用户数据保留"） */
+  skipHint?: string;
+}
+
+/**
+ * 格式化安装/更新结果为文本行数组（纯函数）。
+ *
+ * 统一 install / init / update 三命令的结果展示逻辑。
+ * 调用方用 note() 或其他方式展示返回的行。
+ *
+ * @param options 格式化选项
+ * @returns 格式化后的文本行数组
+ */
+export function formatInstallResult(options: FormatInstallResultOptions): string[] {
+  const { verb, result, showTargetPath = true, skipHint } = options;
+  const lines: string[] = [];
+
+  // 目标路径
+  if (showTargetPath) {
+    lines.push(`目标路径：${result.adapterHome}`);
+  }
+
+  // 文件计数
+  lines.push(`已${verb}：${result.filesCreated} 个文件，跳过 ${result.filesSkipped} 个`);
+
+  // 分类计数
+  if (result.hooksInstalled > 0) lines.push(`钩子：已${verb} ${result.hooksInstalled} 个`);
+  if (result.rulesInstalled > 0) lines.push(`规则：已${verb} ${result.rulesInstalled} 个`);
+  if (result.agentsInstalled > 0) lines.push(`代理：已${verb} ${result.agentsInstalled} 个`);
+  if (result.commandsInstalled > 0) lines.push(`命令：已${verb} ${result.commandsInstalled} 个`);
+  if (result.skillsInstalled > 0) lines.push(`技能：已${verb} ${result.skillsInstalled} 个`);
+
+  // 跳过提示
+  if (result.filesSkipped > 0 && skipHint) {
+    lines.push(`已跳过：${result.filesSkipped} 个文件（${skipHint}）`);
+  }
+
+  return lines;
+}
+
+/**
+ * 使用 @clack/prompts 的 note 组件展示安装/更新结果。
+ *
+ * @param options 格式化选项（同 formatInstallResult）
+ */
+export function printInstallResult(options: FormatInstallResultOptions): void {
+  const lines = formatInstallResult(options);
+  note(lines.join('\n'), `EvoKit — ${options.label} ${options.verb}结果`);
+}
+
+// ─── printSummaryOutro ─────────────────────────────────────
+
+/**
+ * 统一显示命令执行摘要（outro / 警告）。
+ *
+ * 根据 dryRun 和 allPass 状态显示不同风格的结束信息。
+ *
+ * @param verb 动作词（如 '安装'、'更新'）
+ * @param dryRun 是否为 dry-run 模式
+ * @param allPass 是否所有适配器都成功
+ */
+export function printSummaryOutro(verb: string, dryRun: boolean, allPass: boolean): void {
+  if (dryRun) {
+    outro('模拟运行完成 — 未修改任何文件');
+  } else if (allPass) {
+    outro(`EvoKit ${verb}成功！`);
+  } else {
+    log.warning(`${verb}完成但有警告——请查看上方输出`);
+  }
+}
+
+// ─── runAdapterInstallLoop ─────────────────────────────────
+
+/** runAdapterInstallLoop 的选项 */
+export interface RunAdapterInstallLoopOptions {
+  /** 动作词（如 '安装'、'更新'） */
+  verb: string;
+  /** 适配器安装配置（调用方构建，不含 adapter 特有字段） */
+  config: AdapterInstallConfig;
+  /** 是否运行验证 */
+  verify?: boolean;
+  /** dry-run 模式 */
+  dryRun?: boolean;
+  /** 跳过文件的提示文案（如 update 的 "用户数据保留"） */
+  skipHint?: string;
+}
+
+/**
+ * 统一适配器安装循环 —— spinner 管理 + try/catch + 结果展示 + 验证。
+ *
+ * 消除 install / init / update 三个命令中重复的循环模式。
+ * 调用方在循环外构建 config，传入 adapterIds 列表。
+ *
+ * @param adapterIds 适配器 ID 列表
+ * @param options 循环选项
+ * @returns 所有适配器是否全部成功
+ */
+export function runAdapterInstallLoop(
+  adapterIds: string[],
+  options: RunAdapterInstallLoopOptions,
+): boolean {
+  const { verb, config, verify, dryRun, skipHint } = options;
+  let allPass = true;
+
+  for (const id of adapterIds) {
+    const resolved = resolveAdapter(id);
+    if (!resolved.ok) {
+      log.error(resolved.error.message);
+      log.error(resolved.error.availableAdapters);
+      allPass = false;
+      continue;
+    }
+    const installer = resolved.installer;
+
+    const s = spinner();
+    s.start(`正在${verb} ${installer.label}...`);
+
+    try {
+      const result = installer.install(config);
+      s.stop(`${installer.label} ${verb}完成`);
+
+      printInstallResult({ label: installer.label, verb, result, skipHint });
+
+      if (verify && !dryRun) {
+        const checks = installer.verify(config);
+        printVerification(installer, checks);
+        const pass = checks.every((c) => c.pass);
+        if (!pass) allPass = false;
+      }
+    } catch (err: any) {
+      s.stop(`${verb}失败`);
+      log.error(`${installer.label}：${err.message}`);
+      allPass = false;
+    }
+  }
+
+  return allPass;
+}
+
+// ─── printVerification ──────────────────────────────────────
+
+/**
+ * 使用 @clack/prompts 展示验证检查结果。
+ *
+ * 提取自 install.ts 和 update.ts 中的完全重复实现。
+ *
+ * @param installer 适配器信息（仅需 label）
+ * @param checks 验证检查项列表
+ */
+export function printVerification(
+  installer: { label: string },
+  checks: AdapterVerifyCheck[],
+): void {
+  log.step(`正在验证 ${installer.label}...`);
+  for (const check of checks) {
+    if (check.pass) {
+      log.success(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
+    } else {
+      log.error(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
+    }
+  }
+}
+
 // ─── printNextSteps ─────────────────────────────────────────
 
 /**
@@ -96,19 +276,7 @@ const NEXT_STEPS_CLACK: Record<string, string> = {
 };
 
 /**
- * 适配器 ID → 后续步骤文案映射（init 命令风格，使用 console.log 展示）。
- * 与 CLACK 版本的文案略有差异（如 "验证系统健康状态" vs "进行验证"），
- * 保持与原始 printInitNextSteps 输出完全一致。
- */
-const NEXT_STEPS_CONSOLE: Record<string, string[]> = {
-  claude: ['启动 Claude Code', '运行 /boot 验证系统健康状态'],
-  codex: ['启动 Codex（钩子自动运行）', '运行：evokit doctor --adapter codex'],
-  opencode: ['进入项目目录并启动 OpenCode', '调用 evokit-boot 工具验证系统健康状态'],
-  pi: ['已就绪'],
-};
-
-/**
- * 生成后续步骤文案（纯函数，install 命令风格）。
+ * 生成后续步骤文案（纯函数）。
  *
  * @param adapterIds 已安装的适配器 ID 列表
  * @returns 后续步骤文本行数组，每项为一个适配器的步骤或通用提示
@@ -128,33 +296,26 @@ export function getNextStepsLines(adapterIds: string[]): string[] {
   return lines;
 }
 
-/**
- * 使用 @clack/prompts 的 note 组件展示后续步骤（install 命令风格）。
- * 输出格式与原始 install.ts 中的 printNextSteps 完全一致。
- */
-export function printNextStepsClack(adapterIds: string[]): void {
-  const lines = getNextStepsLines(adapterIds);
-  note(lines.join('\n\n'), '后续步骤');
+/** printNextSteps 的选项 */
+export interface PrintNextStepsOptions {
+  /** brief 模式仅显示 doctor 提示（适用于 update 等已安装场景） */
+  brief?: boolean;
 }
 
 /**
- * 使用 console.log 展示后续步骤（init 命令风格，带颜色）。
- * 输出格式与原始 init.ts 中的 printInitNextSteps 完全一致。
+ * 统一展示后续步骤。
+ *
+ * - 默认模式（brief: false）使用 @clack/prompts note 展示完整步骤（install/init）。
+ * - brief 模式仅显示 doctor 提示（update）。
+ *
+ * @param adapterIds 已安装的适配器 ID 列表
+ * @param options 展示选项
  */
-export function printNextStepsConsole(adapterIds: string[]): void {
-  for (const id of adapterIds) {
-    const steps = NEXT_STEPS_CONSOLE[id];
-    if (steps) {
-      // 从 NEXT_STEPS_CLACK 获取适配器显示名称
-      const displayName = NEXT_STEPS_CLACK[id]?.split('：')[0] || id;
-      console.log(pc.cyan(`  后续步骤（${displayName}）：`));
-      for (let i = 0; i < steps.length; i++) {
-        console.log(`  ${i + 1}. ${steps[i]}`);
-      }
-    } else {
-      console.log(pc.cyan(`  后续步骤（${id}）：`));
-      console.log('  已就绪');
-    }
-    console.log('');
+export function printNextSteps(adapterIds: string[], options?: PrintNextStepsOptions): void {
+  if (options?.brief) {
+    log.info(`运行 ${pc.cyan('evokit doctor')} 验证系统健康状态。`);
+    return;
   }
+  const lines = getNextStepsLines(adapterIds);
+  note(lines.join('\n\n'), '后续步骤');
 }

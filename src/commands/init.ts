@@ -9,34 +9,15 @@
 
 import { Command } from 'commander';
 import pc from 'picocolors';
-import {
-  type AdapterInstallConfig,
-  type AdapterInstallResult,
-  getInstaller,
-  listAdapters,
-} from '../adapters/index.js';
+import { listAdapters } from '../adapters/index.js';
 import { resolveTemplateDir } from '../core/download.js';
-import { intro, outro, multiselect, isCancel, cancel, spinner, note } from '@clack/prompts';
-import type { AdapterVerifyCheck } from '../adapters/types.js';
-import { resolveHomeDir, resolveAdapter, printNextStepsConsole } from './shared.js';
-
-/**
- * 所有已知适配器（用于 init 提示）。
- * 使用注册表以与可用适配器保持同步。
- */
-function getAdapterChoices(): Array<{
-  id: string;
-  label: string;
-  description: string;
-  available: boolean;
-}> {
-  return listAdapters().map((a) => ({
-    id: a.id,
-    label: a.label,
-    description: a.description,
-    available: true,
-  }));
-}
+import { selectAdapters } from '../core/interactive.js';
+import {
+  resolveHomeDir,
+  printNextSteps,
+  printSummaryOutro,
+  runAdapterInstallLoop,
+} from './shared.js';
 
 export const initCommand = new Command('init')
   .description('在主目录中初始化 EvoKit')
@@ -66,7 +47,13 @@ export const initCommand = new Command('init')
         .map((a: string) => a.trim().toLowerCase())
         .filter(Boolean);
     } else if (process.stdin.isTTY) {
-      adapterIds = await promptAdapterSelection();
+      adapterIds = await selectAdapters(
+        listAdapters().map((a) => ({
+          key: a.id,
+          label: a.label,
+          description: a.description,
+        })),
+      );
     } else {
       adapterIds = ['claude'];
     }
@@ -86,109 +73,24 @@ export const initCommand = new Command('init')
     }
 
     // 安装每个适配器
-    let allPass = true;
-
-    for (const id of adapterIds) {
-      const resolved = resolveAdapter(id);
-      if (!resolved.ok) {
-        console.error(pc.red(`\n❌ ${resolved.error.message}`));
-        process.exit(1);
-        return;
-      }
-      const installer = resolved.installer;
-
-      const config: AdapterInstallConfig = {
+    const allPass = runAdapterInstallLoop(adapterIds, {
+      verb: '安装',
+      config: {
         homeDir,
         templateDir,
         projectDir: undefined,
         dryRun: options.dryRun ?? false,
         allowWorkflow: options.allowWorkflow ?? false,
-      };
-
-      const installSpin = spinner();
-      installSpin.start(`正在安装 ${installer.label}...`);
-
-      try {
-        const result = installer.install(config);
-        installSpin.stop(`${installer.label} 已安装`);
-
-        printInitSummary(installer, result, options.dryRun);
-
-        if (options.verify && !options.dryRun) {
-          const checks = installer.verify(config);
-          printInitVerify(checks);
-          const checksPass = checks.every((c) => c.pass);
-          if (!checksPass) allPass = false;
-        }
-      } catch (err: any) {
-        installSpin.stop(`安装失败：${err.message}`);
-        console.error(pc.red(`\n❌ ${installer.label}: ${err.message}`));
-        allPass = false;
-      }
-    }
+      },
+      verify: options.verify,
+      dryRun: options.dryRun ?? false,
+    });
 
     if (cleanup) cleanup();
 
+    printSummaryOutro('安装', options.dryRun ?? false, allPass);
+
     if (!options.dryRun && allPass) {
-      printNextStepsConsole(adapterIds);
+      printNextSteps(adapterIds);
     }
   });
-
-/**
- * 使用 Clack multiselect 显示交互式适配器选择菜单。
- */
-async function promptAdapterSelection(): Promise<string[]> {
-  const adapters = getAdapterChoices();
-
-  intro('选择要配置的 AI 助手');
-
-  const result = await multiselect({
-    message: 'AI 助手',
-    options: adapters.map((a) => ({
-      value: a.id,
-      label: a.label,
-      hint: a.description,
-    })),
-    required: true,
-    initialValues: ['claude'],
-  });
-
-  if (isCancel(result)) {
-    cancel('安装已取消');
-    process.exit(0);
-  }
-
-  outro('适配器已选择');
-  return result as string[];
-}
-
-// ─── 显示辅助函数 ─────────────────────────────────────────
-
-function printInitSummary(
-  installer: { label: string },
-  summary: AdapterInstallResult,
-  dryRun?: boolean,
-): void {
-  note(
-    `目标：${summary.adapterHome}${dryRun ? '（模拟运行）' : ''}\n` +
-      `已创建：${summary.filesCreated} 个文件，跳过 ${summary.filesSkipped} 个已存在文件\n` +
-      (summary.hooksInstalled > 0 ? `钩子：  ${summary.hooksInstalled} 个已安装\n` : '') +
-      (summary.rulesInstalled > 0 ? `规则：  ${summary.rulesInstalled} 个已安装\n` : '') +
-      (summary.agentsInstalled > 0 ? `代理：  ${summary.agentsInstalled} 个已安装\n` : '') +
-      (summary.commandsInstalled > 0 ? `命令：  ${summary.commandsInstalled} 个已安装\n` : '') +
-      (summary.skillsInstalled > 0 ? `技能：  ${summary.skillsInstalled} 个已安装\n` : ''),
-    `EvoKit — 安装 ${installer.label}`,
-  );
-}
-
-function printInitVerify(checks: AdapterVerifyCheck[]): void {
-  const failures = checks.filter((c) => !c.pass);
-  if (failures.length > 0) {
-    console.error(pc.yellow(`\n⚠️  ${failures.length} 项验证检查未通过：`));
-    for (const f of failures) {
-      console.error(`  ${pc.red('✗')} ${f.name}${f.detail ? pc.yellow(` — ${f.detail}`) : ''}`);
-    }
-  } else {
-    console.log(pc.green('\n✅ 验证通过'));
-  }
-}

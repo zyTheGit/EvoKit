@@ -15,12 +15,16 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import { ReadStream } from 'node:tty';
-import { getInstaller, listAdapters } from './adapters/index.js';
+import { listAdapters } from './adapters/index.js';
 import { resolveTemplateDir } from './core/download.js';
 import { selectAdapters } from './core/interactive.js';
-import { spinner, intro, outro, note, log } from '@clack/prompts';
-import type { AdapterInstallResult, AdapterVerifyCheck } from './adapters/types.js';
-import { resolveHomeDir, resolveAdapter, printNextStepsClack } from './commands/shared.js';
+import { log } from '@clack/prompts';
+import {
+  resolveHomeDir,
+  printNextSteps,
+  printSummaryOutro,
+  runAdapterInstallLoop,
+} from './commands/shared.js';
 
 /**
  * 在管道上下文（如 curl | bash）中尝试让 stdin 变为交互模式。
@@ -105,88 +109,27 @@ export const installCommand = new Command('install')
     }
 
     // ── 安装各适配器 ──────────────────────────────
-    let allPass = true;
-
-    for (const id of adapterIds) {
-      const resolved = resolveAdapter(id);
-      if (!resolved.ok) {
-        log.error(resolved.error.message);
-        log.error(resolved.error.availableAdapters);
-        allPass = false;
-        continue;
-      }
-      const installer = resolved.installer;
-
-      const config = {
+    const allPass = runAdapterInstallLoop(adapterIds, {
+      verb: '安装',
+      config: {
         homeDir,
         templateDir,
         projectDir: options.projectDir || undefined,
         dryRun: options.dryRun ?? false,
         allowWorkflow: options.allowWorkflow ?? false,
-      };
-
-      const s = spinner();
-      s.start(`正在为 ${installer.label} 安装...`);
-
-      try {
-        const result = installer.install(config);
-        s.stop(`${installer.label} 安装完成`);
-        printResult(installer, result);
-
-        if (options.verify && !options.dryRun) {
-          const checks = installer.verify(config);
-          printVerification(installer, checks);
-          const pass = checks.every((c) => c.pass);
-          if (!pass) allPass = false;
-        }
-      } catch (err: any) {
-        s.stop(`安装失败`);
-        log.error(`${installer.label}: ${err.message}`);
-        allPass = false;
-      }
-    }
+      },
+      verify: options.verify,
+      dryRun: options.dryRun ?? false,
+    });
 
     // 清理临时下载
     if (cleanup) cleanup();
 
     // 摘要
-    if (options.dryRun) {
-      outro('预演完成——未修改任何文件');
-    } else if (allPass) {
-      outro('EvoKit 安装成功！');
-    } else {
-      log.warning('安装完成但有警告——请查看上方输出');
-    }
+    printSummaryOutro('安装', options.dryRun ?? false, allPass);
 
     // 首个适配器安装后的指引
     if (adapterIds.length > 0 && !options.dryRun) {
-      printNextStepsClack(adapterIds);
+      printNextSteps(adapterIds);
     }
   });
-
-// ─── 显示辅助函数 ─────────────────────────────────────────
-
-function printResult(installer: { label: string }, result: AdapterInstallResult): void {
-  const lines = [
-    `目标路径：${result.adapterHome}`,
-    `已创建：${result.filesCreated} 个文件，跳过 ${result.filesSkipped} 个`,
-  ];
-  if (result.hooksInstalled > 0) lines.push(`钩子：已安装 ${result.hooksInstalled} 个`);
-  if (result.rulesInstalled > 0) lines.push(`规则：已安装 ${result.rulesInstalled} 个`);
-  if (result.agentsInstalled > 0) lines.push(`代理：已安装 ${result.agentsInstalled} 个`);
-  if (result.commandsInstalled > 0) lines.push(`命令：已安装 ${result.commandsInstalled} 个`);
-  if (result.skillsInstalled > 0) lines.push(`技能：已安装 ${result.skillsInstalled} 个`);
-
-  note(lines.join('\n'), `EvoKit — ${installer.label} 安装结果`);
-}
-
-function printVerification(installer: { label: string }, checks: AdapterVerifyCheck[]): void {
-  log.step(`正在验证 ${installer.label}...`);
-  for (const check of checks) {
-    if (check.pass) {
-      log.success(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-    } else {
-      log.error(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
-    }
-  }
-}
