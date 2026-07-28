@@ -95,6 +95,8 @@ export interface FormatInstallResultOptions {
   showTargetPath?: boolean;
   /** 跳过文件的提示文案（如 update 的"用户数据保留"） */
   skipHint?: string;
+  /** 标题格式：'label-verb' 为「{label} {verb}结果」（默认），'verb-label' 为「{verb} {label}」（init 旧风格） */
+  titleFormat?: 'verb-label' | 'label-verb';
 }
 
 /**
@@ -140,7 +142,11 @@ export function formatInstallResult(options: FormatInstallResultOptions): string
  */
 export function printInstallResult(options: FormatInstallResultOptions): void {
   const lines = formatInstallResult(options);
-  note(lines.join('\n'), `EvoKit — ${options.label} ${options.verb}结果`);
+  const title =
+    options.titleFormat === 'verb-label'
+      ? `EvoKit — ${options.verb} ${options.label}`
+      : `EvoKit — ${options.label} ${options.verb}结果`;
+  note(lines.join('\n'), title);
 }
 
 // ─── printSummaryOutro ─────────────────────────────────────
@@ -182,6 +188,10 @@ export interface RunAdapterInstallLoopOptions {
   failFast?: boolean;
   /** 是否显示目标路径（init 不显示，默认 true） */
   showTargetPath?: boolean;
+  /** 验证展示风格：'full' 逐项显示所有检查结果，'summary' 只显示失败项（init 使用） */
+  verifyStyle?: 'full' | 'summary';
+  /** 标题格式：'verb-label' 为「{verb} {label}」（init 旧风格），默认 'label-verb' */
+  titleFormat?: 'verb-label' | 'label-verb';
 }
 
 /**
@@ -198,7 +208,17 @@ export function runAdapterInstallLoop(
   adapterIds: string[],
   options: RunAdapterInstallLoopOptions,
 ): boolean {
-  const { verb, config, verify, dryRun, skipHint, failFast, showTargetPath } = options;
+  const {
+    verb,
+    config,
+    verify,
+    dryRun,
+    skipHint,
+    failFast,
+    showTargetPath,
+    verifyStyle = 'full',
+    titleFormat,
+  } = options;
   let allPass = true;
 
   for (const id of adapterIds) {
@@ -222,11 +242,22 @@ export function runAdapterInstallLoop(
       const result = installer.install(config);
       s.stop(`${installer.label} ${verb}完成`);
 
-      printInstallResult({ label: installer.label, verb, result, skipHint, showTargetPath });
+      printInstallResult({
+        label: installer.label,
+        verb,
+        result,
+        skipHint,
+        showTargetPath,
+        titleFormat,
+      });
 
       if (verify && !dryRun) {
         const checks = installer.verify(config);
-        printVerification(installer, checks);
+        if (verifyStyle === 'summary') {
+          printVerificationSummary(installer, checks);
+        } else {
+          printVerification(installer, checks);
+        }
         const pass = checks.every((c) => c.pass);
         if (!pass) allPass = false;
       }
@@ -260,6 +291,29 @@ export function printVerification(
       log.success(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
     } else {
       log.error(`${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
+    }
+  }
+}
+
+/**
+ * 摘要模式展示验证检查结果（init 命令风格）。
+ *
+ * 只显示失败项；全部通过时显示 ✅ 验证通过。
+ *
+ * @param installer 适配器信息（仅需 label）
+ * @param checks 验证检查项列表
+ */
+export function printVerificationSummary(
+  installer: { label: string },
+  checks: AdapterVerifyCheck[],
+): void {
+  const failed = checks.filter((c) => !c.pass);
+  if (failed.length === 0) {
+    log.success(`${installer.label} 验证通过`);
+  } else {
+    log.warning(`${installer.label}：${failed.length} 项验证检查未通过`);
+    for (const check of failed) {
+      log.error(`${pc.red('✗')} ${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
     }
   }
 }

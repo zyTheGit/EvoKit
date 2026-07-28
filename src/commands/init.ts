@@ -86,6 +86,8 @@ export const initCommand = new Command('init')
       dryRun: options.dryRun ?? false,
       failFast: true,
       showTargetPath: false,
+      verifyStyle: 'summary',
+      titleFormat: 'verb-label',
     });
 
     if (cleanup) cleanup();

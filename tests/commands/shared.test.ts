@@ -3,7 +3,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveHomeDir, resolveAdapter, getNextStepsLines } from '../../src/commands/shared.js';
+import {
+  resolveHomeDir,
+  resolveAdapter,
+  getNextStepsLines,
+  printVerificationSummary,
+} from '../../src/commands/shared.js';
+import type { AdapterVerifyCheck } from '../../src/adapters/types.js';
 
 // ─── resolveHomeDir ─────────────────────────────────────────
 
@@ -130,5 +136,67 @@ describe('getNextStepsLines', () => {
     const lines = getNextStepsLines(['claude', 'codex']);
     expect(lines.some((l) => l.includes('Claude Code'))).toBe(true);
     expect(lines.some((l) => l.includes('Codex CLI'))).toBe(true);
+  });
+});
+
+// ─── printVerificationSummary ────────────────────────────────
+
+describe('printVerificationSummary', () => {
+  // mock @clack/prompts 的 log 方法
+  const mockSuccess = vi.fn();
+  const mockWarning = vi.fn();
+  const mockError = vi.fn();
+
+  beforeEach(async () => {
+    vi.resetModules();
+    // 在 import shared 之前 mock @clack/prompts
+    vi.doMock('@clack/prompts', () => ({
+      log: { success: mockSuccess, warning: mockWarning, error: mockError },
+      note: vi.fn(),
+      outro: vi.fn(),
+      spinner: vi.fn(),
+    }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** 动态导入 shared 模块（使用 mock 版本的 @clack/prompts） */
+  async function getSummaryFn() {
+    const mod = await import('../../src/commands/shared.js');
+    return mod.printVerificationSummary;
+  }
+
+  it('全部通过时显示验证通过', async () => {
+    const summary = await getSummaryFn();
+    const checks: AdapterVerifyCheck[] = [
+      { name: '检查A', pass: true, detail: '正常' },
+      { name: '检查B', pass: true },
+    ];
+    summary({ label: 'Claude Code' }, checks);
+    expect(mockSuccess).toHaveBeenCalledWith('Claude Code 验证通过');
+    expect(mockWarning).not.toHaveBeenCalled();
+    expect(mockError).not.toHaveBeenCalled();
+  });
+
+  it('有失败项时显示失败数和每项详情', async () => {
+    const summary = await getSummaryFn();
+    const checks: AdapterVerifyCheck[] = [
+      { name: '检查A', pass: true },
+      { name: '检查B', pass: false, detail: '文件缺失' },
+      { name: '检查C', pass: false },
+    ];
+    summary({ label: 'Claude Code' }, checks);
+    expect(mockWarning).toHaveBeenCalledWith('Claude Code：2 项验证检查未通过');
+    // 两个失败项各调用一次 error
+    expect(mockError).toHaveBeenCalledTimes(2);
+  });
+
+  it('空检查列表视为全部通过', async () => {
+    const summary = await getSummaryFn();
+    summary({ label: 'Test' }, []);
+    expect(mockSuccess).toHaveBeenCalledWith('Test 验证通过');
+    expect(mockWarning).not.toHaveBeenCalled();
   });
 });

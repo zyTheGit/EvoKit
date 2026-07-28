@@ -254,21 +254,18 @@ function executeMergeSettings(
 
   if (!fse.existsSync(srcPath)) return;
 
-  // 判断目标状态：不存在 / 损坏 / 有效 JSON
-  const isFreshInstall = !fse.existsSync(dstPath);
-  const isValid =
-    !isFreshInstall &&
-    (() => {
-      try {
-        JSON.parse(fs.readFileSync(dstPath, 'utf-8'));
-        return true;
-      } catch {
-        return false;
-      }
-    })();
+  // 判断目标是否为有效 JSON（不存在或损坏 → allowCreate）
+  const isValidJson = (() => {
+    try {
+      JSON.parse(fs.readFileSync(dstPath, 'utf-8'));
+      return true;
+    } catch {
+      return false;
+    }
+  })();
 
   // 统一走 mergeSettings：
-  // - 全新安装/损坏覆盖 → allowCreate: true（视目标为空对象，写入全部模板内容）
+  // - 目标不存在或损坏 → allowCreate: true（视目标为空对象，写入全部模板内容）
   // - 有效 JSON → allowCreate: false（增量合并，仅添加缺失条目）
   if (!dryRun) {
     const result = mergeSettings(
@@ -277,7 +274,7 @@ function executeMergeSettings(
       homeDir,
       section.allowWorkflow ?? false,
       collector,
-      !isValid, // allowCreate: 目标不存在或损坏时为 true
+      !isValidJson, // allowCreate: 目标不存在或损坏时为 true
       section.replaceHome ?? true, // replaceHome: section 未指定时默认替换
     );
     if (result.changed) {
