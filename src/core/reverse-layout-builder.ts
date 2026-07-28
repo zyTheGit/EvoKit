@@ -108,11 +108,57 @@ export function buildReverseLayout(
     purge,
   });
 
+  // Section 5-8: 公共尾段（技能/记忆/配置/目录清理）
+  sections.push(
+    ...buildCommonUninstallSections({
+      adapterHome,
+      purge,
+      projectDir,
+      shouldReverseMerge,
+      skillDirs: manifest.skillDirs,
+      settingsPaths: [settingsPath],
+      cleanDirs: manifest.directories.map((d) =>
+        path.isAbsolute(d) ? d : path.join(adapterHome, d),
+      ),
+    }),
+  );
+
+  return { adapterHome, sections };
+}
+
+// ─── 公共尾段（Section 5-8） ──────────────────────────────────
+
+/**
+ * 构建卸载布局的公共尾段（Section 5-8）。
+ * 从 manifest 和 heuristic 两个构建路径中提取的共享逻辑：
+ * Section 5 删除技能目录、Section 6 purge 删除 memory、
+ * Section 7 purge 删除 settings 残留、Section 8 清理空目录。
+ */
+function buildCommonUninstallSections(opts: {
+  adapterHome: string;
+  purge: boolean;
+  projectDir?: string;
+  shouldReverseMerge: boolean;
+  skillDirs: string[];
+  settingsPaths: string[];
+  cleanDirs: string[];
+}): ReverseSection[] {
+  const {
+    adapterHome,
+    purge,
+    projectDir,
+    shouldReverseMerge,
+    skillDirs,
+    settingsPaths,
+    cleanDirs,
+  } = opts;
+  const sections: ReverseSection[] = [];
+
   // ── Section 5: 删除技能目录 ──
-  if (manifest.skillDirs.length > 0) {
+  if (skillDirs.length > 0) {
     sections.push({
       type: 'reverse-delete-skills',
-      skillDirs: manifest.skillDirs,
+      skillDirs,
     });
   }
 
@@ -131,26 +177,25 @@ export function buildReverseLayout(
     }
   }
 
-  // ── Section 7: Purge 模式 — 删除 settings.json 残留 ──
+  // ── Section 7: Purge 模式 — 删除 settings 残留 ──
   if (purge && shouldReverseMerge) {
-    sections.push({
-      type: 'reverse-purge-settings',
-      settingsPath,
-    });
+    for (const settingsPath of settingsPaths) {
+      sections.push({
+        type: 'reverse-purge-settings',
+        settingsPath,
+      });
+    }
   }
 
   // ── Section 8: 清理空目录 ──
-  const dirsToClean = manifest.directories.map((d) =>
-    path.isAbsolute(d) ? d : path.join(adapterHome, d),
-  );
-  if (dirsToClean.length > 0) {
+  if (cleanDirs.length > 0) {
     sections.push({
       type: 'reverse-cleanup-dirs',
-      directories: dirsToClean,
+      directories: cleanDirs,
     });
   }
 
-  return { adapterHome, sections };
+  return sections;
 }
 
 // ─── 从启发式配置构建 ────────────────────────────────────────
@@ -297,46 +342,20 @@ export function buildHeuristicReverseLayout(
     });
   }
 
-  // ── Section 5: 删除技能目录 ──
-  if (heuristicConfig.skillsDir) {
-    sections.push({
-      type: 'reverse-delete-skills',
-      skillDirs: [heuristicConfig.skillsDir],
-    });
-  }
-
-  // ── Section 6: Purge 模式 — 删除 memory 目录 ──
-  if (purge) {
-    const memoryDirs = [
-      path.join(adapterHome, 'memory'),
-      projectDir ? path.join(projectDir, '.opencode', 'memory') : '',
-    ].filter(Boolean) as string[];
-    if (memoryDirs.length > 0) {
-      sections.push({
-        type: 'reverse-purge-memory',
-        memoryDirs,
-      });
-    }
-  }
-
-  // ── Section 7: Purge 模式 — 删除 settings.json 残留 ──
-  if (purge && shouldReverseMerge) {
-    for (const cfgFile of heuristicConfig.configFiles) {
-      sections.push({
-        type: 'reverse-purge-settings',
-        settingsPath: path.join(adapterHome, cfgFile),
-      });
-    }
-  }
-
-  // ── Section 8: 清理空目录 ──
-  const dirsToClean = heuristicConfig.knownDirs
-    .map((d) => path.join(adapterHome, d.name))
-    .concat([path.join(adapterHome, 'memory'), adapterHome]);
-  sections.push({
-    type: 'reverse-cleanup-dirs',
-    directories: dirsToClean,
-  });
+  // Section 5-8: 公共尾段（技能/记忆/配置/目录清理）
+  sections.push(
+    ...buildCommonUninstallSections({
+      adapterHome,
+      purge,
+      projectDir,
+      shouldReverseMerge,
+      skillDirs: heuristicConfig.skillsDir ? [heuristicConfig.skillsDir] : [],
+      settingsPaths: heuristicConfig.configFiles.map((cfgFile) => path.join(adapterHome, cfgFile)),
+      cleanDirs: heuristicConfig.knownDirs
+        .map((d) => path.join(adapterHome, d.name))
+        .concat([path.join(adapterHome, 'memory'), adapterHome]),
+    }),
+  );
 
   return { adapterHome, sections };
 }
