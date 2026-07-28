@@ -16,18 +16,11 @@ import fs from 'node:fs';
 import fse from 'fs-extra';
 import { replaceHomeInObject } from './replace-home.js';
 import { atomicWriteFile } from './atomic-write.js';
+import type { ManifestCollector } from './manifest-collector.js';
 
 export interface SettingsMergeResult {
   changed: boolean;
   reason?: string;
-  /** 合并详情记录（用于清单收集） */
-  detail?: {
-    hooksAdded: Array<{ event: string; entry: Record<string, unknown> }>;
-    envVarsAdded: Array<{ key: string; value: string }>;
-    autoMemoryEnabledSet: boolean;
-    /** 本次合并添加的 permissions.allow 规则 */
-    permissionsAllowAdded: string[];
-  };
 }
 
 /**
@@ -40,6 +33,9 @@ export interface SettingsMergeResult {
  * 2. autoMemoryEnabled — 用户配置中缺失时设置
  * 3. env — 添加未设置的 env 变量（不会覆盖已有值）
  *
+ * 如果传入 collector，在合并过程中直接调用 collector.recordXxx() 记录
+ * 本次新增的 hooks/env/autoMemory/permissions，省去 detail 中间对象。
+ *
  * 通过临时文件 + 重命名实现原子写入，并创建 .bak.evokit 备份。
  */
 export function mergeSettings(
@@ -47,6 +43,7 @@ export function mergeSettings(
   templatePath: string,
   homeDir: string = process.env.HOME || '',
   allowWorkflow: boolean = false,
+  collector?: ManifestCollector,
 ): SettingsMergeResult {
   // 1. 读取现有设置
   let settings: Record<string, unknown>;
@@ -61,7 +58,7 @@ export function mergeSettings(
 
   // 2. 读取并解析模板（在 __HOME__ 替换之前解析，
   //    以避免 Windows 反斜杠问题——例如 C:\Users\x 在原始
-  //    字符串中替换后会产生 \U 等无效 JSON 转义序列）
+  //    字符串替换后会产生 \U 等无效 JSON 转义序列）
   let templateRaw: string;
   try {
     templateRaw = fs.readFileSync(templatePath, 'utf-8');
@@ -85,14 +82,6 @@ export function mergeSettings(
 
   let changed = false;
 
-  // 清单收集的详情跟踪
-  const detail: NonNullable<SettingsMergeResult['detail']> = {
-    hooksAdded: [],
-    envVarsAdded: [],
-    autoMemoryEnabledSet: false,
-    permissionsAllowAdded: [],
-  };
-
   // 3. 合并 hooks — 仅添加缺失的 hook 事件
   const tHooks = (template.hooks as Record<string, unknown>) || {};
   if (Object.keys(tHooks).length > 0) {
@@ -109,7 +98,7 @@ export function mergeSettings(
         // 记录添加事件中的每个匹配器组
         if (Array.isArray(hooksList)) {
           for (const entry of hooksList) {
-            detail.hooksAdded.push({ event, entry: entry as Record<string, unknown> });
+            collector?.recordHook(event, entry as Record<string, unknown>);
           }
         }
       }
@@ -124,7 +113,7 @@ export function mergeSettings(
   if ((settings.autoMemoryEnabled as boolean | undefined) !== tAuto) {
     settings.autoMemoryEnabled = tAuto;
     changed = true;
-    detail.autoMemoryEnabledSet = true;
+    collector?.recordAutoMemoryEnabled();
   }
 
   // 5. 环境变量 — 添加缺失项，不覆盖
@@ -139,7 +128,7 @@ export function mergeSettings(
     if (!(k in eEnv)) {
       mEnv[k] = v as string;
       changed = true;
-      detail.envVarsAdded.push({ key: k, value: v as string });
+      collector?.recordEnvVar(k, v as string);
     }
   }
   settings.env = mEnv;
@@ -162,7 +151,7 @@ export function mergeSettings(
           mAllow.push(rule);
           permsChanged = true;
           changed = true;
-          detail.permissionsAllowAdded.push(rule);
+          collector?.recordPermissionAllow(rule);
         }
       }
       if (permsChanged) {
@@ -176,7 +165,7 @@ export function mergeSettings(
     return { changed: false, reason: 'SKIPPED' };
   }
 
-  // 6. 原子写入：临时文件 → 验证 → 备份 → 重命名
+  // 7. 原子写入：临时文件 → 验证 → 备份 → 重命名
   const writeResult = atomicWriteFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
     tmpSuffix: '.merge.tmp',
     validate: (tmpPath) => {
@@ -195,5 +184,5 @@ export function mergeSettings(
   }
 
   fse.removeSync(settingsPath + '.bak.merge');
-  return { changed: true, detail };
+  return { changed: true };
 }

@@ -4,8 +4,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import fse from 'fs-extra';
 import { mergeSettings } from '../../src/core/merge-settings.js';
+import { ManifestCollector } from '../../src/core/manifest-collector.js';
 
 let tmpDir: string;
+
+/** 创建 collector 并提供便捷的读取方法 */
+function createCollector() {
+  const collector = new ManifestCollector();
+  const build = () =>
+    collector.build({
+      adapterId: 'test',
+      adapterVersion: '1.0.0',
+      homeDir: tmpDir,
+      adapterHome: tmpDir,
+    });
+  return { collector, build };
+}
 
 describe('merge-settings', () => {
   beforeEach(() => {
@@ -33,11 +47,13 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       expect(result.changed).toBe(true);
-      expect(result.detail?.hooksAdded).toHaveLength(1);
-      expect(result.detail?.hooksAdded[0].event).toBe('SessionStart');
+      const manifest = build();
+      expect(manifest.hooks).toHaveLength(1);
+      expect(manifest.hooks[0].event).toBe('SessionStart');
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.hooks.SessionStart).toHaveLength(1);
@@ -62,10 +78,13 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       // PreToolUse 已存在，不应添加；autoMemoryEnabled 也一致
       expect(result.changed).toBe(false);
+      const manifest = build();
+      expect(manifest.hooks).toHaveLength(0);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.hooks.PreToolUse).toEqual(userHook);
@@ -87,11 +106,13 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       expect(result.changed).toBe(true);
-      expect(result.detail?.envVarsAdded).toHaveLength(1);
-      expect(result.detail?.envVarsAdded[0].key).toBe('UV_MANAGED_PYTHON');
+      const manifest = build();
+      expect(manifest.envVars).toHaveLength(1);
+      expect(manifest.envVars[0].key).toBe('UV_MANAGED_PYTHON');
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.env.UV_MANAGED_PYTHON).toBe('1');
@@ -110,10 +131,12 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       // env 变量已存在，不应覆盖
-      expect(result.detail?.envVarsAdded).toHaveLength(0);
+      const manifest = build();
+      expect(manifest.envVars).toHaveLength(0);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.env.UV_MANAGED_PYTHON).toBe('0');
@@ -133,10 +156,12 @@ describe('merge-settings', () => {
       const template = { autoMemoryEnabled: true };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       expect(result.changed).toBe(true);
-      expect(result.detail?.autoMemoryEnabledSet).toBe(true);
+      const manifest = build();
+      expect(manifest.autoMemoryEnabledSet).toBe(true);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.autoMemoryEnabled).toBe(true);
@@ -161,10 +186,12 @@ describe('merge-settings', () => {
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
       // allowWorkflow 默认为 false
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       // permissions 不应被合并
-      expect(result.detail?.permissionsAllowAdded).toEqual([]);
+      const manifest = build();
+      expect(manifest.permissionsAllow).toEqual([]);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.permissions).toBeUndefined();
@@ -184,13 +211,12 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir, true);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, true, collector);
 
       expect(result.changed).toBe(true);
-      expect(result.detail?.permissionsAllowAdded).toEqual([
-        'Bash(bash .claude/hooks/*.sh)',
-        'Read',
-      ]);
+      const manifest = build();
+      expect(manifest.permissionsAllow).toEqual(['Bash(bash .claude/hooks/*.sh)', 'Read']);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       expect(updated.permissions.allow).toEqual(['Bash(bash .claude/hooks/*.sh)', 'Read']);
@@ -214,18 +240,20 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir, true);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, true, collector);
 
       expect(result.changed).toBe(true);
+      const manifest = build();
       // Read 已存在，仅添加缺失的：Bash 规则，Read 已存在不重复添加
-      expect(result.detail?.permissionsAllowAdded).toEqual(['Bash(bash .claude/hooks/*.sh)']);
+      expect(manifest.permissionsAllow).toEqual(['Bash(bash .claude/hooks/*.sh)']);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       // 用户已有的 Read 和 Write 保留，仅新增 Bash
       expect(updated.permissions.allow).toEqual(['Read', 'Write', 'Bash(bash .claude/hooks/*.sh)']);
     });
 
-    it('permissionsAllowAdded detail 正确记录实际添加的规则', () => {
+    it('permissionsAllow 正确记录实际添加的规则', () => {
       const settingsPath = path.join(tmpDir, 'settings.json');
       const templatePath = path.join(tmpDir, 'template-settings.json');
 
@@ -243,14 +271,13 @@ describe('merge-settings', () => {
       };
       fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir, true);
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, true, collector);
 
+      const manifest = build();
       // Read 已存在，仅 Write 和 Bash 是新增的
-      expect(result.detail?.permissionsAllowAdded).toEqual([
-        'Write',
-        'Bash(bash .claude/hooks/*.sh)',
-      ]);
-      expect(result.detail?.permissionsAllowAdded).toHaveLength(2);
+      expect(manifest.permissionsAllow).toEqual(['Write', 'Bash(bash .claude/hooks/*.sh)']);
+      expect(manifest.permissionsAllow).toHaveLength(2);
     });
   });
 
@@ -262,7 +289,8 @@ describe('merge-settings', () => {
       const templatePath = path.join(tmpDir, 'template-settings.json');
       fs.writeFileSync(templatePath, JSON.stringify({}), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       expect(result.changed).toBe(false);
       expect(result.reason).toContain('文件未找到');
@@ -273,7 +301,8 @@ describe('merge-settings', () => {
       const templatePath = path.join(tmpDir, 'nonexistent.json');
       fs.writeFileSync(settingsPath, JSON.stringify({}), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       expect(result.changed).toBe(false);
       expect(result.reason).toContain('模板未找到');
@@ -285,7 +314,8 @@ describe('merge-settings', () => {
       fs.writeFileSync(settingsPath, 'not valid json{{{', 'utf-8');
       fs.writeFileSync(templatePath, JSON.stringify({}), 'utf-8');
 
-      const result = mergeSettings(settingsPath, templatePath, tmpDir);
+      const { collector } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
       expect(result.changed).toBe(false);
       expect(result.reason).toContain('无效 JSON');

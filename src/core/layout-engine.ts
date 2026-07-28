@@ -313,25 +313,16 @@ function executeMergeSettings(
 
   // 有效 JSON —— 深度合并（添加缺失的 hooks/env，绝不覆盖已有值）
   if (!dryRun) {
-    const result = mergeSettings(dstPath, srcPath, homeDir, section.allowWorkflow ?? false);
+    const result = mergeSettings(
+      dstPath,
+      srcPath,
+      homeDir,
+      section.allowWorkflow ?? false,
+      collector,
+    );
     if (result.changed) {
       summary.filesCreated++;
       collector?.recordFile({ path: dstPath, source: 'merge-settings', mode: 'created' });
-      // 记录实际合并的内容详情
-      if (result.detail) {
-        for (const h of result.detail.hooksAdded) {
-          collector?.recordHook(h.event, h.entry);
-        }
-        for (const e of result.detail.envVarsAdded) {
-          collector?.recordEnvVar(e.key, e.value);
-        }
-        if (result.detail.autoMemoryEnabledSet) {
-          collector?.recordAutoMemoryEnabled();
-        }
-        for (const rule of result.detail.permissionsAllowAdded) {
-          collector?.recordPermissionAllow(rule);
-        }
-      }
     } else {
       summary.filesSkipped++;
     }
