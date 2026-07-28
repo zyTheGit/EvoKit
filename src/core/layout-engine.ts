@@ -254,57 +254,23 @@ function executeMergeSettings(
 
   if (!fse.existsSync(srcPath)) return;
 
-  if (!fse.existsSync(dstPath)) {
-    // 全新安装 —— 复制模板，可选替换 __HOME__
-    if (!dryRun) {
-      const content = fs.readFileSync(srcPath, 'utf-8');
-      if (replaceHome) {
-        // 先解析 JSON，再在对象中替换 __HOME__，以避免
-        // Windows 反斜杠问题（如 C:\Users\x → 无效的 JSON 转义）
-        try {
-          const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
-          fse.ensureDirSync(path.dirname(dstPath));
-          fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
-          // 记录全新安装的所有模板条目
-          recordSettingsEntries(parsed, collector);
-        } catch {
-          // 回退方案：如果模板不是有效 JSON，执行字符串替换
-          fse.ensureDirSync(path.dirname(dstPath));
-          fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
-        }
-      } else {
-        fse.ensureDirSync(path.dirname(dstPath));
-        fs.writeFileSync(dstPath, content, 'utf-8');
+  // 全新安装或损坏文件 —— 从模板写入（两种路径共用同一逻辑）
+  const isFreshInstall = !fse.existsSync(dstPath);
+  const isValid =
+    !isFreshInstall &&
+    (() => {
+      try {
+        JSON.parse(fs.readFileSync(dstPath, 'utf-8'));
+        return true;
+      } catch {
+        return false;
       }
-    }
-    summary.filesCreated++;
-    collector?.recordFile({ path: dstPath, source: 'merge-settings', mode: 'created' });
-    return;
-  }
+    })();
 
-  // 目标已存在 —— 检查是否为有效 JSON，然后合并或覆盖
-  let isValid = true;
-  try {
-    JSON.parse(fs.readFileSync(dstPath, 'utf-8'));
-  } catch {
-    isValid = false;
-  }
-
-  if (!isValid) {
-    // 损坏/空文件 —— 从模板覆盖
+  if (isFreshInstall || !isValid) {
     if (!dryRun) {
-      const content = fs.readFileSync(srcPath, 'utf-8');
-      if (replaceHome) {
-        try {
-          const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
-          fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
-          recordSettingsEntries(parsed, collector);
-        } catch {
-          fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
-        }
-      } else {
-        fs.writeFileSync(dstPath, content, 'utf-8');
-      }
+      fse.ensureDirSync(path.dirname(dstPath));
+      writeSettingsFromTemplate(srcPath, dstPath, homeDir, replaceHome, collector);
     }
     summary.filesCreated++;
     collector?.recordFile({ path: dstPath, source: 'merge-settings', mode: 'created' });
@@ -328,6 +294,37 @@ function executeMergeSettings(
     }
   } else {
     summary.filesCreated++;
+  }
+}
+
+/**
+ * 从模板写入 settings.json —— 全新安装或损坏文件覆盖时调用。
+ *
+ * 先解析 JSON 再在对象中替换 `__HOME__`（避免 Windows 反斜杠转义问题），
+ * 记录所有模板条目到清单。若模板非有效 JSON，回退到字符串替换（不记录清单）。
+ */
+function writeSettingsFromTemplate(
+  srcPath: string,
+  dstPath: string,
+  homeDir: string,
+  replaceHome: boolean,
+  collector?: ManifestCollector,
+): void {
+  const content = fs.readFileSync(srcPath, 'utf-8');
+
+  if (!replaceHome) {
+    fs.writeFileSync(dstPath, content, 'utf-8');
+    return;
+  }
+
+  try {
+    const parsed = replaceHomeInObject(JSON.parse(content), homeDir);
+    fs.writeFileSync(dstPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+    // 记录全新安装的所有模板条目
+    recordSettingsEntries(parsed, collector);
+  } catch {
+    // 回退方案：如果模板不是有效 JSON，执行字符串替换（无法记录清单）
+    fs.writeFileSync(dstPath, replaceHomeInString(content, homeDir), 'utf-8');
   }
 }
 
