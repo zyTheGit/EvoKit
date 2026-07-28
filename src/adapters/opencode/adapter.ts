@@ -19,7 +19,6 @@
  * @packageDocumentation
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
 import { BaseAdapter, type HeuristicConfig } from '../base-adapter.js';
@@ -195,50 +194,6 @@ export class OpenCodeAdapter extends BaseAdapter {
       return path.join(path.resolve(options.opencodeDir), 'memory');
     }
     return path.join(this.resolveHome(homeDir), 'memory');
-  }
-
-  /** OpenCode 状态检查 —— 包含 tools、agentCount 等特有字段。 */
-  override getStatus(homeDir: string): {
-    installed: boolean;
-    adapterHome: string;
-    agentsPresent: boolean;
-    configPresent: boolean;
-    toolsPresent: boolean;
-    memoryPresent: boolean;
-    agentCount: number;
-    error?: string;
-  } {
-    const globalDir = this.resolveHome(homeDir);
-    const result = {
-      installed: false,
-      adapterHome: globalDir,
-      agentsPresent: false,
-      configPresent: false,
-      toolsPresent: false,
-      memoryPresent: false,
-      agentCount: 0,
-    };
-
-    try {
-      // 检查全局配置
-      result.agentsPresent = fse.existsSync(path.join(globalDir, 'AGENTS.md'));
-      result.configPresent = fse.existsSync(path.join(globalDir, 'opencode.json'));
-
-      // 检查全局 agents
-      const globalAgentDir = path.join(globalDir, 'agent');
-      if (fse.existsSync(globalAgentDir)) {
-        result.agentCount = fs.readdirSync(globalAgentDir).filter((f) => f.endsWith('.md')).length;
-      }
-
-      // 检查全局 memory
-      result.memoryPresent = fse.existsSync(path.join(globalDir, 'memory'));
-
-      result.installed = result.agentsPresent || result.configPresent;
-    } catch (e) {
-      return { ...result, error: (e as Error).message };
-    }
-
-    return result;
   }
 }
 

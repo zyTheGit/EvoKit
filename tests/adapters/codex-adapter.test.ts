@@ -334,22 +334,24 @@ describe('codex-adapter memory', () => {
     });
   });
 
-  describe('getStatus', () => {
+  describe('status', () => {
     it('reports not installed when empty', () => {
-      const status = adapter.getStatus(homeDir);
-      expect(status.installed).toBe(false);
+      const result = adapter.status({ homeDir, templateDir: '/tmp' });
+      expect(result.installed).toBe(false);
     });
 
     it('reports installed after template install', () => {
       const templateDir = path.resolve('template');
       adapter.install({ homeDir, templateDir, dryRun: false });
 
-      const status = adapter.getStatus(homeDir);
-      expect(status.installed).toBe(true);
-      expect(status.agentsPresent).toBe(true);
-      expect(status.hooksPresent).toBe(true);
-      expect(status.configPresent).toBe(true);
-      expect(status.ruleCount).toBe(1);
+      const result = adapter.status({ homeDir, templateDir });
+      expect(result.installed).toBe(true);
+      expect(result.allPass).toBe(true);
+      // 验证关键检查项存在
+      const checkNames = result.checks.map((c) => c.name);
+      expect(checkNames.some((n) => n.includes('AGENTS.md'))).toBe(true);
+      expect(checkNames.some((n) => n.includes('hooks'))).toBe(true);
+      expect(checkNames.some((n) => n.includes('config'))).toBe(true);
     });
   });
 });

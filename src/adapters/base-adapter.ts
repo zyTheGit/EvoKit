@@ -659,39 +659,4 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
     fs.appendFileSync(sessionsPath, JSON.stringify(entry) + '\n', 'utf-8');
     fs.chmodSync(sessionsPath, 0o600);
   }
-
-  /**
-   * 获取适配器安装的状态摘要。
-   * 默认实现检查 AGENTS.md + settings.json + memory 目录；
-   * 子类可覆盖以提供更精确的状态检查。
-   */
-  getStatus(homeDir: string): {
-    installed: boolean;
-    adapterHome: string;
-    agentsPresent: boolean;
-    configPresent: boolean;
-    memoryPresent: boolean;
-    error?: string;
-  } {
-    const adapterHome = this.resolveHome(homeDir);
-    const result = {
-      installed: false,
-      adapterHome,
-      agentsPresent: false,
-      configPresent: false,
-      memoryPresent: false,
-    };
-
-    try {
-      result.agentsPresent = fse.existsSync(path.join(adapterHome, 'AGENTS.md'));
-      result.configPresent = fse.existsSync(path.join(adapterHome, 'settings.json'));
-      result.memoryPresent = fse.existsSync(path.join(adapterHome, 'memory'));
-
-      result.installed = result.agentsPresent || result.configPresent;
-    } catch (e) {
-      return { ...result, error: (e as Error).message };
-    }
-
-    return result;
-  }
 }

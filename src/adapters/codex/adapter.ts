@@ -168,52 +168,6 @@ export class CodexAdapter extends BaseAdapter {
     const codexHome = resolveCodexHome(config.homeDir);
     return verifyCodexInstallation(codexHome, config.projectDir);
   }
-
-  /** Codex 状态检查 —— 包含 hooks、config.toml、rules 等特有字段。 */
-  override getStatus(homeDir: string): {
-    installed: boolean;
-    adapterHome: string;
-    agentsPresent: boolean;
-    configPresent: boolean;
-    memoryPresent: boolean;
-    hooksPresent: boolean;
-    sharedMemoryPresent: boolean;
-    ruleCount: number;
-    error?: string;
-  } {
-    const codexHome = resolveCodexHome(homeDir);
-    const result = {
-      installed: false,
-      adapterHome: codexHome,
-      agentsPresent: false,
-      configPresent: false,
-      memoryPresent: false,
-      hooksPresent: false,
-      sharedMemoryPresent: false,
-      ruleCount: 0,
-    };
-
-    try {
-      result.agentsPresent = fse.existsSync(path.join(codexHome, 'AGENTS.md'));
-      result.hooksPresent = fse.existsSync(path.join(codexHome, 'hooks.json'));
-      result.configPresent = fse.existsSync(path.join(codexHome, 'config.toml'));
-
-      const rulesDir = path.join(codexHome, 'rules');
-      if (fse.existsSync(rulesDir)) {
-        result.ruleCount = fs.readdirSync(rulesDir).filter((f) => f.endsWith('.rules')).length;
-      }
-
-      const memDir = path.join(homeDir, '.codex', 'memory');
-      result.memoryPresent = fse.existsSync(memDir);
-      result.sharedMemoryPresent = fse.existsSync(memDir);
-
-      result.installed = result.agentsPresent || result.hooksPresent || result.configPresent;
-    } catch (e) {
-      return { ...result, error: (e as Error).message };
-    }
-
-    return result;
-  }
 }
 
 // ─── 钩子辅助函数 ──────────────────────────────────────────

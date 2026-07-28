@@ -20,7 +20,6 @@
  * @packageDocumentation
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import fse from 'fs-extra';
 import { type AdapterInstallConfig, type AdapterVerifyCheck, type LayoutConfig } from '../types.js';
@@ -168,57 +167,6 @@ export class PiAdapter extends BaseAdapter {
 
   protected verifyChecks(config: AdapterInstallConfig): AdapterVerifyCheck[] {
     return verifyPiInstallation(resolvePiHome(config.homeDir));
-  }
-
-  /** Pi 状态检查 —— 包含 extensions、skills 等特有字段。 */
-  override getStatus(homeDir: string): {
-    installed: boolean;
-    adapterHome: string;
-    agentsPresent: boolean;
-    configPresent: boolean;
-    memoryPresent: boolean;
-    extensionsPresent: boolean;
-    skillsPresent: boolean;
-    sharedMemoryPresent: boolean;
-    extensionCount: number;
-    error?: string;
-  } {
-    const piHome = resolvePiHome(homeDir);
-    const result = {
-      installed: false,
-      adapterHome: piHome,
-      agentsPresent: false,
-      configPresent: false,
-      memoryPresent: false,
-      extensionsPresent: false,
-      skillsPresent: false,
-      sharedMemoryPresent: false,
-      extensionCount: 0,
-    };
-
-    try {
-      result.agentsPresent = fse.existsSync(path.join(piHome, 'AGENTS.md'));
-      result.configPresent = fse.existsSync(path.join(piHome, 'settings.json'));
-
-      const extDir = path.join(piHome, 'extensions');
-      if (fse.existsSync(extDir)) {
-        const exts = fs.readdirSync(extDir).filter((f) => f.endsWith('.ts'));
-        result.extensionCount = exts.length;
-        result.extensionsPresent = exts.length > 0;
-      }
-
-      result.skillsPresent = fse.existsSync(path.join(piHome, 'skills'));
-
-      const memDir = path.join(piHome, 'memory');
-      result.memoryPresent = fse.existsSync(memDir);
-      result.sharedMemoryPresent = fse.existsSync(memDir);
-
-      result.installed = result.agentsPresent || result.configPresent || result.extensionsPresent;
-    } catch (e) {
-      return { ...result, error: (e as Error).message };
-    }
-
-    return result;
   }
 }
 

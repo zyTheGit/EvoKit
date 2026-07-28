@@ -285,22 +285,24 @@ describe('pi-adapter memory', () => {
     });
   });
 
-  describe('getStatus', () => {
+  describe('status', () => {
     it('reports not installed when empty', () => {
-      const status = adapter.getStatus(homeDir);
-      expect(status.installed).toBe(false);
+      const result = adapter.status({ homeDir, templateDir: '/tmp' });
+      expect(result.installed).toBe(false);
     });
 
     it('reports installed after template install', () => {
       const templateDir = path.resolve('template');
       adapter.install({ homeDir, templateDir, dryRun: false });
 
-      const status = adapter.getStatus(homeDir);
-      expect(status.installed).toBe(true);
-      expect(status.agentsPresent).toBe(true);
-      expect(status.extensionsPresent).toBe(true);
-      expect(status.configPresent).toBe(true);
-      expect(status.extensionCount).toBe(5);
+      const result = adapter.status({ homeDir, templateDir });
+      expect(result.installed).toBe(true);
+      expect(result.allPass).toBe(true);
+      // 验证关键检查项存在
+      const checkNames = result.checks.map((c) => c.name);
+      expect(checkNames.some((n) => n.includes('AGENTS.md'))).toBe(true);
+      expect(checkNames.some((n) => n.includes('extensions'))).toBe(true);
+      expect(checkNames.some((n) => n.includes('settings'))).toBe(true);
     });
   });
 });
