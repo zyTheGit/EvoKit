@@ -72,7 +72,7 @@ export const initCommand = new Command('init')
       process.exit(1);
     }
 
-    // 安装每个适配器
+    // 安装每个适配器（init 命令快速失败：适配器解析失败时立即退出）
     const allPass = runAdapterInstallLoop(adapterIds, {
       verb: '安装',
       config: {
@@ -84,6 +84,8 @@ export const initCommand = new Command('init')
       },
       verify: options.verify,
       dryRun: options.dryRun ?? false,
+      failFast: true,
+      showTargetPath: false,
     });
 
     if (cleanup) cleanup();

@@ -51,6 +51,7 @@ export function mergeSettings(
   allowWorkflow: boolean = false,
   collector?: ManifestCollector,
   allowCreate: boolean = false,
+  replaceHome: boolean = true,
 ): SettingsMergeResult {
   // 1. 读取现有设置 — 支持 allowCreate 模式
   let settings: Record<string, unknown>;
@@ -91,7 +92,11 @@ export function mergeSettings(
 
   // 在已解析的对象中替换 __HOME__ — JSON.stringify 写入时
   // 会自动转义反斜杠，生成有效的 JSON。
-  template = replaceHomeInObject(template, homeDir);
+  // 当 replaceHome 为 false 时保留原始模板（不替换 __HOME__），
+  // 以支持不需要路径替换的 merge-settings section。
+  if (replaceHome) {
+    template = replaceHomeInObject(template, homeDir);
+  }
 
   // isCreate 模式（全新安装/损坏覆盖）：直接写入完整模板，记录所有条目
   if (isCreate) {

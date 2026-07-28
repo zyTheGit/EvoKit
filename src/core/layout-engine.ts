@@ -278,6 +278,7 @@ function executeMergeSettings(
       section.allowWorkflow ?? false,
       collector,
       !isValid, // allowCreate: 目标不存在或损坏时为 true
+      section.replaceHome ?? true, // replaceHome: section 未指定时默认替换
     );
     if (result.changed) {
       summary.filesCreated++;

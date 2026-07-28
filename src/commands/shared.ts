@@ -178,6 +178,10 @@ export interface RunAdapterInstallLoopOptions {
   dryRun?: boolean;
   /** 跳过文件的提示文案（如 update 的 "用户数据保留"） */
   skipHint?: string;
+  /** 快速失败模式：适配器解析失败时立即抛错而非 continue（init 命令需要） */
+  failFast?: boolean;
+  /** 是否显示目标路径（init 不显示，默认 true） */
+  showTargetPath?: boolean;
 }
 
 /**
@@ -194,7 +198,7 @@ export function runAdapterInstallLoop(
   adapterIds: string[],
   options: RunAdapterInstallLoopOptions,
 ): boolean {
-  const { verb, config, verify, dryRun, skipHint } = options;
+  const { verb, config, verify, dryRun, skipHint, failFast, showTargetPath } = options;
   let allPass = true;
 
   for (const id of adapterIds) {
@@ -203,6 +207,10 @@ export function runAdapterInstallLoop(
       log.error(resolved.error.message);
       log.error(resolved.error.availableAdapters);
       allPass = false;
+      // 快速失败模式：init 命令在适配器解析失败时立即退出，保持原有语义
+      if (failFast) {
+        process.exit(1);
+      }
       continue;
     }
     const installer = resolved.installer;
@@ -214,7 +222,7 @@ export function runAdapterInstallLoop(
       const result = installer.install(config);
       s.stop(`${installer.label} ${verb}完成`);
 
-      printInstallResult({ label: installer.label, verb, result, skipHint });
+      printInstallResult({ label: installer.label, verb, result, skipHint, showTargetPath });
 
       if (verify && !dryRun) {
         const checks = installer.verify(config);
