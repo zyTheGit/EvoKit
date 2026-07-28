@@ -221,10 +221,7 @@ export function buildHeuristicReverseLayout(
   // 判断适配器是否需要反向合并 settings
   const shouldReverseMerge = getAdapterBoolean(
     adapterId,
-    (a) =>
-      'reverseMergesSettings' in a && typeof a.reverseMergesSettings === 'function'
-        ? (a as { reverseMergesSettings: () => boolean }).reverseMergesSettings()
-        : false,
+    (a) => a.reverseMergesSettings?.() ?? false,
     false,
     adapter,
   );
@@ -232,10 +229,7 @@ export function buildHeuristicReverseLayout(
   // 判断适配器是否有认知核心追加标记
   const appendMarker = getAdapterNullable<string>(
     adapterId,
-    (a) =>
-      'cognitiveCoreAppendMarker' in a && typeof a.cognitiveCoreAppendMarker === 'function'
-        ? (a as { cognitiveCoreAppendMarker: () => string | null }).cognitiveCoreAppendMarker()
-        : null,
+    (a) => a.cognitiveCoreAppendMarker?.() ?? null,
     null,
     adapter,
   );
