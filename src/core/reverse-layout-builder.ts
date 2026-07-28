@@ -213,7 +213,7 @@ export function buildHeuristicReverseLayout(
   const { purge, projectDir, adapter } = opts;
 
   // 获取适配器家目录
-  const adapterHome = getAdapterHome(homeDir, adapterId, adapter);
+  const adapterHome = getAdapterHome(adapterId, homeDir, adapter);
 
   // 获取启发式配置
   const heuristicConfig = getAdapterHeuristicConfig(adapterId, adapterHome, adapter);

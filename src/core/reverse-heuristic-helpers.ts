@@ -60,8 +60,8 @@ export function getAdapterNullable<T>(
  * 替代旧的硬编码 adapterHomes 映射。
  */
 export function getAdapterHome(
-  homeDir: string,
   adapterId: string,
+  homeDir: string,
   adapter?: AdapterInternal,
 ): string {
   try {
