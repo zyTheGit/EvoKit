@@ -4,7 +4,50 @@
 
 const { resolve } = require('path');
 const { pathToFileURL } = require('url');
-const { existsSync } = require('fs');
+const { existsSync, readFileSync } = require('fs');
+
+// ─── 快速路径：-V / --version / -h / --help ──────────────────────────────────────────
+// 避免加载整个模块链（适配器、安装、演化等），仅读取 package.json 即可输出版本号。
+
+function handleQuickCommands() {
+  const args = process.argv.slice(2);
+  const hasVersionFlag = args.includes('-V') || args.includes('--version');
+  const hasHelpFlag = args.includes('-h') || args.includes('--help');
+
+  if (hasVersionFlag) {
+    const pkgPath = resolve(__dirname, '../package.json');
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      console.log(pkg.version);
+      process.exit(0);
+    }
+  }
+
+  if (hasHelpFlag && args.length === 1) {
+    // 仅 --help 无子命令时，输出简短帮助后退出
+    console.log(`
+EvoKit — AI 编程助手的自演化系统框架
+
+Usage: evokit <command> [options]
+
+Commands:
+  install <适配器>     安装 EvoKit 到指定 AI 编程助手
+  uninstall <适配器>   卸载指定 AI 编程助手的 EvoKit
+  update [适配器]      更新已安装适配器的模板文件
+  init                 install 的别名（向后兼容）
+  project              生成项目规范文件
+  doctor               验证系统完整性
+  evolve               运行演化审计
+  export               导出学习数据
+  import <压缩包>      导入学习数据
+
+Run 'evokit <command> --help' for more information on a command.
+`);
+    process.exit(0);
+  }
+}
+
+handleQuickCommands();
 
 async function resolveCLI() {
   // 优先尝试生产构建
