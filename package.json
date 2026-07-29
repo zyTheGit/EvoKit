@@ -1,6 +1,6 @@
 {
   "name": "@zythegit/evokit",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "description": "EvoKit — Self-Evolving System Framework for AI Coding Assistants",
   "keywords": [
     "claude",
