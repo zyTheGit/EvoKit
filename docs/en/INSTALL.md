@@ -82,7 +82,7 @@ Installs to `~/.claude/` with settings.json hooks, markdown rules, and slash com
 evokit install --adapter claude
 ```
 
-After installation, start Claude Code and run `/boot`.
+After installation, start Claude Code and run `/evokit-boot`.
 
 **Files installed:**
 
@@ -92,10 +92,14 @@ After installation, start Claude Code and run `/boot`.
 ├── settings.json          # Hook configuration
 ├── rules/                 # Path-scoped rules (coding, security, invariants)
 ├── agents/                # Sub-agent definitions (architect, reviewer)
-├── commands/              # Slash commands (/boot, /evolve, /review)
-├── hooks/                 # Lifecycle hooks (session-start, stop, export-system)
+├── commands/              # Slash commands (/evokit-boot, /evokit-learn, /evokit-review)
+├── hooks/                 # Lifecycle hooks (session-start, stop)
 ├── skills/                # Reusable skills
-└── memory/                # Learning data (corrections, observations, rules)
+└── memory/
+    └── evokit/            # Knowledge base
+        ├── knowledge-index.md  # Knowledge index (always loaded)
+        ├── knowledge/          # Knowledge entries (loaded on demand)
+        └── .pending/           # Pending entries awaiting confirmation
 ~/CLAUDE.md                # L1 cognitive core
 ```
 
@@ -117,7 +121,11 @@ After installation, start Codex CLI — the boot verification runs automatically
 ├── hooks.json             # Hook configuration
 ├── rules/                 # Starlark rules
 ├── hooks-scripts/         # Lifecycle shell hooks
-└── memory/                # Learning data
+└── memory/
+    └── evokit/            # Knowledge base (independent directory)
+        ├── knowledge-index.md
+        ├── knowledge/
+        └── .pending/
 ```
 
 Codex CLI specific options:
@@ -150,7 +158,11 @@ evokit install --adapter opencode --project-dir /path/to/project
 ├── AGENTS.md              # L1 cognitive core (combined with project-level)
 ├── opencode.json          # Global configuration
 ├── agent/                 # Sub-agent definitions (architect, reviewer)
-├── memory/                # Learning data (corrections, observations, rules)
+├── memory/
+│   └── evokit/            # Knowledge base (independent directory)
+│       ├── knowledge-index.md
+│       ├── knowledge/
+│       └── .pending/
 └── skills/                # Reusable skills
 ```
 
@@ -158,7 +170,7 @@ evokit install --adapter opencode --project-dir /path/to/project
 
 ```
 .opencode/
-├── tools/                 # Custom EvoKit tools (evokit-boot, evokit-evolve, etc.)
+├── tools/                 # Custom EvoKit tools (evokit-boot, evokit-learn, etc.)
 ├── agent/                 # Project-level agent overrides
 └── memory/                # Project-level memory overrides
 ```
@@ -201,6 +213,44 @@ bash bin/install.sh --dry-run --adapter claude
 
 Useful for CI validation or to inspect what a new version would change.
 
+## Data Migration
+
+If you are upgrading from v0.x to v1.0, you need to run the migration command to convert legacy data into the new knowledge entry format:
+
+```bash
+# Interactive migration
+evokit migrate
+
+# Preview migration results (no files modified)
+evokit migrate --dry-run
+
+# Skip confirmation, auto-accept all entries
+evokit migrate --force
+
+# Specify adapter and scope
+evokit migrate --adapter codex --scope personal
+```
+
+**Migration strategy:**
+
+1. **Detect legacy data** — `learned-rules.md`, `corrections.jsonl`, `observations.jsonl`, etc.
+2. **Parse and convert** — `learned-rules.md` entries → v1.0 knowledge entries (convention type)
+3. **Batch confirmation** — display pending list; user chooses to accept or reject
+4. **Archive legacy files** — move to `evokit/archive/v0/` (not deleted)
+5. **Update index** — write to `knowledge-index.md`
+
+**Option reference:**
+
+| Flag               | Description                                                                  |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `--adapter <name>` | Adapter name (claude \| codex \| opencode \| pi), default `claude`           |
+| `--scope <scope>`  | Knowledge entry scope (personal \| project), default `personal`              |
+| `--dry-run`        | Preview migration results without modifying files                            |
+| `--force`          | Skip confirmation prompts, auto-accept all entries                           |
+| `--home <path>`    | Target home directory (default: `$HOME`)                                     |
+
+> **Note:** This operation converts legacy data to v1.0 format. Legacy files are archived to `evokit/archive/v0/`. v1.0 does not support automatic downgrade. The archive preserves original data, which can be manually restored if needed.
+
 ## Manual Install
 
 If you prefer to install manually or want to understand what the installer does:
@@ -209,7 +259,7 @@ If you prefer to install manually or want to understand what the installer does:
 
 ```bash
 # 1. Create .claude directory structure
-mkdir -p ~/.claude/{rules,agents,commands,memory,hooks,skills}
+mkdir -p ~/.claude/{rules,agents,commands,memory/evokit/knowledge,memory/evokit/.pending,hooks,skills}
 
 # 2. Copy template files
 cp template/CLAUDE.md ~/
@@ -220,16 +270,15 @@ cp template/rules/*.md ~/.claude/rules/
 cp template/agents/*.md ~/.claude/agents/
 cp template/commands/*.md ~/.claude/commands/
 cp -r template/skills/* ~/.claude/skills/
-cp template/memory/* ~/.claude/memory/
+cp template/memory/evokit/knowledge-index.md ~/.claude/memory/evokit/
 
 # 3. Replace path placeholders in settings.json
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.claude/settings.json
 
 # 4. Set permissions
 chmod +x ~/.claude/hooks/*.sh
-chmod 600 ~/.claude/memory/*.jsonl
 
-# 5. Done! Start Claude Code and run /boot
+# 5. Done! Start Claude Code and run /evokit-boot
 ```
 
 > **Note:** The `__HOME__` placeholder is only used in `settings.json` (for hook command paths). The hook scripts themselves use `$HOME` natively and don't need substitution.
@@ -238,13 +287,13 @@ chmod 600 ~/.claude/memory/*.jsonl
 
 ```bash
 # 1. Create global config directory
-mkdir -p ~/.config/opencode/{agent,memory,skills}
+mkdir -p ~/.config/opencode/{agent,memory/evokit/knowledge,memory/evokit/.pending,skills}
 
 # 2. Copy global config files
 cp template/opencode/AGENTS.md ~/.config/opencode/
 cp template/opencode/opencode.json ~/.config/opencode/
 cp template/opencode/agent/*.md ~/.config/opencode/agent/
-cp template/opencode/memory/* ~/.config/opencode/memory/
+cp template/opencode/memory/evokit/knowledge-index.md ~/.config/opencode/memory/evokit/
 
 # 3. Replace path placeholders
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.config/opencode/opencode.json
@@ -268,27 +317,26 @@ sed -i 's|__HOME__|'"$HOME"'|g' opencode.json
 Start Claude Code and run:
 
 ```
-/boot
+/evokit-boot
 ```
 
 Expected output:
 
 ```
-[EVOLUTION BOOT] ═══════════════════════
-  ✓ .claude/rules/
-  ✓ .claude/agents/
-  ✓ .claude/commands/
-  ✓ .claude/memory/
-  ✓ .claude/hooks/
-  ✓ CLAUDE.md: N lines (limit 150)
-  ✓ learned-rules.md: N lines (limit 50)
+[EvoKit Boot] ═══════════════════════════
+  ✓ evokit/ directory structure
+  ✓ knowledge-index.md format
+  ✓ Index references N entries, all present
+  ✓ Entry frontmatter validity
+  ⚠ .pending/ has N pending entries (run /evokit-learn)
+  ✓ CLAUDE.md: N/150 lines
 ═══════════════════════════════════════
 ```
 
 ### OpenCode
 
 Start OpenCode and call the `evokit-boot` tool. Expected output shows
-the status of global config, project files, and memory data.
+the status of global config, project files, and knowledge base.
 
 ## Platform-Specific Notes
 
@@ -347,13 +395,13 @@ bash bin/install.sh --template template --adapter claude
 chmod +x ~/.claude/hooks/*.sh
 ```
 
-### /boot command not found
+### /evokit-boot command not found
 
 **Problem:** Commands not installed correctly.
 **Fix:** Verify the command file exists, then restart Claude Code:
 
 ```bash
-ls -la ~/.claude/commands/boot.md   # should exist
+ls -la ~/.claude/commands/evokit-boot.md   # should exist
 ```
 
 ### SessionStart hook not running
@@ -398,7 +446,7 @@ export PATH="$(npm root -g)/../bin:$PATH"
 
 To upgrade an existing installation, simply re-run the installer — it will:
 
-- **Preserve** your existing config and memory data (they won't be overwritten)
+- **Preserve** your existing config and knowledge data (they won't be overwritten)
 - **Update** hooks, rules, agents, and commands to the latest versions
 - **Create** any newly added files
 
@@ -410,4 +458,6 @@ curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh
 cd EvoKit && git pull && bash bin/install.sh
 ```
 
-After upgrading, run `/boot` (Claude Code) or `evokit-boot` (OpenCode) to verify.
+After upgrading, run `/evokit-boot` (Claude Code) or `evokit-boot` (OpenCode) to verify.
+
+If you are upgrading from v0.x, you also need to run `evokit migrate` to migrate legacy data (see the "Data Migration" section above).

@@ -104,7 +104,7 @@ jobs:
           test -f ROADMAP.md
           # English docs
           test -f docs/en/ARCHITECTURE.md
-          test -f docs/en/EVOLUTION.md
+          test -f docs/en/KNOWLEDGE.md
           test -f docs/en/INSTALL.md
           test -f docs/en/MIGRATION.md
           test -f docs/en/CUSTOMIZE.md
@@ -113,7 +113,7 @@ jobs:
           test -f docs/en/HOMEBREW.md
           # Chinese docs
           test -f docs/zh/ARCHITECTURE.md
-          test -f docs/zh/EVOLUTION.md
+          test -f docs/zh/KNOWLEDGE.md
           test -f docs/zh/INSTALL.md
           test -f docs/zh/MIGRATION.md
           test -f docs/zh/CUSTOMIZE.md

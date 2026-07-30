@@ -4,7 +4,7 @@
 
 ### What is EvoKit?
 
-EvoKit is an open-source framework that gives AI coding assistants (Claude Code, Codex, etc.) the ability to learn from corrections across sessions. It persists knowledge in files so the AI gets better over time.
+EvoKit is an open-source **project context engine** that gives AI coding assistants (Claude Code, Codex, etc.) the ability to persist project/personal knowledge and maintain understanding of a project across sessions. Through conversation extraction, knowledge indexing, and staleness detection, it helps AI instantly understand your project.
 
 ### Is this an official Anthropic product?
 
@@ -12,33 +12,57 @@ No. EvoKit is a community project that extends Claude Code's capabilities via it
 
 ### Does EvoKit send my data anywhere?
 
-**No.** All data stays in your `~/.claude/memory/` directory. No cloud, no telemetry, no external API calls from the evolution system.
+**No.** All data stays in the local `evokit/` knowledge base directory (e.g. `~/.claude/memory/evokit/`). No cloud, no telemetry, no external API calls.
 
-## Learning System
+## Knowledge System
 
 ### How does the AI learn?
 
-Every time you correct the AI, the correction is recorded in `corrections.jsonl`. The same pattern appearing 2+ times gets promoted to `learned-rules.md`. After 10+ sessions of verification, it can graduate to permanent rules.
+EvoKit works through a **conversation extraction** mechanism: the AI identifies project/personal knowledge during conversations (project conventions, personal preferences, architectural decisions, etc.) and silently writes it to the `.pending/` directory. After the user confirms via `/evokit-learn`, the knowledge is persisted to the `knowledge/` directory and the index is updated. Users can also explicitly declare knowledge via `/evokit-learn "content"`.
+
+### What types of knowledge are there?
+
+| Type         | Description      | Example                            |
+| ------------ | ---------------- | ---------------------------------- |
+| convention   | Project convention | "Use Result<T> instead of throw" |
+| preference   | Personal preference | "Use uv instead of pip"         |
+| architecture | Architectural decision | "packages/api is upstream"   |
+| workflow     | Workflow rule    | "Use conventional commit format"   |
+
+### How do I use /evokit-learn?
+
+- `/evokit-learn` — Display pending entries in `.pending/` + review new knowledge identified in the conversation
+- `/evokit-learn "content"` — Explicitly declare knowledge, written directly to `knowledge/`
+
+**Pending entry confirmation flow:**
+
+1. Run `/evokit-learn` to display all pending entries
+2. User responds in conversation (natural language), e.g. "Confirm 1 and 3, reject 2"
+3. Confirmed entries are moved to `knowledge/` and `knowledge-index.md` is updated; rejected entries are deleted from `.pending/`
+
+### How do I confirm pending knowledge?
+
+Run `/evokit-learn`, which displays all pending entries. You can:
+- Confirm or reject using natural language (e.g. "Confirm 1 and 3, reject 2")
+- Review each entry individually and decide whether to accept
+
+Confirmed entries are moved from `.pending/` to `knowledge/` and the index is updated; rejected entries are deleted.
 
 ### I corrected the AI but nothing happened
 
-EvoKit provides the **infrastructure** for learning. The actual recording of corrections depends on Claude following the CLAUDE.md protocol. If corrections aren't being recorded, check:
+EvoKit provides the **infrastructure** for knowledge persistence. The actual extraction of knowledge depends on the AI following the knowledge identification protocol in CLAUDE.md. If knowledge isn't being recorded, check:
 
-1. The SessionStart hook is running (`/boot` works)
-2. `corrections.jsonl` exists in `~/.claude/memory/`
+1. The SessionStart hook is running (`/evokit-boot` works)
+2. The `evokit/.pending/` directory exists
 3. You're running a compatible version of Claude Code
 
-### How do I run an evolution audit?
+### How do I run a knowledge base integrity check?
 
 ```
-/evolve
+/evokit-boot
 ```
 
-Run this every ~10 sessions to promote patterns and prune stale rules.
-
-### My learned-rules.md is full
-
-Run `/evolve`. It will suggest which rules to prune or graduate.
+This performs a deep integrity check on the knowledge base, including directory structure, index format, entry completeness, frontmatter validity, and pending entries. The SessionStart hook automatically runs a quick check at the start of each session.
 
 ## Installation
 
@@ -54,6 +78,10 @@ Yes — via WSL or Git Bash. The template hooks use bash scripts which work in b
 
 The installer backs up your existing configuration first to `~/.claude/backups/`. Existing `CLAUDE.md` and `settings.json` are preserved — only missing items are added.
 
+### How do I migrate from v0.x to v1.0?
+
+Run the `evokit migrate` command. It detects legacy data files (`learned-rules.md`, `corrections.jsonl`, `observations.jsonl`, etc.), converts migratable rules to v1.0 knowledge entry format, and archives legacy files to `evokit/archive/v0/`. Use `--dry-run` to preview migration results.
+
 ## Multi-Agent
 
 ### Does EvoKit work with Codex?
@@ -61,49 +89,49 @@ The installer backs up your existing configuration first to `~/.claude/backups/`
 **Yes!** Codex CLI support is available as of v0.3.0. Install with:
 
 ```bash
-evokit init --adapter codex
+evokit install --adapter codex
 ```
 
 This installs EvoKit templates to `~/.codex/`, configuring:
 
-- `AGENTS.md` — cognitive core with thinking framework and evolution protocol
+- `AGENTS.md` — cognitive core with thinking framework and knowledge protocol
 - `hooks.json` — lifecycle hooks (SessionStart, Stop, PreToolUse)
 - `rules/` — Starlark safety rules
-- Shared `~/.claude/memory/` for learning data
-
-Corrections made in Codex CLI sessions are saved to the same shared memory and benefit both Codex and Claude Code.
+- Independent `~/.codex/memory/evokit/` knowledge base directory
 
 ### Does EvoKit work with OpenCode?
 
 **Yes!** OpenCode CLI support is available as of v0.5.0. Install with:
 
 ```bash
-evokit init --adapter opencode
+evokit install --adapter opencode
 ```
 
-This installs EvoKit templates into the project directory, configuring custom tools (`evokit-boot.ts`, `evokit-session.ts`, etc.) instead of lifecycle hooks.
+This installs EvoKit templates into the project directory, configuring custom tools (`evokit-boot.ts`, `evokit-learn.ts`, etc.) instead of lifecycle hooks. OpenCode has its own independent `~/.config/opencode/memory/evokit/` knowledge base directory.
 
 ### Does EvoKit work with Pi CLI?
 
 **Yes!** Pi CLI support is available as of v0.6.0. Install with:
 
 ```bash
-evokit init --adapter pi
+evokit install --adapter pi
 ```
 
-This installs EvoKit templates to `~/.pi/agent/`, configuring TypeScript extensions (`evokit-lifecycle.ts`, etc.) for lifecycle events. Boot verification and session recording are automatic with Pi CLI.
+This installs EvoKit templates to `~/.pi/agent/`, configuring TypeScript extensions (`evokit-lifecycle.ts`, etc.) for lifecycle events. Pi CLI has its own independent `~/.pi/agent/memory/evokit/` knowledge base directory.
 
-### Can I use the same learning data across different AI assistants?
+### Do different AI assistants share knowledge?
 
-**Yes!** All adapters share the same `~/.claude/memory/` directory. Each session record is tagged by assistant (`"assistant": "codex"` or `"assistant": "claude"`), so corrections from one assistant benefit all assistants.
+**No.** Each adapter has its own independent `evokit/` knowledge base directory (e.g. `~/.claude/memory/evokit/`, `~/.codex/memory/evokit/`, `~/.config/opencode/memory/evokit/`). This ensures knowledge from different assistants doesn't interfere. If you need to share specific knowledge across assistants, you can manually declare it in another assistant using `/evokit-learn "content"`.
 
-### How do I check if my Codex installation is healthy?
+### How do I check if my installation is healthy?
 
 ```bash
-evokit doctor --adapter codex
+evokit doctor --adapter claude
 # Or check all adapters:
 evokit doctor --adapter all
 ```
+
+You can also run `/evokit-boot` in Claude Code for a deep knowledge base integrity check.
 
 ## Troubleshooting
 
@@ -111,7 +139,7 @@ evokit doctor --adapter all
 
 Check `~/.claude/settings.json` — verify the hook command path exists and is correct. Restart Claude Code after changes.
 
-### /boot shows missing directories
+### /evokit-boot shows missing directories
 
 The installer may not have copied all files. Run the installer again or manually check each directory.
 
@@ -129,5 +157,8 @@ sed -i 's|/home/olduser|/home/newuser|g' ~/.claude/hooks/*.sh
 
 ```bash
 chmod +x ~/.claude/hooks/*.sh
-chmod 600 ~/.claude/memory/*.jsonl
 ```
+
+### What about legacy data?
+
+If you are upgrading from v0.x, legacy data files (`learned-rules.md`, `corrections.jsonl`, `observations.jsonl`) need to be migrated to v1.0 knowledge entry format via `evokit migrate`. After migration, legacy files are archived to `evokit/archive/v0/` and are not deleted.

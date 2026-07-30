@@ -6,9 +6,9 @@
 
 # 🧠⚡ EvoKit
 
-**AI 编程助手的自进化框架**
+**项目上下文引擎 — 让 AI 秒懂项目**
 
-_让 AI 编程助手越用越聪明 — 跨会话持久化纠错、观察和规则_
+_持久化 AI 不可能知道的项目/个人专属知识_
 
 [![Version](https://img.shields.io/github/v/release/zyTheGit/EvoKit?include_prereleases&style=flat-square&label=版本)](CHANGELOG.md)
 [![License](https://img.shields.io/github/license/zyTheGit/EvoKit?style=flat-square)](LICENSE)
@@ -19,16 +19,16 @@ _让 AI 编程助手越用越聪明 — 跨会话持久化纠错、观察和规�
 
 ---
 
-**EvoKit** 是一个开源的 **自进化系统框架**，专为 AI 编程助手设计。它能让 Claude Code、Codex、OpenCode 等 AI 工具**越用越聪明**——通过跨会话持久化纠错、观察和规则，实现知识的自动积累与晋升。
+**EvoKit** 是一个开源的**项目上下文引擎**，专为 AI 编程助手设计。它从对话中提取项目知识、构建可检索索引、自动检测过期信息——让 Claude Code、Codex、OpenCode 等 AI 工具**秒懂你的项目**，无需每次从零开始。
 
-| 核心思想          | 说明                                                     |
-| ----------------- | -------------------------------------------------------- |
-| 🧠 **跨会话记忆** | 纠错和观察跨会话保留，永不丢失                           |
-| 📈 **自动晋升**   | 重复出现的模式自动晋升为永久规则                         |
-| 🔌 **Hook 驱动**  | 会话生命周期全自动管理                                   |
-| 🚚 **一键迁移**   | 跨机器无缝迁移学习数据                                   |
-| 🔒 **隐私优先**   | 所有数据本地存储，无云端、无遥测                         |
-| 🤖 **多智能体**   | 适配器架构，支持 Claude Code / Codex / OpenCode / Pi CLI |
+| 核心能力            | 说明                                                     |
+| ------------------- | -------------------------------------------------------- |
+| 💬 **对话提取**     | 从自然对话中自动提取项目知识，无需手动编写               |
+| 📇 **知识索引**     | 构建结构化索引，AI 按需检索，精准命中上下文              |
+| 🕐 **过期检测**     | 自动标记过时知识，避免 AI 使用失效信息                   |
+| 🚚 **一键迁移**     | 跨机器无缝迁移学习数据                                   |
+| 🔒 **隐私优先**     | 所有数据本地存储，无云端、无遥测                         |
+| 🤖 **多智能体**     | 适配器架构，支持 Claude Code / Codex / OpenCode / Pi CLI |
 
 </div>
 
@@ -83,10 +83,8 @@ update 会自动覆盖框架文件（hooks、rules、commands、agents、skills�
 ```bash
 evokit init         初始化安装
 evokit update       升级模板文件
-evokit evolve       运行进化审计
+evokit migrate      从 v0 迁移到 v1.0
 evokit doctor       系统健康检查
-evokit export       导出学习数据
-evokit import <包>  导入迁移包
 ```
 
 ### 验证
@@ -94,7 +92,7 @@ evokit import <包>  导入迁移包
 启动 AI 助手，运行：
 
 ```
-/boot
+/evokit-boot
 ```
 
 ---
@@ -105,20 +103,20 @@ evokit import <包>  导入迁移包
 
 | 命令             | 运行时机      | 功能                         |
 | ---------------- | ------------- | ---------------------------- |
-| `/boot`          | 每次会话启动  | 验证系统完整性               |
-| `/evolve`        | 每 ~10 次会话 | 晋升模式、修剪过时规则       |
+| `/evokit-boot`   | 每次会话启动  | 验证系统完整性               |
+| `/evokit-learn`  | 对话结束后    | 提取知识、检测过期条目       |
 | `/evokit-review` | 提交代码前    | 通过审查员智能体进行代码审查 |
 
 ---
 
 ## 适配器版本
 
-| 适配器           | 版本   | 助手版本兼容                  |
-| ---------------- | ------ | ----------------------------- |
-| **Claude Code**  | v0.2.0 | Claude Code ≥ 2.1.220（CLI）  |
-| **Codex CLI**    | v0.4.0 | Codex CLI ≥ 0.145.0（OpenAI） |
-| **OpenCode CLI** | v0.5.0 | OpenCode CLI ≥ 1.18.4         |
-| **Pi CLI**       | v0.6.0 | Pi CLI ≥ 0.82.0               |
+| 适配器           | 版本    | 助手版本兼容                  |
+| ---------------- | ------- | ----------------------------- |
+| **Claude Code**  | v1.0.0  | Claude Code ≥ 2.1.220（CLI）  |
+| **Codex CLI**    | v0.4.0  | Codex CLI ≥ 0.145.0（OpenAI） |
+| **OpenCode CLI** | v0.5.0  | OpenCode CLI ≥ 1.18.4         |
+| **Pi CLI**       | v0.6.0  | Pi CLI ≥ 0.82.0               |
 
 ---
 

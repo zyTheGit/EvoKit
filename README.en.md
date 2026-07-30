@@ -6,9 +6,9 @@
 
 # 🧠⚡ EvoKit
 
-**Evolution Kit for AI Coding Agents**
+**Project Context Engine for AI Coding Agents**
 
-_Make AI coding assistants learn and evolve across sessions_
+_Make AI instantly understand your project, persist knowledge AI can't know from training data_
 
 [![Version](https://img.shields.io/github/v/release/zyTheGit/EvoKit?include_prereleases&style=flat-square&label=version)](CHANGELOG.md)
 [![License](https://img.shields.io/github/license/zyTheGit/EvoKit?style=flat-square)](LICENSE)
@@ -19,16 +19,16 @@ _Make AI coding assistants learn and evolve across sessions_
 
 ---
 
-**EvoKit** is an open-source **self-evolving system framework** for AI coding assistants. It enables Claude Code, Codex, OpenCode, and other AI tools to **get smarter over time** — by persisting corrections, observations, and rules across sessions, enabling automatic knowledge accumulation and promotion.
+**EvoKit** is an open-source **project context engine** for AI coding assistants. It enables Claude Code, Codex, OpenCode, and other AI tools to **instantly understand your project** — by extracting knowledge from conversations, building a persistent knowledge index, and detecting stale rules over time.
 
-| Core Concept                | Description                                                             |
-| --------------------------- | ----------------------------------------------------------------------- |
-| 🧠 **Cross-session Memory** | Corrections and observations persist across sessions, never lost        |
-| 📈 **Auto-promotion**       | Repeated patterns automatically graduate to permanent rules             |
-| 🔌 **Hook-driven**          | Fully automated session lifecycle management                            |
-| 🚚 **One-click Migration**  | Seamless transfer of learning data between machines                     |
-| 🔒 **Privacy-first**        | All data stored locally — no cloud, no telemetry                        |
-| 🤖 **Multi-agent**          | Adapter architecture supporting Claude Code / Codex / OpenCode / Pi CLI |
+| Core Concept                   | Description                                                             |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| 💬 **Conversation Extraction** | Extract corrections and observations from conversations automatically  |
+| 📚 **Knowledge Index**         | Build a persistent, searchable knowledge base across sessions           |
+| 🔄 **Staleness Detection**     | Automatically detect and prune outdated rules and patterns              |
+| 🚚 **One-click Migration**     | Seamless transfer of learning data between machines                     |
+| 🔒 **Privacy-first**           | All data stored locally — no cloud, no telemetry                        |
+| 🤖 **Multi-agent**             | Adapter architecture supporting Claude Code / Codex / OpenCode / Pi CLI |
 
 </div>
 
@@ -83,10 +83,8 @@ Update overwrites framework files (hooks, rules, commands, agents, skills) while
 ```bash
 evokit init         Initialize installation
 evokit update       Upgrade template files
-evokit evolve       Run evolution audit
+evokit migrate      Migrate learning data between machines
 evokit doctor       System health check
-evokit export       Export learning data
-evokit import <pkg> Import migration package
 ```
 
 ### Verify
@@ -94,7 +92,7 @@ evokit import <pkg> Import migration package
 Launch your AI assistant and run:
 
 ```
-/boot
+/evokit-boot
 ```
 
 ---
@@ -103,8 +101,8 @@ Launch your AI assistant and run:
 
 | Command          | When                | What                                |
 | ---------------- | ------------------- | ----------------------------------- |
-| `/boot`          | Every session start | Verify system integrity             |
-| `/evolve`        | Every ~10 sessions  | Promote patterns, prune stale rules |
+| `/evokit-boot`   | Every session start | Verify system integrity             |
+| `/evokit-learn`  | Every ~10 sessions  | Promote patterns, prune stale rules |
 | `/evokit-review` | Before commit       | Code review via reviewer agent      |
 
 ---
@@ -113,7 +111,7 @@ Launch your AI assistant and run:
 
 | Adapter          | Version | Assistant Compatibility      |
 | ---------------- | ------- | ---------------------------- |
-| **Claude Code**  | v0.2.0  | Claude Code ≥ 2.1.220 (CLI)  |
+| **Claude Code**  | v1.0.0  | Claude Code ≥ 2.1.220 (CLI)  |
 | **Codex CLI**    | v0.4.0  | Codex CLI ≥ 0.145.0 (OpenAI) |
 | **OpenCode CLI** | v0.5.0  | OpenCode CLI ≥ 1.18.4        |
 | **Pi CLI**       | v0.6.0  | Pi CLI ≥ 0.82.0              |

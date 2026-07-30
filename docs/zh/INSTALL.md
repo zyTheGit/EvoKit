@@ -82,7 +82,7 @@ bash bin/install.sh --adapter claude,codex,opencode
 evokit install --adapter claude
 ```
 
-安装完成后，启动 Claude Code 并运行 `/boot`。
+安装完成后，启动 Claude Code 并运行 `/evokit-boot`。
 
 **安装的文件：**
 
@@ -92,10 +92,14 @@ evokit install --adapter claude
 ├── settings.json          # 钩子配置
 ├── rules/                 # 路径作用域规则（编码、安全、不变性）
 ├── agents/                # 子代理定义（架构师、审查者）
-├── commands/              # 斜杠命令（/boot、/evolve、/review）
-├── hooks/                 # 生命周期钩子（session-start、stop、export-system）
+├── commands/              # 斜杠命令（/evokit-boot、/evokit-learn、/evokit-review）
+├── hooks/                 # 生命周期钩子（session-start、stop）
 ├── skills/                # 可复用技能
-└── memory/                # 学习数据（纠正、观察、规则）
+└── memory/
+    └── evokit/            # 知识库
+        ├── knowledge-index.md  # 知识索引（始终加载）
+        ├── knowledge/          # 知识条目（按需加载）
+        └── .pending/           # 待确认条目
 ~/CLAUDE.md                # L1 认知核心
 ```
 
@@ -117,7 +121,11 @@ evokit install --adapter codex
 ├── hooks.json             # 钩子配置
 ├── rules/                 # Starlark 规则
 ├── hooks-scripts/         # 生命周期 shell 钩子
-└── memory/                # 学习数据
+└── memory/
+    └── evokit/            # 知识库（独立目录）
+        ├── knowledge-index.md
+        ├── knowledge/
+        └── .pending/
 ```
 
 Codex CLI 专属选项：
@@ -150,7 +158,11 @@ evokit install --adapter opencode --project-dir /path/to/project
 ├── AGENTS.md              # L1 认知核心（与项目级合并使用）
 ├── opencode.json          # 全局配置
 ├── agent/                 # 子代理定义（架构师、审查者）
-├── memory/                # 学习数据（纠正、观察、规则）
+├── memory/
+│   └── evokit/            # 知识库（独立目录）
+│       ├── knowledge-index.md
+│       ├── knowledge/
+│       └── .pending/
 └── skills/                # 可复用技能
 ```
 
@@ -158,7 +170,7 @@ evokit install --adapter opencode --project-dir /path/to/project
 
 ```
 .opencode/
-├── tools/                 # 自定义 EvoKit 工具（evokit-boot、evokit-evolve 等）
+├── tools/                 # 自定义 EvoKit 工具（evokit-boot、evokit-learn 等）
 ├── agent/                 # 项目级代理覆盖
 └── memory/                # 项目级记忆覆盖
 ```
@@ -199,6 +211,44 @@ bash bin/install.sh --dry-run --adapter claude
 
 适用于 CI 验证或检查新版本会带来哪些变化。
 
+## 数据迁移
+
+如果你从 v0.x 升级到 v1.0，需要运行迁移命令将旧数据转换为新的知识条目格式：
+
+```bash
+# 交互式迁移
+evokit migrate
+
+# 预览迁移结果（不修改文件）
+evokit migrate --dry-run
+
+# 跳过确认，自动接受所有条目
+evokit migrate --force
+
+# 指定适配器和作用域
+evokit migrate --adapter codex --scope personal
+```
+
+**迁移策略：**
+
+1. **检测旧数据** — `learned-rules.md`、`corrections.jsonl`、`observations.jsonl` 等
+2. **解析转换** — `learned-rules.md` 条目 → v1.0 知识条目（convention 类型）
+3. **批量确认** — 展示待确认列表，用户选择接受/拒绝
+4. **归档旧文件** — 移动到 `evokit/archive/v0/`（不删除）
+5. **更新索引** — 写入 `knowledge-index.md`
+
+**选项说明：**
+
+| 标志             | 描述                                           |
+| ---------------- | ---------------------------------------------- |
+| `--adapter <name>` | 适配器名称（claude \| codex \| opencode \| pi），默认 `claude` |
+| `--scope <scope>`  | 知识条目作用域（personal \| project），默认 `personal` |
+| `--dry-run`        | 仅预览迁移结果，不实际修改                     |
+| `--force`          | 跳过确认提示，自动接受所有条目                 |
+| `--home <path>`    | 目标主目录（默认：`$HOME`）                    |
+
+> **注意：** 此操作将转换旧数据为 v1.0 格式，旧文件归档到 `evokit/archive/v0/`。v1.0 不支持自动降级。归档保留了原始数据，技术上可手动恢复。
+
 ## 手动安装
 
 如果你倾向于手动安装，或想了解安装程序的具体操作：
@@ -207,7 +257,7 @@ bash bin/install.sh --dry-run --adapter claude
 
 ```bash
 # 1. 创建 .claude 目录结构
-mkdir -p ~/.claude/{rules,agents,commands,memory,hooks,skills}
+mkdir -p ~/.claude/{rules,agents,commands,memory/evokit/knowledge,memory/evokit/.pending,hooks,skills}
 
 # 2. 复制模板文件
 cp template/CLAUDE.md ~/
@@ -218,16 +268,15 @@ cp template/rules/*.md ~/.claude/rules/
 cp template/agents/*.md ~/.claude/agents/
 cp template/commands/*.md ~/.claude/commands/
 cp -r template/skills/* ~/.claude/skills/
-cp template/memory/* ~/.claude/memory/
+cp template/memory/evokit/knowledge-index.md ~/.claude/memory/evokit/
 
 # 3. 替换 settings.json 中的路径占位符
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.claude/settings.json
 
 # 4. 设置权限
 chmod +x ~/.claude/hooks/*.sh
-chmod 600 ~/.claude/memory/*.jsonl
 
-# 5. 完成！启动 Claude Code 并运行 /boot
+# 5. 完成！启动 Claude Code 并运行 /evokit-boot
 ```
 
 > **注意：** `__HOME__` 占位符仅在 `settings.json` 中使用（用于钩子命令路径）。钩子脚本本身原生使用 `$HOME`，无需替换。
@@ -236,13 +285,13 @@ chmod 600 ~/.claude/memory/*.jsonl
 
 ```bash
 # 1. 创建全局配置目录
-mkdir -p ~/.config/opencode/{agent,memory,skills}
+mkdir -p ~/.config/opencode/{agent,memory/evokit/knowledge,memory/evokit/.pending,skills}
 
 # 2. 复制全局配置文件
 cp template/opencode/AGENTS.md ~/.config/opencode/
 cp template/opencode/opencode.json ~/.config/opencode/
 cp template/opencode/agent/*.md ~/.config/opencode/agent/
-cp template/opencode/memory/* ~/.config/opencode/memory/
+cp template/opencode/memory/evokit/knowledge-index.md ~/.config/opencode/memory/evokit/
 
 # 3. 替换路径占位符
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.config/opencode/opencode.json
@@ -266,26 +315,25 @@ sed -i 's|__HOME__|'"$HOME"'|g' opencode.json
 启动 Claude Code 并运行：
 
 ```
-/boot
+/evokit-boot
 ```
 
 预期输出：
 
 ```
-[EVOLUTION BOOT] ═══════════════════════
-  ✓ .claude/rules/
-  ✓ .claude/agents/
-  ✓ .claude/commands/
-  ✓ .claude/memory/
-  ✓ .claude/hooks/
-  ✓ CLAUDE.md: N 行（限制 150）
-  ✓ learned-rules.md: N 行（限制 50）
+[EvoKit Boot] ═══════════════════════════
+  ✓ evokit/ 目录结构
+  ✓ knowledge-index.md 格式
+  ✓ 索引引用 N 个条目，全部存在
+  ✓ 条目 frontmatter 合法性
+  ⚠ .pending/ 有 N 个待确认条目（运行 /evokit-learn）
+  ✓ CLAUDE.md: N/150 行
 ═══════════════════════════════════════
 ```
 
 ### OpenCode
 
-启动 OpenCode 并调用 `evokit-boot` 工具。输出显示全局配置、项目文件和记忆数据的状态。
+启动 OpenCode 并调用 `evokit-boot` 工具。输出显示全局配置、项目文件和知识库的状态。
 
 ## 平台特定说明
 
@@ -344,13 +392,13 @@ bash bin/install.sh --template template --adapter claude
 chmod +x ~/.claude/hooks/*.sh
 ```
 
-### /boot 命令未找到
+### /evokit-boot 命令未找到
 
 **问题：** 命令未正确安装。
 **修复：** 确认命令文件存在，然后重启 Claude Code：
 
 ```bash
-ls -la ~/.claude/commands/boot.md   # 应存在
+ls -la ~/.claude/commands/evokit-boot.md   # 应存在
 ```
 
 ### SessionStart 钩子未运行
@@ -395,7 +443,7 @@ export PATH="$(npm root -g)/../bin:$PATH"
 
 升级现有安装只需重新运行安装程序 — 它将：
 
-- **保留** 你现有的配置和记忆数据（不会被覆盖）
+- **保留** 你现有的配置和知识数据（不会被覆盖）
 - **更新** 钩子、规则、代理和命令到最新版本
 - **创建** 任何新增的文件
 
@@ -407,4 +455,6 @@ curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh
 cd EvoKit && git pull && bash bin/install.sh
 ```
 
-升级后，运行 `/boot`（Claude Code）或 `evokit-boot`（OpenCode）验证一切正常。
+升级后，运行 `/evokit-boot`（Claude Code）或 `evokit-boot`（OpenCode）验证一切正常。
+
+如果你从 v0.x 升级，还需要运行 `evokit migrate` 迁移旧数据（详见上方"数据迁移"章节）。

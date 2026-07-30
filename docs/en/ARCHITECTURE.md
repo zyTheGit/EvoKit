@@ -2,35 +2,25 @@
 
 ## Overview
 
-EvoKit uses a **4-layer architecture** that progressively refines AI behavior from general principles to specific, learned rules.
+EvoKit uses a **3-layer architecture** organized around the lifecycle of knowledge entries.
 
 ```
 +------------------------------------------------------------------+
 |  L1: Cognitive Core                                              |
-|  CLAUDE.md — Thinking framework, evolution protocol               |
+|  CLAUDE.md — Thinking framework, knowledge system protocol        |
 |  Loaded: Every session                                            |
 |  Max: 150 lines                                                   |
 +------------------------------------------------------------------+
-|  L2: Path Rules                                                   |
-|  .claude/rules/ — Auto-loaded by file path                        |
-|  Loaded: When editing matching files                              |
-|  Examples: security.md, coding.md, core-invariants               |
+|  L2: Path Rules + Skills + Sub-agents                             |
+|  rules/ — Auto-loaded by file path                                |
+|  skills/ — Progressive disclosure workflow skills                  |
+|  agents/ — Specialized agent definitions                          |
 +------------------------------------------------------------------+
-|  L3a: Skills                                                      |
-|  .claude/skills/ — Auto-invoked workflow skills                  |
-|  Invoked: Automatically by relevance detection                    |
-|  Examples: debug, code-review, learning-recorder                  |
-+------------------------------------------------------------------+
-|  L3b: Sub-agents                                                  |
-|  .claude/agents/ — Specialized agent definitions                 |
-|  Invoked: On demand via "claude agent <name>"                    |
-|  Examples: architect (plan), reviewer (review)                    |
-+------------------------------------------------------------------+
-|  L4: Evolution Engine                                             |
-|  .claude/memory/ + .claude/hooks/ + .claude/commands/            |
-|  corrections -> observations -> promotion -> audit                |
-|  Commands: /boot, /evolve, /review                                |
-|  Hooks: PreToolUse, PostToolUse, PreCompact, Stop                 |
+|  L3: Knowledge Engine                                             |
+|  evokit/ — Knowledge entries + index + pending                    |
+|  Conversation extraction → confirm → persist → staleness detect   |
+|  Commands: /evokit-boot, /evokit-learn, /evokit-review            |
+|  Hooks: SessionStart, Stop                                        |
 +------------------------------------------------------------------+
 ```
 
@@ -40,18 +30,17 @@ EvoKit uses a **4-layer architecture** that progressively refines AI behavior fr
 
 The cognitive core defines **how the AI thinks**, not just what it knows. It contains:
 
-- **Thinking Framework:** The Understand -> Plan -> Verify -> Learn hierarchy
-- **Completion Standards:** What "done" means (tested, no TODOs, no debug code)
-- **Memory System Protocol:** How learning data flows through the system
+- **Thinking Framework:** The Understand → Plan → Verify → Learn hierarchy
+- **Completion Standards:** What "done" means (tested, no TODOs, knowledge base intact)
+- **Knowledge System Protocol:** Knowledge identification, silent marking, confirmation flow
 - **Skills & Agents:** Reference to skills directory and sub-agent definitions
-- **Auto-Memory & Hooks:** Configuration for auto-memory and lifecycle hooks
-- **Evolution Commands:** What `/boot`, `/evolve`, `/review` do
+- **Commands:** What `/evokit-boot`, `/evokit-learn`, `/evokit-review` do
 
-**Design Principle:** CLAUDE.md should change rarely. New knowledge goes into rules/ or memory/.
+**Design Principle:** CLAUDE.md should change rarely. New knowledge goes into `evokit/knowledge/`.
 
-### L2: Path Rules (.claude/rules/)
+### L2: Path Rules + Skills + Sub-agents
 
-Rules that are **automatically loaded when editing files matching their `paths` pattern**.
+**Path Rules (.claude/rules/)** — Automatically loaded when editing files matching their `paths` pattern.
 
 | Rule File | Scope | Purpose |
 |-----------|-------|---------|
@@ -59,98 +48,95 @@ Rules that are **automatically loaded when editing files matching their `paths` 
 | `coding.md` | `*/coding*` | Style, quality, language-specific conventions |
 | `core-invariants.md` | `*/core-invariants*` | Immutable system rules |
 
-**Design Principle:** Rules are the permanent knowledge that has graduated from the learning pipeline.
+**Skills (.claude/skills/)** — Auto-invoked workflow instructions using progressive disclosure.
 
-### L3a: Skills (.claude/skills/)
-
-Skills are **auto-invoked workflow instructions** using progressive disclosure. Only the `description` field (~30-50 tokens) loads initially; full instructions load on-demand when Claude detects relevance.
-
-| Skill | Auto-Invoked | Purpose |
-|-------|-------------|---------|
-| `debug` | Yes | Systematic debugging workflow |
-| `code-review` | Yes | Structured code review workflow |
-| `learning-recorder` | No (manual) | Guidelines for recording learning data |
-
-Skills use `disable-model-invocation: true` to prevent auto-loading for reference-only skills.
-
-### L3b: Sub-agents (.claude/agents/)
-
-Specialized agents with isolated context that can work independently.
+**Sub-agents (.claude/agents/)** — Specialized agents with isolated context.
 
 | Agent | Tools | MaxTurns | Memory | Purpose |
 |-------|-------|----------|--------|---------|
 | `architect` | Read, Write, Bash, Agent, etc. | 20 | project | Design implementation plans |
 | `reviewer` | Read, Grep, Glob, Bash | 15 | project | Code review for bugs/security/quality |
 
-Sub-agents support `memory: project` for project-scoped learning, `disallowedTools` for restricting access, and `isolation: worktree` for safe parallel execution.
+### L3: Knowledge Engine (evokit/)
 
-**Design Principle:** Sub-agents keep complex analysis out of the main conversation context, preventing context overflow.
-
-### L4: Evolution Engine (.claude/memory/ + hooks/ + commands/)
-
-The learning infrastructure that makes the system self-evolving.
+The core infrastructure that persists project/personal knowledge AI can't know from training data.
 
 #### Data Flow
 
 ```
-User Correction
+Knowledge identified in conversation
      |
      v
-corrections.jsonl ----> /evolve ----> learned-rules.md ----> rules/ or CLAUDE.md
-     |                      |
-     |                      v
-     |               evolution-log.md (rejected -> never re-propose)
-     |
-observations.jsonl ----> confidence decay (60d -> half confidence)
-     |
-     v
-archive/ (30d+ entries, gzip if >1000 lines)
+.pending/{type}-{slug}.md  ──→  User confirms  ──→  knowledge/{type}-{slug}.md
+     |                                        |
+     |                                        v
+     └── Rejected → delete              knowledge-index.md (append entry line)
 ```
 
-#### Hook-Driven Learning
+#### Hooks
 
-| Hook | Role in Evolution |
-|------|-------------------|
-| `SessionStart` | Boot verification, check system integrity |
-| `PreToolUse` | Inject learned rules before tool use, block dangerous commands |
-| `PostToolUse` | Track file edit patterns as observations |
-| `PreCompact` | Snapshot learning state before context compaction |
-| `Stop` | Record session duration, corrections, observations |
+| Hook | Role in Knowledge Engine |
+|------|--------------------------|
+| `SessionStart` | Quick knowledge base integrity check (index existence, entry files, frontmatter format) |
+| `Stop` | Check `.pending/` for unconfirmed items, prompt user to run `/evokit-learn` |
 
 #### Management Commands
 
-| Command | Frequency | Action |
-|---------|-----------|--------|
-| `/boot` | Every session | Verify all learned rules, check structure |
-| `/evolve` | ~10 sessions | Audit corrections, promote/prune rules |
-| `/review` | Before commit | Full code review via reviewer agent |
+| Command | Purpose |
+|---------|---------|
+| `/evokit-boot` | Deep knowledge base integrity check |
+| `/evokit-learn` | Review conversation-extracted knowledge / explicitly declare knowledge |
+| `/evokit-review` | Code review via reviewer agent |
+
+#### Knowledge Entry Structure
+
+Each knowledge entry is `knowledge/{type}-{slug}.md` with YAML frontmatter + body:
+
+```yaml
+---
+id: convention-uv-pip
+scope: personal
+type: convention
+source: conversation
+confidence: 0.9
+created: "2026-07-30"
+---
+## 内容
+Use uv instead of pip
+```
+
+#### Knowledge Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `convention` | Project convention | "Use Result<T> instead of throw" |
+| `preference` | Personal preference | "Use uv instead of pip" |
+| `architecture` | Architecture decision | "packages/api is upstream" |
+| `workflow` | Workflow rule | "Use conventional commits format" |
 
 ## File Size Limits
 
 | File | Max Lines | When Full |
 |------|-----------|-----------|
 | `CLAUDE.md` | 150 | Move content to `rules/` |
-| `learned-rules.md` | 50 | Run `/evolve` to prune |
-| `corrections.jsonl` | 500 | Auto-rotate to `archive/` |
-| `observations.jsonl` | 500 | Auto-rotate to `archive/` |
+| `knowledge-index.md` | No hard limit | Staleness detection is self-regulating |
 
 ## Multi-Agent Adapter Architecture
 
 ```
-+-------------+    +--------------+    +-------------+
-|  Claude     |    |  Codex       |    |  OpenCode   |
-|  Code       |    |  CLI         |    |  CLI        |
-+------+------+    +------+-------+    +------+------+
-       |                  |                   |
-       v                  v                   v
-+----------------------------------------------------+
-|              EvoKit Adapter Layer                   |
-|  agent-install -> setup-hooks -> inject-memory      |
-|  export-memory -> run-command                       |
-+----------------------------------------------------+
-|              Shared Learning Data                    |
-|  corrections.jsonl / observations.jsonl / rules     |
-+----------------------------------------------------+
++-------------+    +--------------+    +-------------+    +---------+
+|  Claude     |    |  Codex       |    |  OpenCode   |    |  Pi     |
+|  Code       |    |  CLI         |    |  CLI        |    |  CLI    |
++------+------+    +------+-------+    +------+------+    +----+---+
+       |                  |                   |               |
+       v                  v                   v               v
++---------------------------------------------------------------+
+|              EvoKit Adapter Layer                               |
+|  install → setup-hooks → status → uninstall                    |
++---------------------------------------------------------------+
+|              Independent Knowledge Base per Adapter             |
+|  ~/.claude/memory/evokit/  ~/.codex/memory/evokit/  ...        |
++---------------------------------------------------------------+
 ```
 
 See [MULTI_AGENT.md](MULTI_AGENT.md) for the full adapter specification.

@@ -2,35 +2,25 @@
 
 ## 概述
 
-EvoKit 采用 **4 层架构**，从通用原则到具体的学习规则，渐进式地精炼 AI 行为。
+EvoKit 采用 **3 层架构**，围绕知识条目的生命周期组织 AI 行为。
 
 ```
 +------------------------------------------------------------------+
 |  L1: 认知核心                                                      |
-|  CLAUDE.md — 思维框架、进化协议                                     |
+|  CLAUDE.md — 思维框架、知识系统协议                                  |
 |  加载时机：每次会话                                                |
 |  最大行数：150 行                                                  |
 +------------------------------------------------------------------+
-|  L2: 路径规则                                                      |
-|  .claude/rules/ — 按文件路径自动加载                                |
-|  加载时机：编辑匹配文件时                                          |
-|  示例：security.md, coding.md, core-invariants                    |
+|  L2: 路径规则 + 技能 + 子代理                                       |
+|  rules/ — 按文件路径自动加载                                        |
+|  skills/ — 渐进式披露的自动调用工作流                               |
+|  agents/ — 专门的代理定义                                          |
 +------------------------------------------------------------------+
-|  L3a: 技能                                                         |
-|  .claude/skills/ — 自动调用的工作流技能                            |
-|  调用时机：由相关性检测自动触发                                     |
-|  示例：debug, code-review, learning-recorder                       |
-+------------------------------------------------------------------+
-|  L3b: 子代理                                                       |
-|  .claude/agents/ — 专门的代理定义                                  |
-|  调用时机：按需通过 "claude agent <name>" 使用                     |
-|  示例：architect（规划）, reviewer（审查）                          |
-+------------------------------------------------------------------+
-|  L4: 进化引擎                                                      |
-|  .claude/memory/ + .claude/hooks/ + .claude/commands/             |
-|  纠错 -> 观察 -> 晋升 -> 审计                                      |
-|  命令：/boot, /evolve, /review                                     |
-|  钩子：PreToolUse, PostToolUse, PreCompact, Stop                   |
+|  L3: 知识引擎                                                      |
+|  evokit/ — 知识条目 + 索引 + 待确认                                 |
+|  对话提取 → 确认 → 持久化 → 过期检测                                |
+|  命令：/evokit-boot, /evokit-learn, /evokit-review                 |
+|  钩子：SessionStart, Stop                                          |
 +------------------------------------------------------------------+
 ```
 
@@ -40,18 +30,17 @@ EvoKit 采用 **4 层架构**，从通用原则到具体的学习规则，渐进
 
 认知核心定义了 **AI 如何思考**，而不仅仅是它知道什么。它包含：
 
-- **思维框架：** 理解 -> 规划 -> 验证 -> 学习的层级结构
-- **完成标准：** "完成"的定义（经过测试、无 TODO、无调试代码）
-- **记忆系统协议：** 学习数据如何在系统中流转
+- **思维框架：** 理解 → 规划 → 验证 → 学习的层级结构
+- **完成标准：** "完成"的定义（经过测试、无 TODO、知识库完整）
+- **知识系统协议：** 知识识别、静默标记、确认流程
 - **技能与代理：** 对技能目录和子代理定义的引用
-- **自动记忆与钩子：** 自动记忆和生命周期钩子的配置
-- **进化命令：** `/boot`、`/evolve`、`/review` 的功能说明
+- **命令：** `/evokit-boot`、`/evokit-learn`、`/evokit-review` 的功能说明
 
-**设计原则：** CLAUDE.md 应很少变更。新知识应放入 `rules/` 或 `memory/`。
+**设计原则：** CLAUDE.md 应很少变更。新知识应写入 `evokit/knowledge/`。
 
-### L2：路径规则（.claude/rules/）
+### L2：路径规则 + 技能 + 子代理
 
-**编辑匹配其 `paths` 模式的文件时自动加载**的规则。
+**路径规则（.claude/rules/）** — 编辑匹配其 `paths` 模式的文件时自动加载。
 
 | 规则文件 | 作用域 | 用途 |
 |-----------|-------|------|
@@ -59,98 +48,95 @@ EvoKit 采用 **4 层架构**，从通用原则到具体的学习规则，渐进
 | `coding.md` | `*/coding*` | 风格、质量、语言特定约定 |
 | `core-invariants.md` | `*/core-invariants*` | 不可变的系统规则 |
 
-**设计原则：** 规则是从学习管道中毕业的永久知识。
+**技能（.claude/skills/）** — 渐进式披露的自动调用工作流指令。
 
-### L3a：技能（.claude/skills/）
-
-技能是使用渐进式披露的**自动调用工作流指令**。只有 `description` 字段（约 30-50 token）在初始时加载；当 Claude 检测到相关性时，完整指令按需加载。
-
-| 技能 | 是否自动调用 | 用途 |
-|------|-------------|------|
-| `debug` | 是 | 系统化调试工作流 |
-| `code-review` | 是 | 结构化代码审查工作流 |
-| `learning-recorder` | 否（手动） | 记录学习数据的指南 |
-
-技能使用 `disable-model-invocation: true` 来防止仅做参考的技能自动加载。
-
-### L3b：子代理（.claude/agents/）
-
-具有隔离上下文、可以独立工作的专业代理。
+**子代理（.claude/agents/）** — 具有隔离上下文的专业代理。
 
 | 代理 | 工具 | 最大轮次 | 记忆 | 用途 |
 |------|------|---------|------|------|
 | `architect` | Read, Write, Bash, Agent 等 | 20 | project | 设计实现方案 |
-| `reviewer` | Read, Grep, Glob, Bash | 15 | project | 对错误/安全/质量进行代码审查 |
+| `reviewer` | Read, Grep, Glob, Bash | 15 | project | 代码审查 |
 
-子代理支持 `memory: project` 实现项目级学习，`disallowedTools` 限制访问权限，以及 `isolation: worktree` 实现安全的并行执行。
+### L3：知识引擎（evokit/）
 
-**设计原则：** 子代理将复杂的分析工作从主对话上下文中移出，防止上下文溢出。
-
-### L4：进化引擎（.claude/memory/ + hooks/ + commands/）
-
-使系统能够自我进化的学习基础设施。
+让 AI 持久化项目/个人专属知识的核心基础设施。
 
 #### 数据流
 
 ```
-用户纠错
+对话中识别知识
      |
      v
-corrections.jsonl ----> /evolve ----> learned-rules.md ----> rules/ 或 CLAUDE.md
-     |                      |
-     |                      v
-     |               evolution-log.md（已拒绝 -> 不再提议）
-     |
-observations.jsonl ----> 置信度衰减（60 天 -> 置信度减半）
-     |
-     v
-archive/（超过 30 天的条目，超过 1000 行则 gzip 压缩）
+.pending/{type}-{slug}.md  ──→  用户确认  ──→  knowledge/{type}-{slug}.md
+     |                                        |
+     |                                        v
+     └── 拒绝 → 删除                    knowledge-index.md（追加条目行）
 ```
 
-#### 钩子驱动的学习
+#### 钩子
 
-| 钩子 | 在进化中的角色 |
-|------|---------------|
-| `SessionStart` | 启动验证，检查系统完整性 |
-| `PreToolUse` | 在使用工具前注入已学习的规则，阻止危险命令 |
-| `PostToolUse` | 将文件编辑模式记录为观察数据 |
-| `PreCompact` | 在上下文压缩前快照学习状态 |
-| `Stop` | 记录会话持续时间、纠错和观察数据 |
+| 钩子 | 在知识引擎中的角色 |
+|------|-------------------|
+| `SessionStart` | 快速知识库完整性检查（索引存在、条目文件、frontmatter 格式） |
+| `Stop` | 检查 `.pending/` 非空时提示运行 `/evokit-learn` |
 
 #### 管理命令
 
-| 命令 | 频率 | 作用 |
+| 命令 | 用途 |
+|------|------|
+| `/evokit-boot` | 知识库完整性深度检查 |
+| `/evokit-learn` | 回顾对话提取知识 / 显式声明知识 |
+| `/evokit-review` | 代码审查 |
+
+#### 知识条目结构
+
+每个知识条目是 `knowledge/{type}-{slug}.md`，包含 YAML frontmatter + 正文：
+
+```yaml
+---
+id: convention-uv-pip
+scope: personal
+type: convention
+source: conversation
+confidence: 0.9
+created: "2026-07-30"
+---
+## 内容
+使用 uv 代替 pip
+```
+
+#### 知识类型
+
+| 类型 | 说明 | 示例 |
 |------|------|------|
-| `/boot` | 每次会话 | 验证所有已学习的规则，检查结构 |
-| `/evolve` | 约 10 次会话 | 审计纠错记录，晋升/修剪规则 |
-| `/review` | 提交前 | 通过审查代理进行完整代码审查 |
+| `convention` | 项目约定 | "使用 Result<T> 而非 throw" |
+| `preference` | 个人偏好 | "使用 uv 而非 pip" |
+| `architecture` | 架构决策 | "packages/api 是上游" |
+| `workflow` | 工作流规则 | "commit 用 conventional 格式" |
 
 ## 文件大小限制
 
 | 文件 | 最大行数 | 超出时 |
 |------|---------|--------|
 | `CLAUDE.md` | 150 | 将内容移至 `rules/` |
-| `learned-rules.md` | 50 | 运行 `/evolve` 进行修剪 |
-| `corrections.jsonl` | 500 | 自动轮换至 `archive/` |
-| `observations.jsonl` | 500 | 自动轮换至 `archive/` |
+| `knowledge-index.md` | 无硬性限制 | 过期检测自动调节 |
 
 ## 多代理适配器架构
 
 ```
-+-------------+    +--------------+    +-------------+
-|  Claude     |    |  Codex       |    |  OpenCode   |
-|  Code       |    |  CLI         |    |  CLI        |
-+------+------+    +------+-------+    +------+------+
-       |                  |                   |
-       v                  v                   v
-+----------------------------------------------------+
-|              EvoKit 适配器层                         |
-|  agent-install -> setup-hooks -> inject-memory      |
-|  export-memory -> run-command                       |
-+----------------------------------------------------+
-|              共享学习数据                             |
-|  corrections.jsonl / observations.jsonl / rules     |
-+----------------------------------------------------+
++-------------+    +--------------+    +-------------+    +---------+
+|  Claude     |    |  Codex       |    |  OpenCode   |    |  Pi     |
+|  Code       |    |  CLI         |    |  CLI        |    |  CLI    |
++------+------+    +------+-------+    +------+------+    +----+---+
+       |                  |                   |               |
+       v                  v                   v               v
++---------------------------------------------------------------+
+|              EvoKit 适配器层                                     |
+|  install → setup-hooks → status → uninstall                    |
++---------------------------------------------------------------+
+|              各适配器独立知识库                                   |
+|  ~/.claude/memory/evokit/  ~/.codex/memory/evokit/  ...        |
++---------------------------------------------------------------+
 ```
 
 详见 [MULTI_AGENT.md](MULTI_AGENT.md) 了解完整的适配器规范。
