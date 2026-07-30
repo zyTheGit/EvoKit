@@ -177,7 +177,7 @@ const MEMORY_SEED_FILES = [
 ] as const;
 
 const CLAUDE_SUBDIRS = ['rules', 'agents', 'commands', 'memory', 'hooks'] as const;
-const HOOK_FILES = ['session-start.sh', 'stop.sh', 'export-system.sh'] as const;
+const HOOK_FILES = ['session-start.sh', 'stop.sh'] as const;
 
 // ─── 管道 ─────────────────────────────────────────────────
 

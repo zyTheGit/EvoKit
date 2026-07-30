@@ -35,7 +35,7 @@ export const CLAUDE_ADAPTER_VERSION = '0.2.0';
 
 const CLAUDE_GLOBAL_SUBDIRS = ['rules', 'commands', 'agents', 'hooks', 'memory', 'skills'] as const;
 const CLAUDE_PROJECT_SUBDIRS = ['rules', 'commands', 'agents', 'skills', 'memory'] as const;
-const CLAUDE_HOOK_FILES = ['session-start.sh', 'stop.sh', 'export-system.sh'] as const;
+const CLAUDE_HOOK_FILES = ['session-start.sh', 'stop.sh'] as const;
 
 const MEMORY_SEED_FILES = [
   'README.md',

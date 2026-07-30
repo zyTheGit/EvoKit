@@ -1,25 +1,15 @@
 #!/bin/bash
-# EvoKit — Codex CLI Stop Hook
-# Records session data to shared memory on session end.
-# Installed by: evokit init --adapter codex
+# EvoKit — Codex CLI Stop 钩子
+# 检查 .pending/ 是否有待确认知识，非空时输出提示，空时静默跳过
 
-set -e
+EVOKIT_DIR="__HOME__/.codex/memory/evokit"
+PENDING_DIR="${EVOKIT_DIR}/.pending"
 
-HOME_DIR="${HOME}"
-SESSIONS_FILE="${HOME_DIR}/.codex/memory/sessions.jsonl"
-SESSION_ID="${CODEX_SESSION_ID:-unknown}"
-MODEL="${CODEX_MODEL:-unknown}"
-START_TIME="${CODEX_SESSION_START:-$(date +%s)}"
-NOW=$(date +%s)
-DURATION=$((NOW - START_TIME))
-
-# Ensure memory directory exists
-mkdir -p "$(dirname "$SESSIONS_FILE")"
-
-# Append session record (JSONL)
-echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"session_id\":\"${SESSION_ID}\",\"assistant\":\"codex\",\"model\":\"${MODEL}\",\"duration_seconds\":${DURATION},\"score\":\"\"}" >> "$SESSIONS_FILE"
-
-# Secure the file
-chmod 600 "$SESSIONS_FILE" 2>/dev/null || true
+if [ -d "$PENDING_DIR" ]; then
+  PENDING_COUNT=$(find "$PENDING_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l)
+  if [ "$PENDING_COUNT" -gt 0 ]; then
+    echo "📋 有 ${PENDING_COUNT} 条待确认知识，下次运行 /evokit-learn 确认"
+  fi
+fi
 
 exit 0

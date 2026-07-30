@@ -50,7 +50,6 @@ A task is "done" ONLY when ALL conditions are met:
 | `learned-rules.md`   | Promoted permanent rules (max 50 lines)    | Yes — via `/evolve`             |
 | `evolution-log.md`   | Audit trail of `/evolve` decisions         | Yes — via `/evolve`             |
 | `violations.jsonl`   | Rules violated during boot verification    | Yes — via `/boot`               |
-| `sessions.jsonl`     | Session scorecards                         | Yes — via Stop hook             |
 
 ### Promotion Ladder
 
@@ -125,15 +124,12 @@ Claude Code's built-in auto-memory (`autoMemoryEnabled: true` in settings.json) 
 
 ### Hook Events (configured in settings.json)
 
-| Event        | Purpose                                                | Hook Script        |
-| ------------ | ------------------------------------------------------ | ------------------ |
-| SessionStart | Boot verification at session start                     | `session-start.sh` |
-| PreToolUse   | Inject learned rules context, block dangerous commands | `pre-tool-use.sh`  |
-| PostToolUse  | Auto-format edited files, track edit patterns          | `post-tool-use.sh` |
-| PreCompact   | Save learning state before context compaction          | `pre-compact.sh`   |
-| Stop         | Record session summary (duration, corrections, model)  | `stop.sh`          |
+| Event        | Purpose                                         | Hook Script        |
+| ------------ | ----------------------------------------------- | ------------------ |
+| SessionStart | Quick knowledge base integrity check            | `session-start.sh` |
+| Stop         | Check pending knowledge, prompt user to confirm | `stop.sh`          |
 
-Before context compaction (`PreCompact`), a snapshot of current learning state is saved so progress isn't lost. Auto-formatting runs asynchronously (`async: true`) on every Edit/Write via `PostToolUse`.
+SessionStart performs a fast check on knowledge base integrity (index existence, entry files, frontmatter format, pending items). Detailed diagnostics are left to `/evokit-boot`.
 
 ## 7. Integrity Rules
 

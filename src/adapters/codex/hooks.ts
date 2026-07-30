@@ -182,8 +182,7 @@ export class CodexHooksBuilder {
   static createDefault(scriptsDir: string): CodexHooksBuilder {
     return new CodexHooksBuilder()
       .addSessionStartHook(path.join(scriptsDir, 'session-start.sh'))
-      .addStopHook(path.join(scriptsDir, 'stop.sh'))
-      .addPreToolUseHook(path.join(scriptsDir, 'pre-tool-use.sh'));
+      .addStopHook(path.join(scriptsDir, 'stop.sh'));
   }
 }
 

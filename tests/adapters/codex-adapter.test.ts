@@ -76,7 +76,7 @@ describe('codex-installer', () => {
 
       // Summary counts
       expect(summary.filesCreated).toBeGreaterThan(0);
-      expect(summary.hooksInstalled).toBe(3);
+      expect(summary.hooksInstalled).toBe(2);
       expect(summary.rulesInstalled).toBe(1);
     });
 
@@ -89,7 +89,7 @@ describe('codex-installer', () => {
       const codexHome = resolveCodexHome(homeDir);
       expect(fs.existsSync(path.join(codexHome, 'AGENTS.md'))).toBe(false);
       expect(summary.filesCreated).toBeGreaterThan(0);
-      expect(summary.hooksInstalled).toBe(3);
+      expect(summary.hooksInstalled).toBe(2);
     });
 
     it('is idempotent — skips existing files', () => {

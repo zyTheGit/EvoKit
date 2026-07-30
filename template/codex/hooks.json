@@ -25,19 +25,6 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "__HOME__/.codex/hooks-scripts/pre-tool-use.sh",
-            "timeout": 10,
-            "statusMessage": "EvoKit: checking tool policy"
-          }
-        ]
-      }
     ]
   }
 }

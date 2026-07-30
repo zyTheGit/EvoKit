@@ -30,7 +30,7 @@ export const CODEX_ADAPTER_VERSION = '0.4.0';
 
 const CODEX_SUBDIRS = ['rules', 'hooks-scripts', 'memory'] as const;
 const CODEX_PROJECT_SUBDIRS = ['rules', 'agents', 'skills', 'hooks', 'memory'] as const;
-const HOOK_SCRIPTS = ['session-start.sh', 'stop.sh', 'pre-tool-use.sh'] as const;
+const HOOK_SCRIPTS = ['session-start.sh', 'stop.sh'] as const;
 const MEMORY_SEED_FILES = ['README.md', 'learned-rules.md', 'evolution-log.md'] as const;
 
 export function resolveCodexHome(homeDir: string): string {

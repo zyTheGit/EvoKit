@@ -12,42 +12,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash __HOME__/.claude/hooks/pre-tool-use.sh"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash __HOME__/.claude/hooks/post-tool-use.sh",
-            "async": true,
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "manual|auto",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash __HOME__/.claude/hooks/pre-compact.sh",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "*",

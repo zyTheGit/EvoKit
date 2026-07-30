@@ -38,7 +38,7 @@ describe('template', () => {
       expect(settings).toContain(homeDir);
 
       // Summary should have reasonable counts
-      expect(summary.hooksInstalled).toBe(6);
+      expect(summary.hooksInstalled).toBe(2);
       expect(summary.rulesInstalled).toBe(3);
       expect(summary.agentsInstalled).toBe(2);
       expect(summary.commandsInstalled).toBe(3);
@@ -64,7 +64,7 @@ describe('template', () => {
       // Nothing should be created in dry-run
       expect(fs.existsSync(path.join(homeDir, '.claude', 'rules'))).toBe(false);
       // But summary should still report what WOULD happen
-      expect(summary.hooksInstalled).toBe(6);
+      expect(summary.hooksInstalled).toBe(2);
     });
   });
 
@@ -92,7 +92,7 @@ describe('template', () => {
       expect(fs.existsSync(path.join(claudeDir, 'skills'))).toBe(true);
       expect(fs.existsSync(path.join(claudeDir, 'memory'))).toBe(true);
 
-      expect(summary.hooksInstalled).toBe(6);
+      expect(summary.hooksInstalled).toBe(2);
       expect(summary.rulesInstalled).toBe(3);
       expect(summary.agentsInstalled).toBe(2);
       expect(summary.commandsInstalled).toBe(3);
@@ -211,7 +211,7 @@ describe('template', () => {
       expect(fs.existsSync(path.join(claudeDir, 'hooks'))).toBe(true);
       expect(fs.existsSync(path.join(homeDir, 'CLAUDE.md'))).toBe(false);
       expect(fs.existsSync(path.join(claudeDir, 'settings.json'))).toBe(false);
-      expect(summary.hooksInstalled).toBe(6);
+      expect(summary.hooksInstalled).toBe(2);
     });
 
     it('defaults to full profile when no profile or flags specified', () => {
@@ -228,7 +228,7 @@ describe('template', () => {
       // Should behave like full profile
       expect(fs.existsSync(path.join(homeDir, 'CLAUDE.md'))).toBe(true);
       expect(fs.existsSync(path.join(claudeDir, 'settings.json'))).toBe(true);
-      expect(summary.hooksInstalled).toBe(6);
+      expect(summary.hooksInstalled).toBe(2);
     });
   });
 
