@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// EvoKit CLI — 自演化系统框架
+// EvoKit CLI — 项目上下文引擎
 // 优先级: dist/（生产） → tsx（开发）
 
 const { resolve } = require('path');
 const { pathToFileURL } = require('url');
 const { existsSync, readFileSync } = require('fs');
 
-// ─── 快速路径：-V / --version / -h / --help ──────────────────────────────────────────
-// 避免加载整个模块链（适配器、安装、演化等），仅读取 package.json 即可输出版本号。
+// ─── 快速路径：-V / --version / -h / --help / 未知命令 ──────────────────────────────
+// 避免加载整个模块链（适配器、安装、知识库等），仅读取 package.json 即可输出版本号。
 
 function handleQuickCommands() {
   const args = process.argv.slice(2);
@@ -26,7 +26,7 @@ function handleQuickCommands() {
   if (hasHelpFlag && args.length === 1) {
     // 仅 --help 无子命令时，输出简短帮助后退出
     console.log(`
-EvoKit — AI 编程助手的自演化系统框架
+EvoKit — AI 编程助手的项目上下文引擎
 
 Usage: evokit <command> [options]
 
@@ -37,13 +37,26 @@ Commands:
   init                 install 的别名（向后兼容）
   project              生成项目规范文件
   doctor               验证系统完整性
-  evolve               运行演化审计
-  export               导出学习数据
-  import <压缩包>      导入学习数据
+  migrate              迁移旧数据为 v1.0 知识条目格式
+  export               导出 EvoKit 系统状态（v1.0 暂不可用）
+  import <压缩包>      导入 EvoKit 系统状态（v1.0 暂不可用）
 
 Run 'evokit <command> --help' for more information on a command.
 `);
     process.exit(0);
+  }
+
+  // 未知命令快速失败 — 避免加载整个模块链
+  if (args.length > 0 && !hasHelpFlag && !hasVersionFlag) {
+    const knownCommands = [
+      'install', 'uninstall', 'update', 'init', 'project',
+      'doctor', 'migrate', 'export', 'import',
+    ];
+    const cmd = args[0];
+    if (!cmd.startsWith('-') && !knownCommands.includes(cmd)) {
+      console.error(`evokit: 未知命令 "${cmd}"。运行 'evokit --help' 查看可用命令。`);
+      process.exit(1);
+    }
   }
 }
 
