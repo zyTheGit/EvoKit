@@ -8,10 +8,9 @@
  *   evokit init        — install 的别名（向后兼容）
  *   evokit project     — 在项目目录中生成 AI 助手规范文件
  *   evokit doctor      — 系统健康检查
- *   evokit evolve      — 运行演化审计
- *   evokit export      — 导出学习数据
- *   evokit import      — 导入学习数据
  *   evokit migrate     — 迁移旧数据为 v1.0 知识条目格式
+ *   evokit export      — 导出学习数据（v1.0 暂不可用）
+ *   evokit import      — 导入学习数据（v1.0 暂不可用）
  *
  * @packageDocumentation
  */
@@ -25,7 +24,6 @@ import './adapters/index.js';
 import { installCommand } from './install.js';
 import { initCommand } from './commands/init.js';
 import { projectCommand } from './commands/project.js';
-import { evolveCommand } from './commands/evolve.js';
 import { exportCommand } from './commands/export_cmd.js';
 import { importCommand } from './commands/import_cmd.js';
 import { doctorCommand } from './commands/doctor.js';
@@ -40,7 +38,7 @@ const program = new Command();
 
 program
   .name('evokit')
-  .description('EvoKit — AI 编程助手的自演化系统框架')
+  .description('EvoKit — AI 编程助手的项目上下文引擎')
   .version(pkg.version)
   .addHelpText(
     'after',
@@ -51,10 +49,10 @@ program
   update [适配器]      更新已安装适配器的模板文件（hooks、rules、commands、agents、skills）
   init                 install 的别名（向后兼容）
   project              在项目目录中生成 .claude/ 规范文件（规则、代理、命令）
-  doctor               验证 EvoKit 系统完整性（钩子、清单、文件结构）
-  evolve               运行演化审计 — 提升纠正为规则、清理过期规则
-  export               导出 EvoKit 系统状态为迁移压缩包
-  import <压缩包>      从迁移压缩包导入 EvoKit 系统状态
+  doctor               验证 EvoKit 系统完整性（钩子、清单、知识库）
+  migrate              迁移旧数据为 v1.0 知识条目格式
+  export               导出 EvoKit 系统状态（v1.0 暂不可用）
+  import <压缩包>      从迁移压缩包导入 EvoKit 系统状态（v1.0 暂不可用）
 
 快速上手：
   evokit install claude          安装 EvoKit 到 Claude Code
@@ -62,6 +60,7 @@ program
   evokit update                  更新所有适配器的模板文件
   evokit uninstall claude        卸载 Claude Code 的 EvoKit
   evokit doctor                  检查系统健康状态
+  evokit migrate                 迁移旧版本数据到 v1.0 格式
   evokit project                 在当前项目生成规范文件
 
 详细帮助：
@@ -72,7 +71,7 @@ program.addCommand(installCommand);
 program.addCommand(initCommand);
 program.addCommand(updateCommand);
 program.addCommand(projectCommand);
-program.addCommand(evolveCommand);
+program.addCommand(migrateCommand);
 program.addCommand(exportCommand);
 program.addCommand(importCommand);
 program.addCommand(doctorCommand);

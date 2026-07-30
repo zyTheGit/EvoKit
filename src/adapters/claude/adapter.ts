@@ -37,15 +37,7 @@ const CLAUDE_GLOBAL_SUBDIRS = ['rules', 'commands', 'agents', 'hooks', 'memory',
 const CLAUDE_PROJECT_SUBDIRS = ['rules', 'commands', 'agents', 'skills', 'memory'] as const;
 const CLAUDE_HOOK_FILES = ['session-start.sh', 'stop.sh'] as const;
 
-const MEMORY_SEED_FILES = [
-  'README.md',
-  'learned-rules.md',
-  'evolution-log.md',
-  'corrections.jsonl',
-  'observations.jsonl',
-  'violations.jsonl',
-  'sessions.jsonl',
-] as const;
+const MEMORY_SEED_FILES = ['README.md', 'evokit/knowledge-index.md'] as const;
 
 // ─── 声明式布局配置 ──────────────────────────────────────────
 
@@ -365,26 +357,74 @@ export function buildClaudeExtraChecks(homeDir: string): AdapterVerifyCheck[] {
     });
   }
 
-  // 记忆文件完整性检查
+  // ── v1.0 知识库健康检查 ──
   const memoryDir = path.join(homeDir, '.claude', 'memory');
-  const memoryFiles = [
-    'corrections.jsonl',
-    'observations.jsonl',
-    'sessions.jsonl',
-    'violations.jsonl',
-    'learned-rules.md',
-    'evolution-log.md',
-    'README.md',
-  ];
+  const evokitDir = path.join(memoryDir, 'evokit');
 
-  for (const file of memoryFiles) {
-    const fp = path.join(memoryDir, file);
-    const exists = fse.existsSync(fp);
+  // 1. evokit/ 目录存在性
+  const evokitDirExists = fse.existsSync(evokitDir);
+  checks.push({
+    name: '.claude/memory/evokit/',
+    pass: evokitDirExists,
+    detail: evokitDirExists ? undefined : '知识库目录不存在',
+  });
+
+  if (evokitDirExists) {
+    // 2. knowledge-index.md 存在性 + 格式合法性
+    const indexPath = path.join(evokitDir, 'knowledge-index.md');
+    const indexExists = fse.existsSync(indexPath);
     checks.push({
-      name: `.claude/memory/${file}`,
-      pass: exists || file === 'README.md', // README.md 为可选
-      detail: !exists && file !== 'README.md' ? '（可选）' : undefined,
+      name: 'evokit/knowledge-index.md',
+      pass: indexExists,
+      detail: indexExists ? undefined : '知识索引文件缺失',
     });
+
+    if (indexExists) {
+      try {
+        const indexContent = fs.readFileSync(indexPath, 'utf-8');
+        const hasSections =
+          indexContent.includes('## 个人知识') && indexContent.includes('## 项目知识');
+        checks.push({
+          name: 'knowledge-index.md 格式',
+          pass: hasSections,
+          detail: hasSections ? undefined : '缺少必需的 section 标题（## 个人知识 / ## 项目知识）',
+        });
+      } catch {
+        checks.push({
+          name: 'knowledge-index.md 格式',
+          pass: false,
+          detail: '无法读取索引文件',
+        });
+      }
+    }
+
+    // 3. knowledge/ 条目文件与索引一致性
+    const knowledgeDir = path.join(evokitDir, 'knowledge');
+    if (fse.existsSync(knowledgeDir)) {
+      const entryFiles = fs.readdirSync(knowledgeDir).filter((f) => f.endsWith('.md'));
+      checks.push({
+        name: `evokit/knowledge/（${entryFiles.length} 个条目）`,
+        pass: true,
+        detail: entryFiles.length === 0 ? '暂无知识条目' : undefined,
+      });
+    } else {
+      checks.push({
+        name: 'evokit/knowledge/',
+        pass: true,
+        detail: '目录尚未创建（首次添加知识时自动创建）',
+      });
+    }
+
+    // 4. .pending/ 是否有未确认条目（warn 级）
+    const pendingDir = path.join(evokitDir, '.pending');
+    if (fse.existsSync(pendingDir)) {
+      const pendingFiles = fs.readdirSync(pendingDir).filter((f) => f.endsWith('.md'));
+      checks.push({
+        name: 'evokit/.pending/',
+        pass: pendingFiles.length === 0,
+        detail: pendingFiles.length > 0 ? `${pendingFiles.length} 个待确认条目` : undefined,
+      });
+    }
   }
 
   return checks;

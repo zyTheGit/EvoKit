@@ -6,8 +6,6 @@ import {
   readJsonlFile,
   appendToJsonl,
   writeJsonlFile,
-  readLearnedRules,
-  writeLearnedRules,
   appendToEvolutionLog,
   getFileLineCount,
   getClaudeDir,
@@ -89,77 +87,6 @@ describe('memory', () => {
       const entries = readJsonlFile(fp);
       expect(entries).toHaveLength(1);
       expect(entries[0]).toEqual({ fresh: true });
-    });
-  });
-
-  describe('readLearnedRules', () => {
-    it('returns empty array for missing file', () => {
-      const rules = readLearnedRules('/nonexistent/rules.md');
-      expect(rules).toEqual([]);
-    });
-
-    it('parses rules from markdown', () => {
-      const dir = tmpDir();
-      const fp = path.join(dir, 'rules.md');
-      fs.writeFileSync(
-        fp,
-        [
-          '# Learned Rules',
-          '',
-          '- **Use uv instead of pip**',
-          '  <!-- verify: grep -r "pip install" ~/ -->',
-          '  <!-- promoted: 2026-06-01 -->',
-          '',
-          '- **No console.log in production**',
-          '',
-        ].join('\n'),
-        'utf-8',
-      );
-
-      const rules = readLearnedRules(fp);
-      expect(rules).toHaveLength(2);
-      expect(rules[0].description).toBe('Use uv instead of pip');
-      expect(rules[0].verify).toBe('grep -r "pip install" ~/');
-      expect(rules[0].promoted).toBe('2026-06-01');
-      expect(rules[1].description).toBe('No console.log in production');
-      expect(rules[1].verify).toBeUndefined();
-    });
-
-    it('detects deprecated rules', () => {
-      const dir = tmpDir();
-      const fp = path.join(dir, 'deprecated.md');
-      fs.writeFileSync(fp, '# Learned Rules\n\n- **Old rule** (deprecated)\n\n', 'utf-8');
-      const rules = readLearnedRules(fp);
-      expect(rules[0].deprecated).toBe(true);
-    });
-  });
-
-  describe('writeLearnedRules', () => {
-    it('writes rules with verify and promoted annotations', () => {
-      const dir = tmpDir();
-      const fp = path.join(dir, 'out.md');
-      writeLearnedRules(fp, [
-        { description: 'Test rule', verify: 'echo ok', promoted: '2026-01-01' },
-      ]);
-      const content = fs.readFileSync(fp, 'utf-8');
-      expect(content).toContain('Test rule');
-      expect(content).toContain('echo ok');
-      expect(content).toContain('2026-01-01');
-    });
-
-    it('round-trips correctly', () => {
-      const dir = tmpDir();
-      const fp = path.join(dir, 'roundtrip.md');
-      const input = [
-        { description: 'Rule A', verify: 'check a', promoted: '2026-06-01' },
-        { description: 'Rule B' },
-      ];
-      writeLearnedRules(fp, input);
-      const output = readLearnedRules(fp);
-      expect(output).toHaveLength(2);
-      expect(output[0].description).toBe('Rule A');
-      expect(output[0].verify).toBe('check a');
-      expect(output[1].description).toBe('Rule B');
     });
   });
 

@@ -1,0 +1,1 @@
+此目录存放知识条目的 .md 文件。每个文件对应一条知识，格式为 YAML frontmatter + Markdown 正文。

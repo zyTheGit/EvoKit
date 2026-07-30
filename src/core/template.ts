@@ -166,15 +166,7 @@ function resolveComponents(opts: InstallPipelineOptions): {
 
 // ─── 常量 ─────────────────────────────────────────────────
 
-const MEMORY_SEED_FILES = [
-  'README.md',
-  'learned-rules.md',
-  'evolution-log.md',
-  'corrections.jsonl',
-  'observations.jsonl',
-  'violations.jsonl',
-  'sessions.jsonl',
-] as const;
+const MEMORY_SEED_FILES = ['README.md', 'evokit/knowledge-index.md'] as const;
 
 const CLAUDE_SUBDIRS = ['rules', 'agents', 'commands', 'memory', 'hooks'] as const;
 const HOOK_FILES = ['session-start.sh', 'stop.sh'] as const;

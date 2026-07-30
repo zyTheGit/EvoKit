@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { LearnedRule } from './types.js';
 
 /**
- * @internal — 演化管道的内部 JSONL/内存工具。
+ * @internal — JSONL/内存工具。
  * 不属于公共适配器 API。
  */
 
@@ -40,73 +39,6 @@ export function appendToJsonl<T>(filePath: string, entry: T): void {
 export function writeJsonlFile<T>(filePath: string, entries: T[]): void {
   const content = entries.map((e) => JSON.stringify(e)).join('\n') + '\n';
   fs.writeFileSync(filePath, content, 'utf-8');
-}
-
-// ─── 已学习规则 (.md) ────────────────────────────────────────
-
-const RULE_REGEX = /^- \*\*(.+?)\*\*(?:\s*\(deprecated\))?\s*$/m;
-const VERIFY_REGEX = /<!--\s*verify:\s*(.+?)\s*-->/;
-const PROMOTED_REGEX = /<!--\s*promoted:\s*(.+?)\s*-->/;
-
-export function readLearnedRules(filePath: string): LearnedRule[] {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n');
-    const rules: LearnedRule[] = [];
-    let current: Partial<LearnedRule> | null = null;
-
-    for (const line of lines) {
-      const ruleMatch = line.match(RULE_REGEX);
-      if (ruleMatch) {
-        if (current?.description) {
-          rules.push(current as LearnedRule);
-        }
-        current = {
-          description: ruleMatch[1],
-          deprecated: line.includes('(deprecated)'),
-        };
-        continue;
-      }
-      if (current) {
-        const verifyMatch = line.match(VERIFY_REGEX);
-        if (verifyMatch) {
-          current.verify = verifyMatch[1].trim();
-        }
-        const promotedMatch = line.match(PROMOTED_REGEX);
-        if (promotedMatch) {
-          current.promoted = promotedMatch[1].trim();
-        }
-      }
-    }
-    if (current?.description) {
-      rules.push(current as LearnedRule);
-    }
-    return rules;
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return [];
-    throw err;
-  }
-}
-
-export function writeLearnedRules(filePath: string, rules: LearnedRule[]): void {
-  const lines: string[] = [
-    '# 已学习规则',
-    '',
-    '从纠正和观察中提升的规则。运行 `/evolve` 进行审计。',
-    '',
-  ];
-  for (const rule of rules) {
-    const depLabel = rule.deprecated ? ' (deprecated)' : '';
-    lines.push(`- **${rule.description}**${depLabel}`);
-    if (rule.verify) lines.push(`  <!-- verify: ${rule.verify} -->`);
-    if (rule.promoted) lines.push(`  <!-- promoted: ${rule.promoted} -->`);
-    lines.push('');
-  }
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(filePath, lines.join('\n'), 'utf-8');
 }
 
 // ─── 演化日志 ──────────────────────────────────────────────
