@@ -42,6 +42,62 @@ export interface LearnedRule {
   deprecated?: boolean;
 }
 
+// ─── v1.0 知识条目类型 ──────────────────────────────────────
+
+/** 知识条目类型 */
+export type KnowledgeType = 'convention' | 'preference' | 'architecture' | 'workflow';
+
+/** 知识条目来源 */
+export type KnowledgeSource = 'conversation' | 'explicit' | 'git-history';
+
+/** 知识条目作用域 */
+export type KnowledgeScope = 'personal' | 'project';
+
+/** v1.0 知识条目数据结构（YAML frontmatter + 正文） */
+export interface KnowledgeEntry {
+  /** 必填，= 文件名去掉 .md */
+  id: string;
+  /** 必填，作用域 */
+  scope: KnowledgeScope;
+  /** 必填，知识类型 */
+  type: KnowledgeType;
+  /** 必填，来源 */
+  source: KnowledgeSource;
+  /** 必填，置信度 0.0–1.0 */
+  confidence: number;
+  /** 必填，创建时间 ISO 8601 */
+  created: string;
+  /** 可选，最后更新时间 ISO 8601 */
+  updated?: string;
+  /** 可选，单行摘要，适用范围 */
+  context?: string;
+  /** 可选，标签数组 */
+  tags?: string[];
+}
+
+/** 迁移解析结果：从 learned-rules.md 条目转换为待确认的知识条目 */
+export interface MigratedRule {
+  /** 原始描述文本 */
+  originalDescription: string;
+  /** 转换后的知识条目 */
+  entry: KnowledgeEntry;
+  /** 解析时的补充说明（如有） */
+  note?: string;
+  /** 是否为 deprecated（跳过） */
+  deprecated: boolean;
+}
+
+/** 迁移检测结果：哪些旧数据文件存在 */
+export interface MigrationDetection {
+  learnedRules: boolean;
+  corrections: boolean;
+  observations: boolean;
+  evolutionLog: boolean;
+  violations: boolean;
+  /** 检测到的旧文件路径 */
+  paths: Record<string, string>;
+}
+
 /** 轮换/归档结果 */
 export interface RotationResult {
   file: string;
