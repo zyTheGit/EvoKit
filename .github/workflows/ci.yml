@@ -16,47 +16,52 @@ jobs:
         run: |
           # Claude Code template
           test -f template/claude/CLAUDE.md
-          test -f template/claude/settings.json
           test -f template/claude/MEMORY.md
           test -f template/claude/hooks/session-start.sh
           test -f template/claude/hooks/stop.sh
-          test -f template/claude/hooks/export-system.sh
-          test -f template/claude/hooks/pre-tool-use.sh
-          test -f template/claude/hooks/post-tool-use.sh
-          test -f template/claude/hooks/pre-compact.sh
           test -f template/claude/rules/security.md
           test -f template/claude/rules/coding.md
           test -f template/claude/rules/core-invariants.md
           test -f template/claude/agents/architect.md
           test -f template/claude/agents/reviewer.md
           test -f template/claude/commands/boot.md
-          test -f template/claude/commands/evolve.md
           test -f template/claude/commands/evokit-review.md
-          test -f template/claude/memory/README.md
           test -f template/claude/skills/README.md
-          test -f template/claude/skills/learning-recorder/SKILL.md
+          # Claude v1.0 知识库结构
+          test -f template/claude/memory/evokit/knowledge-index.md
+          test -f template/claude/memory/evokit/knowledge/.gitkeep
+          test -f template/claude/memory/evokit/.pending/.gitkeep
 
           # Codex CLI template
           test -f template/codex/AGENTS.md
           test -f template/codex/hooks.json
           test -f template/codex/hooks-scripts/session-start.sh
           test -f template/codex/hooks-scripts/stop.sh
-          test -f template/codex/hooks-scripts/pre-tool-use.sh
+          # Codex v1.0 知识库结构
+          test -f template/codex/memory/evokit/knowledge-index.md
+          test -f template/codex/memory/evokit/knowledge/.gitkeep
+          test -f template/codex/memory/evokit/.pending/.gitkeep
 
           # OpenCode CLI template
           test -f template/opencode/AGENTS.md
           test -f template/opencode/opencode.json
           test -f template/opencode/tools/evokit-boot.ts
-          test -f template/opencode/tools/evokit-evolve.ts
           test -f template/opencode/tools/evokit-memory.ts
-          test -f template/opencode/tools/evokit-session.ts
-          test -f template/opencode/agent/architect.md
-          test -f template/opencode/agent/reviewer.md
+          # OpenCode v1.0 知识库结构
+          test -f template/opencode/memory/evokit/knowledge-index.md
+          test -f template/opencode/memory/evokit/knowledge/.gitkeep
+          test -f template/opencode/memory/evokit/.pending/.gitkeep
+
+          # Pi CLI template
+          test -f template/pi/AGENTS.md
+          # Pi v1.0 知识库结构
+          test -f template/pi/memory/evokit/knowledge-index.md
+          test -f template/pi/memory/evokit/knowledge/.gitkeep
+          test -f template/pi/memory/evokit/.pending/.gitkeep
 
       - name: Check no personal paths in template
         run: |
           ! grep -r "hpee2" template/ 2>/dev/null || false
-          ! grep -r "/home/" template/claude/settings.json 2>/dev/null || false
 
       - name: Shellcheck hooks
         run: |
