@@ -213,7 +213,7 @@ function buildClaudeLayout(opts: InstallPipelineOptions): AdapterLayout {
       src: path.join(claudeTemplateDir, 'CLAUDE.md'),
       dst: path.join(homeDir, 'CLAUDE.md'),
       strategy: 'skip-if-exists',
-      appendMarker: upgradeMode ? undefined : 'Self-Evolving System Protocol',
+      appendMarker: upgradeMode ? undefined : 'EvoKit — 项目上下文引擎',
     });
   }
 
