@@ -1,128 +1,99 @@
-# Self-Evolving System Protocol v1.0
+# EvoKit — 项目上下文引擎
 
-This is the cognitive core. It configures Claude Code's behavior and drives cross-session learning.
+让 AI 秒懂项目，持久化 AI 不可能知道的项目/个人专属知识。
 
-## 1. Thinking Framework
+## 核心机制
 
-Before any coding task, follow this hierarchy:
+1. **对话提取** — AI 识别项目知识，静默写入 .pending/，用户确认后持久化
+2. **知识索引** — knowledge-index.md 始终加载，条目按需加载
+3. **过期检测** — 定期检查知识条目是否仍然适用
 
-1. **Understand** — Read relevant files first. Never edit a file without reading it.
-2. **Plan** — For complex tasks (>3 steps), outline the approach before acting.
-3. **Verify** — After changes, confirm they work (run tests, check output).
-4. **Learn** — If corrected, record the pattern for future sessions.
+## 命令
 
-### Self-Check Before Acting
+- `/evokit-boot` — 知识库完整性深度检查
+- `/evokit-learn` — 回顾对话提取知识 / 显式声明知识
+- `/evokit-review` — 代码审查
 
-- Have I read every file I'm about to modify?
-- Do I understand the existing patterns I should match?
-- Is there an existing utility/helper/convention I should reuse?
+## 思维框架
 
-### Self-Check After Changes
+1. **理解** — Read 相关文件，确认变更范围
+2. **规划** — 复杂任务先列方案，简单任务直接执行
+3. **验证** — 运行测试，确认无回归
+4. **学习** — 识别项目知识，静默写入 .pending/，用户确认后持久化
 
-- Did I run tests? Check for `TODO`/`FIXME`/`console.log`/`debugger` artifacts?
-- Did I record any corrections received?
+### 自检
 
-## 2. Completion Standards
+**行动前：**
 
-A task is "done" ONLY when ALL conditions are met:
+- 已读取要修改的文件？
+- 理解现有模式？
+- 有可复用的工具/约定？
 
-| Condition                | How to Verify                                                              |
-| ------------------------ | -------------------------------------------------------------------------- |
-| All changes tested       | Run the project's test command                                             |
-| No debug artifacts       | `grep -r 'console.log\|TODO\|FIXME\|debugger' --include='*.{ts,js,py,sh}'` |
-| No accidental deletions  | `git diff --stat` — confirm only intended files changed                    |
-| Boot verification passes | Run `/boot` or check session-start hook output                             |
-| Corrections recorded     | If user corrected you, entry exists in `corrections.jsonl`                 |
+**变更后：**
 
-### Hard Limits
+- 测试通过？无 TODO/FIXME/console.log/debugger 残留？
+- 识别到项目知识？→ 静默写入 .pending/
 
-- Never edit a file without reading it first
-- Never delete files the user didn't ask to delete
-- Never hardcode personal paths in templates (use `__HOME__` placeholders)
-- Never skip tests after changes
+## 知识系统
 
-## 3. Memory System Protocol
+知识条目存储在 `.claude/memory/evokit/` 下，结构与 `CONTEXT.md` 定义一致。
 
-| File                 | Purpose                                    | Auto-managed                    |
-| -------------------- | ------------------------------------------ | ------------------------------- |
-| `corrections.jsonl`  | User corrections (pattern, context, count) | Yes — append on each correction |
-| `observations.jsonl` | Code pattern observations                  | Yes — append during analysis    |
-| `learned-rules.md`   | Promoted permanent rules (max 50 lines)    | Yes — via `/evolve`             |
-| `evolution-log.md`   | Audit trail of `/evolve` decisions         | Yes — via `/evolve`             |
-| `violations.jsonl`   | Rules violated during boot verification    | Yes — via `/boot`               |
-
-### Promotion Ladder
+### 目录布局
 
 ```
-correction (1st) → corrections.jsonl
-correction (2nd same pattern) → learned-rules.md (with verify line)
-learned-rules.md (10+ sessions, verified) → rules/ or CLAUDE.md (via /evolve)
-rejected rules → evolution-log.md (never re-propose)
+evokit/
+  knowledge-index.md    # 索引（始终加载）
+  knowledge/            # 条目（按需加载，扁平存放）
+  .pending/             # 待确认条目
 ```
 
-### When to Record
+### 知识类型
 
-| Trigger                       | Record To            | Example                                       |
-| ----------------------------- | -------------------- | --------------------------------------------- |
-| User explicitly corrects you  | `corrections.jsonl`  | "Use `const`, never `var`"                    |
-| You notice a reusable pattern | `observations.jsonl` | "Project uses PascalCase for component files" |
-| A rule is violated            | `violations.jsonl`   | "CLAUDE.md exceeded 150 lines"                |
+| 类型         | 说明       | 示例                          |
+| ------------ | ---------- | ----------------------------- |
+| convention   | 项目约定   | "使用 Result<T> 而非 throw"   |
+| preference   | 个人偏好   | "使用 uv 而非 pip"            |
+| architecture | 架构决策   | "packages/api 是上游"         |
+| workflow     | 工作流规则 | "commit 用 conventional 格式" |
 
-### Retention
+### 知识识别
 
-- Observations older than **60 days** → confidence halved
-- Confidence below **0.3** → auto-archived
-- Files >**500 lines** → entries >**30 days** rotated to `archive/`
-- Archives >**1000 lines** → gzip-compressed
+当你在对话中识别到项目/个人专属知识时，静默写入
+`.claude/memory/evokit/.pending/{type}-{slug}.md`，不要在回复中提及。
+用户确认后移入 `knowledge/` 并更新索引。
 
-## 4. Evolution Commands
+### 作用域
 
-| Command          | When to Run                                                                 | Self-Check                                                        |
-| ---------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `/boot`          | Session start (auto via SessionStart hook), or after any memory file change | Did I check each learned rule's `verify` line?                    |
-| `/evolve`        | Every ~10 sessions, or when corrections ≥2 with same pattern                | Has pattern appeared ≥2 times? Run `/boot` first to verify rules. |
-| `/evokit-review` | Before committing, after large changes                                      | Are tests passing? All intended changes staged?                   |
+| 层级 | 位置                       | 说明     |
+| ---- | -------------------------- | -------- |
+| 项目 | `.claude/memory/evokit/`   | 跟项目走 |
+| 个人 | `~/.claude/memory/evokit/` | 跨项目   |
 
-### Evolution Flow
+## 完成标准
 
-```
-User: "Use named exports, not default exports"
-  → correction appended to corrections.jsonl {pattern: "prefer-named-exports"}
-User (later): "Same issue — named exports!"
-  → corrections.jsonl pattern count → 2 (ready for promotion)
-/evolve:
-  → Pattern promoted to learned-rules.md with verify line
-```
+1. **改动已验证** — 运行测试，确认无回归
+2. **代码已清理** — 无 TODO/FIXME/console.log/debugger 残留
+3. **知识库完整** — 索引引用的条目文件都存在，格式合法
 
-## 5. Skills, Agents & Tools
+## 行数限制
 
-### Skills (`.claude/skills/`)
+- `CLAUDE.md` ≤ 150 行
 
-Skills are auto-invoked workflow instructions. Use `disable-model-invocation: true` for manually-triggered skills.
+## 工具优先级
 
-### Tool Priority
+1. **Codegraph** _(可选)_ — `codegraph_explore`/`codegraph_search`/`codegraph_impact`
+2. **Read** — 文件内容
+3. **Grep/Glob** — 模式匹配
+4. **Bash** — 测试、构建、一次性命令
 
-Tools are listed in order of preference **when available**. Only Codegraph is optional (MCP server, not always installed); all others are always present.
+## Agent 使用
 
-1. **Codegraph** _(optional)_ — `codegraph_explore`/`codegraph_search`/`codegraph_impact` (fastest, if MCP installed)
-2. **Read** — file contents (fallback: the generic tool or Bash `cat`)
-3. **Grep/Glob** — broad pattern matching (fallback: Bash `grep`/`find`)
-4. **Bash** — running tests, builds, or one-off commands
+| Agent       | 使用场景                   | 不适用场景              |
+| ----------- | -------------------------- | ----------------------- |
+| `architect` | 复杂多步工作，需先设计方案 | 简单编辑、单文件修复    |
+| `reviewer`  | 提交前、大变更后、PR 前    | 一行改动、生成/样板代码 |
 
-### Agent Usage
-
-| Agent       | When to USE                                          | When NOT to Use                                          |
-| ----------- | ---------------------------------------------------- | -------------------------------------------------------- |
-| `architect` | Complex multi-step work needing design plan first    | Simple edits, single-file fixes, rote mechanical changes |
-| `reviewer`  | Before committing, after large changes, or before PR | Trivial one-line changes, generated/boilerplate code     |
-
-## 6. Auto-Memory & Hooks
-
-### Auto-Memory
-
-Claude Code's built-in auto-memory (`autoMemoryEnabled: true` in settings.json) automatically saves notes about build commands, architecture decisions, and preferences. Notes are stored in `~/.claude/projects/<slug>/memory/` and loaded each session. No manual filing needed.
-
-### Hook Events (configured in settings.json)
+## 钩子事件
 
 | Event        | Purpose                                         | Hook Script        |
 | ------------ | ----------------------------------------------- | ------------------ |
@@ -131,18 +102,11 @@ Claude Code's built-in auto-memory (`autoMemoryEnabled: true` in settings.json) 
 
 SessionStart performs a fast check on knowledge base integrity (index existence, entry files, frontmatter format, pending items). Detailed diagnostics are left to `/evokit-boot`.
 
-## 7. Integrity Rules
+## 完整性规则
 
-### Invariants
-
-- `corrections.jsonl` and `observations.jsonl` are **append-only** — never delete entries.
-- `MEMORY.md` is **read-only** for Claude — update only via the learning workflow.
-- **Never modify files outside the project** without explicit permission.
-- Files in `.claude/memory/*.jsonl` have **600 permissions** — personal data.
-
-### Error Reporting
-
-- If a command fails: explain what went wrong and suggest a fix — don't silently retry.
-- If unsure: say so. Don't fabricate results.
-- If corrected: acknowledge, fix, and **record in corrections.jsonl**.
-- Report all outcomes truthfully. Never claim success if something failed.
+- **先读后改** — 未读取的文件不编辑
+- **不删未授权文件** — 用户未要求的不删除
+- **不硬编码个人路径** — 模板中使用 `__HOME__` 占位符
+- **不跳过测试** — 变更后必须验证
+- **错误如实报告** — 不假装成功，不静默重试
+- **多方案先问** — 2+ 合理方案时，列出选项让用户决定

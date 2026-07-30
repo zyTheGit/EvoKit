@@ -61,7 +61,7 @@ const LAYOUT_CONFIG: LayoutConfig = {
     templateName: 'CLAUDE.md',
     dstInHome: true,
     strategy: 'skip-if-exists',
-    appendMarker: 'Self-Evolving System Protocol',
+    appendMarker: 'EvoKit — 项目上下文引擎',
   },
 
   // 额外全局文件：MEMORY.md
@@ -194,7 +194,7 @@ export class ClaudeAdapter extends BaseAdapter {
   }
 
   override cognitiveCoreAppendMarker(): string | null {
-    return 'Self-Evolving System Protocol';
+    return 'EvoKit — 项目上下文引擎';
   }
 
   protected buildLayout(opts: {
