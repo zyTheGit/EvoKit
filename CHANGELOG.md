@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.0.0 (2026-07-30)
+
+> **里程碑：从"自进化纠错系统"转向"项目上下文引擎"**
+>
+> EvoKit v1.0 重新定义了核心定位——持久化 AI 不可能知道的项目/个人专属知识。
+> 核心机制：对话提取（AI 识别 + 用户确认）为主，显式声明为兜底，Git 历史为辅助。
+
+### Breaking Changes
+
+- 🔄 **核心定位转向** — 从"自进化纠错系统"变为"项目上下文引擎"，所有模块围绕知识条目重新设计
+- 🗑️ **删除 evolve 命令** — `evokit evolve` 及相关 promote/rotate 模块全部移除
+- 🗑️ **删除 export/import 完整功能** — 降级为 v1.0 暂不支持提示
+- 🗑️ **删除 v0 种子文件** — `corrections.jsonl`、`observations.jsonl`、`sessions.jsonl`、`violations.jsonl`、`learned-rules.md`、`evolution-log.md` 从所有适配器模板中移除
+- 🗑️ **删除 v0 钩子** — `post-tool-use.sh`、`pre-compact.sh`、`pre-tool-use.sh`、`blocked-commands.json`、`export-system.sh` 从 Claude 模板移除
+- 🗑️ **删除 evokit-evolve.ts** — OpenCode 和 Pi 适配器的 evolve 工具扩展移除
+- 🗑️ **删除 settings.json 模板** — Claude 适配器不再安装权限配置模板
+
+### Major
+
+- 🧠 **知识模块（knowledge.ts）** — 新增 `src/core/knowledge.ts`（490 行），实现知识条目的 CRUD、搜索、作用域管理、对话提取
+- 🚚 **迁移命令（migrate）** — 新增 `evokit migrate`，将 v0 数据（corrections/observations/learned-rules/sessions）转换为 v1.0 知识条目
+- 🪝 **钩子体系重写** — 5→2 钩子精简：
+  - SessionStart：快速检查知识库完整性
+  - Stop：仅检查 `.pending/` 非空并输出提示
+- 📝 **CLAUDE.md 模板重写** — 153→112 行，从"自进化协议"重写为"项目上下文引擎"定位
+- 🏗️ **适配器基类精简** — BaseAdapter 删除 `injectMemory`/`exportMemory`/`recordSession`，`resolveMemoryDir` → `resolveEvokitDir`
+- 📂 **新模板目录结构** — 所有 4 个适配器新增 `evokit/knowledge-index.md`、`evokit/knowledge/`、`evokit/.pending/`
+
+### Architecture
+
+- 📋 **领域模型（CONTEXT.md）** — 术语表、知识类型、作用域、数据结构、对话提取机制、已废弃概念
+- 📋 **架构决策记录（ADR-0001）** — 16 个战略决策，6 个取舍分析
+- 📋 **Wayfinder 决策票** — T01~T07 共 7 张决策票，全部已决策
+
+### Internal
+
+- 🧪 **测试新增 75 个** — `knowledge.test.ts`（62 个）+ `migrate.test.ts`（13 个）
+- 🧪 **测试删除** — `promote.test.ts`（157 行）+ `rotate.test.ts`（136 行）+ `memory.test.ts` 部分（73 行）
+- 🧹 **CLI 品牌定位** — `cli.ts` 描述更新为"项目上下文引擎"，注册 migrate 命令
+- 🧹 **doctor 扩展** — 知识库检查（适配器 `status()` → `buildClaudeExtraChecks`）
+- 🧹 **types.ts 清理** — 删除 8 个 v0 接口
+- 🧹 **memory.ts 精简** — 删除 `readLearnedRules`/`writeLearnedRules`
+- 📊 **总变更** — 76 文件，+3310/-3441 行**
+
 ## v0.6.7 (2026-07-27)
 
 ### Major
