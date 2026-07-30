@@ -29,12 +29,7 @@ export const OPENCODE_ADAPTER_VERSION = '0.5.0';
 
 const GLOBAL_DIRS = ['agent', 'memory', 'skills'] as const;
 const PROJECT_SUBDIRS = ['tools', 'agent', 'memory'] as const;
-const TOOL_FILES = [
-  'evokit-boot.ts',
-  'evokit-evolve.ts',
-  'evokit-memory.ts',
-  'evokit-session.ts',
-] as const;
+const TOOL_FILES = ['evokit-boot.ts', 'evokit-memory.ts', 'evokit-session.ts'] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
 const MEMORY_SEED_FILES = ['README.md', 'evokit/knowledge-index.md'] as const;
 
@@ -187,13 +182,13 @@ export class OpenCodeAdapter extends BaseAdapter {
     return config.projectDir || process.cwd();
   }
 
-  /** OpenCode memory 目录解析 —— 使用全局 ~/.config/opencode/memory/。 */
-  protected override resolveMemoryDir(homeDir: string, options?: Record<string, unknown>): string {
+  /** OpenCode evokit 目录解析 —— 使用全局 ~/.config/opencode/memory/evokit/。 */
+  protected override resolveEvokitDir(homeDir: string, options?: Record<string, unknown>): string {
     // 兼容旧版 opencodeDir 选项
     if (options?.opencodeDir && typeof options.opencodeDir === 'string') {
-      return path.join(path.resolve(options.opencodeDir), 'memory');
+      return path.join(path.resolve(options.opencodeDir), 'memory', 'evokit');
     }
-    return path.join(this.resolveHome(homeDir), 'memory');
+    return path.join(this.resolveHome(homeDir), 'memory', 'evokit');
   }
 }
 

@@ -34,12 +34,11 @@ const GLOBAL_DIRS = ['extensions', 'memory', 'skills', 'agent', 'prompts'] as co
 const EXTENSION_FILES = [
   'evokit-lifecycle.ts',
   'evokit-boot.ts',
-  'evokit-evolve.ts',
   'evokit-memory.ts',
   'evokit-session.ts',
 ] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
-const MEMORY_SEED_FILES = ['README.md', 'learned-rules.md', 'evolution-log.md'] as const;
+const MEMORY_SEED_FILES = ['README.md', 'evokit/knowledge-index.md'] as const;
 
 // ─── 路径解析 ──────────────────────────────────────────────
 

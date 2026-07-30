@@ -10,7 +10,6 @@
  */
 
 import fse from 'fs-extra';
-import fs from 'node:fs';
 import path from 'node:path';
 
 import type {
@@ -24,8 +23,7 @@ import type {
   AdapterVerifyCheck,
   LayoutConfig,
 } from './types.js';
-import type { AdapterLayout, AdapterSection } from '../core/layout-types.js';
-import type { SessionEntry } from '../core/types.js';
+import type { AdapterLayout } from '../core/layout-types.js';
 import { executeLayout } from '../core/layout-engine.js';
 import { ManifestCollector } from '../core/manifest-collector.js';
 import { updateAdapterManifest } from '../core/manifest.js';
@@ -505,158 +503,13 @@ export abstract class BaseAdapter implements AdapterInstaller, AdapterInternal {
     };
   }
 
-  // ─── 通用 Memory / Session / Status API ──────────────────────
-  // 从 Codex/Pi/OpenCode 三个适配器中提升的重复代码，
-  // 用 this.resolveHome() + this.id 参数化差异。
+  // ─── 通用 Evokit 目录 API ────────────────────────────
 
   /**
-   * 解析 memory 目录路径。
-   * 默认为 resolveHome(homeDir) + '/memory'；子类可覆盖以支持自定义路径。
+   * 解析 evokit 知识库目录路径。
+   * 默认为 resolveHome(homeDir) + '/memory/evokit'；子类可覆盖以支持自定义路径。
    */
-  protected resolveMemoryDir(homeDir: string, _options?: Record<string, unknown>): string {
-    return path.join(this.resolveHome(homeDir), 'memory');
-  }
-
-  /**
-   * 将学习数据注入适配器可访问的 memory 目录。
-   * 将纠正和观察写入 memory/corrections.jsonl 和 memory/observations.jsonl。
-   */
-  injectMemory(
-    homeDir: string,
-    data: {
-      corrections?: Array<{ pattern: string; context: string }>;
-      observations?: Array<{ pattern: string; confidence: number; source: string }>;
-      learnedRules?: string;
-    },
-    options?: Record<string, unknown>,
-  ): number {
-    const memoryDir = this.resolveMemoryDir(homeDir, options);
-    fse.ensureDirSync(memoryDir);
-    let filesWritten = 0;
-
-    // 追加纠正记录
-    if (data.corrections?.length) {
-      const correctionsPath = path.join(memoryDir, 'corrections.jsonl');
-      const lines = data.corrections.map((c) =>
-        JSON.stringify({
-          timestamp: new Date().toISOString(),
-          pattern: c.pattern,
-          context: c.context,
-          count: 1,
-        }),
-      );
-      fs.appendFileSync(correctionsPath, lines.join('\n') + '\n', 'utf-8');
-      fs.chmodSync(correctionsPath, 0o600);
-      filesWritten++;
-    }
-
-    // 追加观察记录
-    if (data.observations?.length) {
-      const observationsPath = path.join(memoryDir, 'observations.jsonl');
-      const lines = data.observations.map((o) =>
-        JSON.stringify({
-          timestamp: new Date().toISOString(),
-          pattern: o.pattern,
-          confidence: o.confidence,
-          source: o.source,
-        }),
-      );
-      fs.appendFileSync(observationsPath, lines.join('\n') + '\n', 'utf-8');
-      fs.chmodSync(observationsPath, 0o600);
-      filesWritten++;
-    }
-
-    return filesWritten;
-  }
-
-  /**
-   * 从 memory 目录导出学习数据。
-   * 返回 corrections、observations、learnedRules、sessions 四类数据。
-   */
-  exportMemory(
-    homeDir: string,
-    options?: Record<string, unknown>,
-  ): {
-    corrections: unknown[];
-    observations: unknown[];
-    learnedRules: string;
-    sessions: unknown[];
-  } {
-    const memoryDir = this.resolveMemoryDir(homeDir, options);
-
-    const result = {
-      corrections: [] as unknown[],
-      observations: [] as unknown[],
-      learnedRules: '',
-      sessions: [] as unknown[],
-    };
-
-    // 解析 corrections.jsonl
-    const correctionsPath = path.join(memoryDir, 'corrections.jsonl');
-    if (fse.existsSync(correctionsPath)) {
-      result.corrections = fs
-        .readFileSync(correctionsPath, 'utf-8')
-        .split('\n')
-        .filter(Boolean)
-        .map((l) => JSON.parse(l));
-    }
-
-    // 解析 observations.jsonl
-    const observationsPath = path.join(memoryDir, 'observations.jsonl');
-    if (fse.existsSync(observationsPath)) {
-      result.observations = fs
-        .readFileSync(observationsPath, 'utf-8')
-        .split('\n')
-        .filter(Boolean)
-        .map((l) => JSON.parse(l));
-    }
-
-    // 读取 learned-rules.md
-    const rulesPath = path.join(memoryDir, 'learned-rules.md');
-    if (fse.existsSync(rulesPath)) {
-      result.learnedRules = fs.readFileSync(rulesPath, 'utf-8');
-    }
-
-    // 解析 sessions.jsonl
-    const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
-    if (fse.existsSync(sessionsPath)) {
-      result.sessions = fs
-        .readFileSync(sessionsPath, 'utf-8')
-        .split('\n')
-        .filter(Boolean)
-        .map((l) => {
-          try {
-            return JSON.parse(l) as SessionEntry;
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean);
-    }
-
-    return result;
-  }
-
-  /**
-   * 记录带有适配器 ID 标签的会话条目。
-   * assistant 字段自动使用 this.id。
-   */
-  recordSession(
-    homeDir: string,
-    session: Omit<SessionEntry, 'timestamp' | 'assistant'>,
-    options?: Record<string, unknown>,
-  ): void {
-    const memoryDir = this.resolveMemoryDir(homeDir, options);
-    fse.ensureDirSync(memoryDir);
-    const sessionsPath = path.join(memoryDir, 'sessions.jsonl');
-
-    const entry: SessionEntry = {
-      timestamp: new Date().toISOString(),
-      assistant: this.id as SessionEntry['assistant'],
-      ...session,
-    };
-
-    fs.appendFileSync(sessionsPath, JSON.stringify(entry) + '\n', 'utf-8');
-    fs.chmodSync(sessionsPath, 0o600);
+  protected resolveEvokitDir(homeDir: string, _options?: Record<string, unknown>): string {
+    return path.join(this.resolveHome(homeDir), 'memory', 'evokit');
   }
 }

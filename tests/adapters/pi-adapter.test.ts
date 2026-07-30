@@ -87,7 +87,7 @@ describe('pi-adapter installer', () => {
 
       // 摘要计数
       expect(summary.filesCreated).toBeGreaterThan(0);
-      expect(summary.hooksInstalled).toBe(5); // 5 个扩展文件
+      expect(summary.hooksInstalled).toBe(4); // 4 个扩展文件
     });
 
     it('respects dry-run mode', () => {
@@ -126,7 +126,6 @@ describe('pi-adapter installer', () => {
       const extDir = path.join(resolvePiHome(homeDir), 'extensions');
       expect(fs.existsSync(path.join(extDir, 'evokit-lifecycle.ts'))).toBe(true);
       expect(fs.existsSync(path.join(extDir, 'evokit-boot.ts'))).toBe(true);
-      expect(fs.existsSync(path.join(extDir, 'evokit-evolve.ts'))).toBe(true);
       expect(fs.existsSync(path.join(extDir, 'evokit-memory.ts'))).toBe(true);
       expect(fs.existsSync(path.join(extDir, 'evokit-session.ts'))).toBe(true);
     });
@@ -179,7 +178,7 @@ describe('pi-adapter interface', () => {
     const result = adapter.install({ homeDir, templateDir });
 
     expect(result.filesCreated).toBeGreaterThan(0);
-    expect(result.hooksInstalled).toBe(5);
+    expect(result.hooksInstalled).toBe(4);
     expect(result.adapterHome).toBe(resolvePiHome(homeDir));
   });
 
@@ -215,74 +214,6 @@ describe('pi-adapter memory', () => {
 
   beforeEach(() => {
     homeDir = tmpDir();
-  });
-
-  describe('injectMemory', () => {
-    it('writes corrections to memory', () => {
-      const files = adapter.injectMemory(homeDir, {
-        corrections: [{ pattern: 'test pattern', context: 'test context' }],
-      });
-
-      expect(files).toBeGreaterThan(0);
-
-      const memDir = path.join(resolvePiHome(homeDir), 'memory');
-      const content = fs.readFileSync(path.join(memDir, 'corrections.jsonl'), 'utf-8');
-      expect(content).toContain('test pattern');
-      expect(content).toContain('test context');
-
-      // 检查文件权限（600）
-      const stats = fs.statSync(path.join(memDir, 'corrections.jsonl'));
-      expect(stats.mode & 0o777).toBe(0o600);
-    });
-
-    it('writes observations to memory', () => {
-      adapter.injectMemory(homeDir, {
-        observations: [{ pattern: 'obs pattern', confidence: 0.8, source: 'test' }],
-      });
-
-      const memDir = path.join(resolvePiHome(homeDir), 'memory');
-      const content = fs.readFileSync(path.join(memDir, 'observations.jsonl'), 'utf-8');
-      expect(content).toContain('obs pattern');
-      expect(content).toContain('0.8');
-    });
-  });
-
-  describe('exportMemory', () => {
-    it('reads injected data back', () => {
-      adapter.injectMemory(homeDir, {
-        corrections: [{ pattern: 'test pattern', context: 'test' }],
-        observations: [{ pattern: 'obs', confidence: 0.5, source: 'test' }],
-      });
-
-      const data = adapter.exportMemory(homeDir);
-      expect(data.corrections).toHaveLength(1);
-      expect(data.observations).toHaveLength(1);
-      expect(data.corrections[0]).toHaveProperty('pattern', 'test pattern');
-    });
-
-    it('returns empty arrays when no memory exists', () => {
-      const data = adapter.exportMemory(homeDir);
-      expect(data.corrections).toHaveLength(0);
-      expect(data.observations).toHaveLength(0);
-      expect(data.learnedRules).toBe('');
-    });
-  });
-
-  describe('recordSession', () => {
-    it('records a session tagged as pi', () => {
-      adapter.recordSession(homeDir, {
-        duration_seconds: 300,
-        corrections: 2,
-        observations: 1,
-        score: 'A',
-      });
-
-      const memDir = path.join(resolvePiHome(homeDir), 'memory');
-      const content = fs.readFileSync(path.join(memDir, 'sessions.jsonl'), 'utf-8');
-      expect(content).toContain('"assistant":"pi"');
-      expect(content).toContain('"duration_seconds":300');
-      expect(content).toContain('"score":"A"');
-    });
   });
 
   describe('status', () => {
