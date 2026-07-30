@@ -11,6 +11,7 @@
  *   evokit evolve      — 运行演化审计
  *   evokit export      — 导出学习数据
  *   evokit import      — 导入学习数据
+ *   evokit migrate     — 迁移旧数据为 v1.0 知识条目格式
  *
  * @packageDocumentation
  */
@@ -30,6 +31,7 @@ import { importCommand } from './commands/import_cmd.js';
 import { doctorCommand } from './commands/doctor.js';
 import { uninstallCommand } from './commands/uninstall.js';
 import { updateCommand } from './commands/update.js';
+import { migrateCommand } from './commands/migrate.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
