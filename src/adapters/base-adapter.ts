@@ -23,7 +23,7 @@ import type {
   AdapterVerifyCheck,
   LayoutConfig,
 } from './types.js';
-import type { AdapterLayout } from '../core/layout-types.js';
+import type { AdapterLayout, AdapterSection } from '../core/layout-types.js';
 import { executeLayout } from '../core/layout-engine.js';
 import { ManifestCollector } from '../core/manifest-collector.js';
 import { updateAdapterManifest } from '../core/manifest.js';
