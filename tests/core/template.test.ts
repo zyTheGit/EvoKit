@@ -41,7 +41,7 @@ describe('template', () => {
       expect(summary.hooksInstalled).toBe(2);
       expect(summary.rulesInstalled).toBe(3);
       expect(summary.agentsInstalled).toBe(2);
-      expect(summary.commandsInstalled).toBe(2);
+      expect(summary.commandsInstalled).toBe(3);
     });
 
     it('is idempotent — skips existing files', () => {
@@ -95,7 +95,7 @@ describe('template', () => {
       expect(summary.hooksInstalled).toBe(2);
       expect(summary.rulesInstalled).toBe(3);
       expect(summary.agentsInstalled).toBe(2);
-      expect(summary.commandsInstalled).toBe(2);
+      expect(summary.commandsInstalled).toBe(3);
     });
 
     it('minimal profile installs only core components', () => {

@@ -137,8 +137,8 @@ export function listKnowledgeEntries(knowledgeDir: string): string[] {
 
 // ─── knowledge-index.md 操作 ─────────────────────────────────
 
-const INDEX_HEADER = '## EvoKit 知识';
-const CLAUDE_HEADER = '## Claude 原生记忆';
+const INDEX_HEADER = '## 个人知识';
+const CLAUDE_HEADER = '## 项目知识';
 
 /**
  * 读取 knowledge-index.md，返回解析后的结构。

@@ -23,8 +23,8 @@ Run this before committing to review all current changes.
 
 ## Learning Integration
 
-- If the review finds recurring issues (same pattern across multiple files), record an **observation** in `observations.jsonl` so future sessions can avoid them.
-- If the user corrects a review finding, record a **correction** in `corrections.jsonl` for the `/evolve` pipeline.
+- If the review finds recurring issues (same pattern across multiple files), consider creating a **convention** knowledge entry via `/evokit-learn` so future sessions can avoid them.
+- If the user corrects a review finding, recognize it as project knowledge and silently write to `.pending/`.
 
 ## Self-Check Before Running
 
@@ -36,7 +36,7 @@ Run this before committing to review all current changes.
 
 - For each **P0 (must fix)** finding: did I apply the fix and re-run tests?
 - For each **P1 (should fix)** finding: did I either fix it or document why not?
-- Did I re-run `/boot` after making review-driven changes?
+- Did I re-run `/evokit-boot` after making review-driven changes?
 
 ## Example Output
 

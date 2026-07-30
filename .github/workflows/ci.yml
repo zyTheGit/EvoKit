@@ -24,7 +24,8 @@ jobs:
           test -f template/claude/rules/core-invariants.md
           test -f template/claude/agents/architect.md
           test -f template/claude/agents/reviewer.md
-          test -f template/claude/commands/boot.md
+          test -f template/claude/commands/evokit-boot.md
+          test -f template/claude/commands/evokit-learn.md
           test -f template/claude/commands/evokit-review.md
           test -f template/claude/skills/README.md
           # Claude v1.0 知识库结构

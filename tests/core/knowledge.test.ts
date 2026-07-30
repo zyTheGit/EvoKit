@@ -287,12 +287,12 @@ describe('readKnowledgeIndex', () => {
     fs.writeFileSync(
       fp,
       [
-        '## EvoKit 知识',
+        '## 个人知识',
         '',
         '- [convention-uv] 使用 uv 代替 pip',
         '- [preference-dark] 偏好暗色主题',
         '',
-        '## Claude 原生记忆',
+        '## 项目知识',
         '',
         '- [sync-readme] README 同步规则',
         '',
@@ -318,12 +318,12 @@ describe('readKnowledgeIndex', () => {
     fs.writeFileSync(
       fp,
       [
-        '## EvoKit 知识',
+        '## 个人知识',
         '',
         '这是一段说明文字',
         '- [convention-uv] 使用 uv 代替 pip',
         '',
-        '## Claude 原生记忆',
+        '## 项目知识',
         '',
       ].join('\n'),
       'utf-8',
@@ -338,7 +338,7 @@ describe('readKnowledgeIndex', () => {
     fs.writeFileSync(
       fp,
       [
-        '## EvoKit 知识',
+        '## 个人知识',
         '',
         '- [convention-uv] 使用 uv 代替 pip',
         '',
@@ -346,7 +346,7 @@ describe('readKnowledgeIndex', () => {
         '',
         '- [should-not-appear] 不属于任何 section',
         '',
-        '## Claude 原生记忆',
+        '## 项目知识',
         '',
         '- [claude-rule] Claude 规则',
         '',
@@ -367,8 +367,8 @@ describe('writeKnowledgeIndex', () => {
     const fp = path.join(dir, 'knowledge-index.md');
     writeKnowledgeIndex(fp, ['- [convention-uv] 使用 uv'], ['- [claude-rule] Claude 规则']);
     const content = fs.readFileSync(fp, 'utf-8');
-    expect(content).toContain('## EvoKit 知识');
-    expect(content).toContain('## Claude 原生记忆');
+    expect(content).toContain('## 个人知识');
+    expect(content).toContain('## 项目知识');
     expect(content).toContain('convention-uv');
     expect(content).toContain('claude-rule');
   });
@@ -422,7 +422,7 @@ describe('appendToKnowledgeIndex', () => {
     expect(result.evokit).toHaveLength(1);
   });
 
-  it('保留 Claude 原生记忆 section', () => {
+  it('保留项目知识 section', () => {
     const dir = tmpDir();
     const fp = path.join(dir, 'knowledge-index.md');
     writeKnowledgeIndex(fp, [], ['- [claude-rule] Claude 规则']);
