@@ -25,7 +25,6 @@ import type {
   ReverseDeleteSkillsSection,
   ReverseCleanupDirsSection,
   ReversePurgeMemorySection,
-  ReversePurgeSettingsSection,
 } from './reverse-layout-types.js';
 
 // ─── 常量 ────────────────────────────────────────────────────
@@ -96,9 +95,6 @@ export function executeReverseLayout(layout: ReverseLayout, dryRun: boolean): Re
         break;
       case 'reverse-purge-memory':
         executeReversePurgeMemory(section, dryRun, result);
-        break;
-      case 'reverse-purge-settings':
-        executeReversePurgeSettings(section, dryRun, result);
         break;
       case 'reverse-remove-manifest':
         // manifest 移除在 executeUninstall 主流程中处理
@@ -294,19 +290,6 @@ function executeReversePurgeMemory(
       }
       result.filesDeleted++;
     }
-  }
-}
-
-function executeReversePurgeSettings(
-  section: ReversePurgeSettingsSection,
-  dryRun: boolean,
-  result: ReverseLayoutResult,
-): void {
-  if (fse.existsSync(section.settingsPath)) {
-    if (!dryRun) {
-      fse.removeSync(section.settingsPath);
-    }
-    result.filesDeleted++;
   }
 }
 

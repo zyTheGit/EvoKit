@@ -179,12 +179,12 @@ export function reverseMergeSettings(
   if (dryRun) return result;
 
   // 7. 检查 settings 是否有效为空（仅剩 $schema 或完全为空）
-  // 注意：即使只剩 $schema 或为空对象，也不应在非 purge 模式下删除文件。
-  // 删除整个文件过于激进——purge 模式下由 reverse-purge-settings section 负责删除。
+  // 注意：即使只剩 $schema 或为空对象，也绝不应删除文件。
+  // settings.json 是用户配置文件，EvoKit 只移除自己添加的条目，不删除文件本身。
   const keysWithoutSchema = Object.keys(settings).filter((k) => k !== '$schema');
   if (keysWithoutSchema.length === 0) {
     // 仅保留 $schema 或为空 — 写回文件而非删除
-    // （purge 模式下由专门的 reverse-purge-settings section 处理删除）
+    // EvoKit 只移除自己添加的条目，绝不删除用户配置文件
     atomicWriteFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
       tmpSuffix: '.reverse.tmp',
       validate: (tmpPath) => {

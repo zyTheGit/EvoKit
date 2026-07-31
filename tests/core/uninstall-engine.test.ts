@@ -313,9 +313,9 @@ describe('uninstall-engine', () => {
 
       executeUninstall(options);
 
-      // Purge 模式下 settings.json 应被删除
+      // Purge 模式下也不应删除 settings.json（只移除 EvoKit 条目）
       const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
-      expect(fse.existsSync(settingsPath)).toBe(false);
+      expect(fse.existsSync(settingsPath)).toBe(true);
     });
 
     it('preserves user data files by default', () => {

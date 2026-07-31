@@ -81,13 +81,6 @@ export interface ReversePurgeMemorySection {
   memoryDirs: string[];
 }
 
-/** Purge 模式下删除 settings.json 残留。 */
-export interface ReversePurgeSettingsSection {
-  type: 'reverse-purge-settings';
-  /** settings.json 路径 */
-  settingsPath: string;
-}
-
 /** 从清单中移除适配器记录。 */
 export interface ReverseRemoveManifestSection {
   type: 'reverse-remove-manifest';
@@ -106,7 +99,6 @@ export type ReverseSection =
   | ReverseDeleteSkillsSection
   | ReverseCleanupDirsSection
   | ReversePurgeMemorySection
-  | ReversePurgeSettingsSection
   | ReverseRemoveManifestSection;
 
 // ─── 反向布局 ────────────────────────────────────────────────

@@ -30,7 +30,7 @@ export const uninstallCommand = new Command('uninstall')
   )
   .option('--home <path>', '目标主目录（默认：$HOME）')
   .option('--force', '跳过确认提示')
-  .option('--purge', '除 EvoKit 管理的文件外，同时删除用户数据（记忆文件、MEMORY.md）')
+  .option('--purge', '同时删除 EvoKit 生成的用户数据文件（memory 种子、MEMORY.md 等），但不删除用户配置（settings.json）')
   .option('--dry-run', '预览卸载，不修改文件')
   .option('--no-backup', '跳过备份创建')
   .option('--backup-dir <path>', '自定义备份目录')
@@ -42,7 +42,7 @@ export const uninstallCommand = new Command('uninstall')
   启发式    — 清单缺失时，根据适配器已知结构推断卸载
 
 选项说明：
-  --purge       同时删除用户数据（记忆文件、MEMORY.md、learned-rules.md）
+  --purge       同时删除 EvoKit 生成的用户数据（memory 种子、MEMORY.md），不删除用户配置
   --dry-run     仅预览将删除的文件，不实际修改
   --no-backup   跳过备份（默认备份到 ~/.evokit/backup/）
   --force       跳过确认提示

@@ -129,10 +129,13 @@ export function buildReverseLayout(
 // ─── 公共尾段（Section 5-8） ──────────────────────────────────
 
 /**
- * 构建卸载布局的公共尾段（Section 5-8）。
+ * 构建卸载布局的公共尾段（Section 5-7）。
  * 从 manifest 和 heuristic 两个构建路径中提取的共享逻辑：
  * Section 5 删除技能目录、Section 6 purge 删除 memory、
- * Section 7 purge 删除 settings 残留、Section 8 清理空目录。
+ * Section 7 清理空目录。
+ *
+ * 注意：settings.json 始终只走 reverse-merge（移除 EvoKit 条目），
+ * 即使 purge 模式也不删除用户配置文件。
  */
 function buildCommonUninstallSections(opts: {
   adapterHome: string;
@@ -177,17 +180,7 @@ function buildCommonUninstallSections(opts: {
     }
   }
 
-  // ── Section 7: Purge 模式 — 删除 settings 残留 ──
-  if (purge && shouldReverseMerge) {
-    for (const settingsPath of settingsPaths) {
-      sections.push({
-        type: 'reverse-purge-settings',
-        settingsPath,
-      });
-    }
-  }
-
-  // ── Section 8: 清理空目录 ──
+  // ── Section 7: 清理空目录 ──
   if (cleanDirs.length > 0) {
     sections.push({
       type: 'reverse-cleanup-dirs',
