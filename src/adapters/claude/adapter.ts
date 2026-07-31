@@ -29,7 +29,7 @@ import type { HeuristicConfig } from '../base-adapter.js';
 import { BaseAdapter } from '../base-adapter.js';
 import { getFileLineCount } from '../../core/memory.js';
 
-export const CLAUDE_ADAPTER_VERSION = '0.2.0';
+export const CLAUDE_ADAPTER_VERSION = '0.2.1';
 
 // ─── 常量 ─────────────────────────────────────────────────
 

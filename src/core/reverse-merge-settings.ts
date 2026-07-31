@@ -178,11 +178,24 @@ export function reverseMergeSettings(
 
   if (dryRun) return result;
 
-  // 7. 检查 settings 是否有效为空（仅剩 $schema）
+  // 7. 检查 settings 是否有效为空（仅剩 $schema 或完全为空）
+  // 注意：即使只剩 $schema 或为空对象，也不应在非 purge 模式下删除文件。
+  // 删除整个文件过于激进——purge 模式下由 reverse-purge-settings section 负责删除。
   const keysWithoutSchema = Object.keys(settings).filter((k) => k !== '$schema');
   if (keysWithoutSchema.length === 0) {
-    fse.removeSync(settingsPath);
-    result.fileDeleted = true;
+    // 仅保留 $schema 或为空 — 写回文件而非删除
+    // （purge 模式下由专门的 reverse-purge-settings section 处理删除）
+    atomicWriteFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
+      tmpSuffix: '.reverse.tmp',
+      validate: (tmpPath) => {
+        try {
+          JSON.parse(fs.readFileSync(tmpPath, 'utf-8'));
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    });
     return result;
   }
 

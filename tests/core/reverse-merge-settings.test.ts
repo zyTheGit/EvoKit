@@ -349,10 +349,10 @@ describe('reverse-merge-settings', () => {
     });
   });
 
-  // ─── File deletion when empty ────────────────────────────────
+  // ─── File preservation when only $schema remains ────────────────────
 
-  describe('file deletion when empty', () => {
-    it('deletes settings.json when only $schema remains', () => {
+  describe('file preservation when only $schema remains', () => {
+    it('preserves settings.json when only $schema remains (non-purge)', () => {
       const settingsPath = path.join(tmpDir, 'settings.json');
       const settings = {
         $schema: 'https://claude.ai/schema/settings.json',
@@ -364,8 +364,13 @@ describe('reverse-merge-settings', () => {
 
       const result = reverseMergeSettings(settingsPath, manifest);
 
-      expect(result.fileDeleted).toBe(true);
-      expect(fs.existsSync(settingsPath)).toBe(false);
+      // 非 purge 模式下，即使只剩 $schema 也应保留文件，而非删除
+      expect(result.fileDeleted).toBe(false);
+      expect(fs.existsSync(settingsPath)).toBe(true);
+
+      // 验证文件内容仅剩 $schema
+      const remaining = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      expect(remaining).toEqual({ $schema: 'https://claude.ai/schema/settings.json' });
     });
   });
 

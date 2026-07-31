@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.1 (2026-07-31)
+
+### Bug Fixes
+
+- 🐛 **修复 uninstall 删除整个 skills 目录** — `evokit uninstall` 会无条件删除 `~/.claude/skills/` 整个目录，导致用户自己添加的技能文件丢失。现在只删除 EvoKit 安装的技能（包含 `SKILL.md` 的子目录）和 `README.md` 种子文件，保留用户自己的文件
+- 🐛 **修复 uninstall 删除 settings.json** — `evokit uninstall`（非 `--purge`）在 `settings.json` 移除 EvoKit 条目后仅剩 `$schema` 或为空时，会直接删除整个文件。现在改为写回文件内容而非删除，`--purge` 模式下才由专门的 section 负责删除
+
 ## v1.0.0 (2026-07-30)
 
 > **里程碑：从"自进化纠错系统"转向"项目上下文引擎"**

@@ -217,7 +217,55 @@ function executeReverseDeleteSkills(
 ): void {
   for (const skillDir of section.skillDirs) {
     const skillPath = path.isAbsolute(skillDir) ? skillDir : skillDir;
-    if (fse.existsSync(skillPath)) {
+    if (!fse.existsSync(skillPath)) continue;
+
+    // 如果 skillPath 是一个目录，需要区分两种情况：
+    // 1. skillPath 是技能子目录（包含 SKILL.md）→ 直接删除
+    // 2. skillPath 是 skills 父目录 → 只删除其中由 EvoKit 安装的技能子目录
+    if (fse.statSync(skillPath).isDirectory()) {
+      // 检查 skillPath 本身是否是一个 EvoKit 技能目录（包含 SKILL.md）
+      const skillMd = path.join(skillPath, 'SKILL.md');
+      if (fse.existsSync(skillMd)) {
+        // skillPath 本身就是技能目录 → 直接删除
+        if (!dryRun) {
+          fse.removeSync(skillPath);
+        }
+        result.filesDeleted++;
+      } else {
+        // skillPath 是 skills 父目录 → 遍历内容，只删除 EvoKit 安装的技能
+        try {
+          const entries = fs.readdirSync(skillPath);
+          for (const entry of entries) {
+            const entryPath = path.join(skillPath, entry);
+            try {
+              const stat = fs.statSync(entryPath);
+              if (stat.isDirectory()) {
+                // 检查是否是 EvoKit 安装的技能（包含 SKILL.md）
+                const entrySkillMd = path.join(entryPath, 'SKILL.md');
+                if (fse.existsSync(entrySkillMd)) {
+                  if (!dryRun) {
+                    fse.removeSync(entryPath);
+                  }
+                  result.filesDeleted++;
+                }
+              } else if (entry === 'README.md') {
+                // skills/README.md 是 EvoKit 安装的种子文件
+                if (!dryRun) {
+                  fse.removeSync(entryPath);
+                }
+                result.filesDeleted++;
+              }
+              // 其他文件（用户自己的）保留
+            } catch {
+              // 跳过无法访问的条目
+            }
+          }
+        } catch {
+          // 目录不可读 — 跳过
+        }
+      }
+    } else {
+      // 文件 — 直接删除
       if (!dryRun) {
         fse.removeSync(skillPath);
       }

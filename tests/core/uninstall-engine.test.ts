@@ -177,9 +177,9 @@ describe('uninstall-engine', () => {
       expect(result.agentFieldsRemoved).toBe(1);
       expect(result.filesDeleted).toBeGreaterThan(0);
 
-      // Settings.json 应被删除（仅含 EvoKit 条目，无用户内容）
+      // Settings.json 应被保留（非 purge 模式下不删除，即使内容为空）
       const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
-      expect(fse.existsSync(settingsPath)).toBe(false);
+      expect(fse.existsSync(settingsPath)).toBe(true);
 
       // CLAUDE.md should have EvoKit section removed
       const claudeMdPath = path.join(tmpHome, 'CLAUDE.md');
@@ -222,7 +222,7 @@ describe('uninstall-engine', () => {
       expect(cleaned.anotherUserPref).toBe(true);
     });
 
-    it('deletes settings.json when only $schema remains after reverse merge', () => {
+    it('preserves settings.json when only $schema remains after reverse merge', () => {
       setupFullInstallation();
       const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
 
@@ -241,8 +241,11 @@ describe('uninstall-engine', () => {
 
       executeUninstall(options);
 
-      // settings.json 应被删除（仅剩 $schema 不算有效用户内容）
-      expect(fse.existsSync(settingsPath)).toBe(false);
+      // settings.json 应被保留（非 purge 模式下，即使只剩 $schema 也不删除）
+      expect(fse.existsSync(settingsPath)).toBe(true);
+      const remaining = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      expect(remaining.$schema).toBe('https://example.com/schema');
+      expect(Object.keys(remaining).filter((k) => k !== '$schema')).toHaveLength(0);
     });
 
     it('preserves agent files with user body content after reverse merge', () => {
@@ -297,6 +300,24 @@ describe('uninstall-engine', () => {
       expect(fse.existsSync(corrections)).toBe(false);
     });
 
+    it('deletes settings.json with --purge', () => {
+      setupFullInstallation();
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        purge: true,
+        dryRun: false,
+        noBackup: true,
+      };
+
+      executeUninstall(options);
+
+      // Purge 模式下 settings.json 应被删除
+      const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
+      expect(fse.existsSync(settingsPath)).toBe(false);
+    });
+
     it('preserves user data files by default', () => {
       setupFullInstallation();
 
@@ -317,6 +338,41 @@ describe('uninstall-engine', () => {
       const corrections = path.join(tmpHome, '.claude', 'memory', 'corrections.jsonl');
       expect(fse.existsSync(memoryMd)).toBe(true);
       expect(fse.existsSync(corrections)).toBe(true);
+    });
+
+    it('preserves user skill files while removing EvoKit skills', () => {
+      setupFullInstallation();
+
+      // 添加用户自己的技能文件（没有 SKILL.md）
+      const userSkillDir = path.join(tmpHome, '.claude', 'skills', 'my-custom-skill');
+      fse.ensureDirSync(userSkillDir);
+      fs.writeFileSync(path.join(userSkillDir, 'custom.md'), '# My Custom Skill', 'utf-8');
+
+      // 添加用户自己的非技能文件
+      fs.writeFileSync(
+        path.join(tmpHome, '.claude', 'skills', 'user-notes.txt'),
+        'Some notes',
+        'utf-8',
+      );
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      };
+
+      executeUninstall(options);
+
+      // EvoKit 安装的技能（有 SKILL.md）应被删除
+      const evokitSkillDir = path.join(tmpHome, '.claude', 'skills', 'debug');
+      expect(fse.existsSync(evokitSkillDir)).toBe(false);
+
+      // 用户自己的技能文件应保留
+      expect(fse.existsSync(userSkillDir)).toBe(true);
+      expect(fse.existsSync(path.join(userSkillDir, 'custom.md'))).toBe(true);
+      expect(fse.existsSync(path.join(tmpHome, '.claude', 'skills', 'user-notes.txt'))).toBe(true);
     });
   });
 
