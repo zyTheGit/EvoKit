@@ -33,7 +33,7 @@
 | `~/.claude/agents/`                    | Sub-agent definitions                             |
 | `~/.claude/skills/`                    | Skill definitions                                 |
 | `~/.claude/hooks/`                     | Hook scripts                                      |
-| `~/.claude/memory/`                    | Learning data                                     |
+| `~/.claude/memory/`                    | Private-data dir (knowledge in shared root `.evokit/`)           |
 
 ### Lifecycle Events
 
@@ -149,7 +149,7 @@
 | `~/.codex/config.toml`    | Feature flags, permissions, model settings |
 | `~/.codex/rules/`         | Starlark `.rules` safety rules             |
 | `~/.codex/hooks-scripts/` | Hook scripts                               |
-| `~/.codex/memory/`        | Learning data                              |
+| `~/.codex/memory/`        | Private-data dir (knowledge in shared root `.evokit/`)        |
 
 ### Lifecycle Events
 
@@ -231,11 +231,11 @@ include_only = ["PATH", "HOME", "USER"]
 | `~/.config/opencode/AGENTS.md`     | Global cognitive core         |
 | `~/.config/opencode/opencode.json` | Global configuration          |
 | `~/.config/opencode/agents/`       | Global sub-agent definitions  |
-| `~/.config/opencode/memory/`       | Global learning data          |
+| `~/.config/opencode/memory/`       | Private-data dir (knowledge in shared root `.evokit/`)        |
 | `~/.config/opencode/skills/`       | Global skills                 |
 | `.opencode/tools/`                 | Project-level custom tools    |
 | `.opencode/agents/`                | Project-level agent overrides |
-| `.opencode/memory/`                | Project-level learning data   |
+| `.opencode/memory/`                | Private-data dir (knowledge in shared root)          |
 | `./AGENTS.md`                      | Project-level cognitive core  |
 | `./opencode.json`                  | Project-level configuration   |
 

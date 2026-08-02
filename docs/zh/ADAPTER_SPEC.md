@@ -33,7 +33,7 @@
 | `~/.claude/agents/`                    | 子代理定义                          |
 | `~/.claude/skills/`                    | 技能定义                            |
 | `~/.claude/hooks/`                     | Hook 脚本                           |
-| `~/.claude/memory/`                    | 学习数据                            |
+| `~/.claude/memory/`                    | 私有数据目录（知识在共享根 `.evokit/`）              |
 
 ### 生命周期事件
 
@@ -149,7 +149,7 @@
 | `~/.codex/config.toml`    | 功能开关、权限、模型设置   |
 | `~/.codex/rules/`         | Starlark `.rules` 安全规则 |
 | `~/.codex/hooks-scripts/` | Hook 脚本                  |
-| `~/.codex/memory/`        | 学习数据                   |
+| `~/.codex/memory/`        | 私有数据目录（知识在共享根 `.evokit/`）     |
 
 ### 生命周期事件
 
@@ -231,7 +231,7 @@ include_only = ["PATH", "HOME", "USER"]
 | `~/.config/opencode/AGENTS.md`     | 全局认知核心             |
 | `~/.config/opencode/opencode.json` | 全局配置                 |
 | `~/.config/opencode/agents/`       | 全局子代理定义           |
-| `~/.config/opencode/memory/`       | 全局学习数据             |
+| `~/.config/opencode/memory/`       | 私有数据目录（知识在共享根 `.evokit/`）       |
 | `~/.config/opencode/skills/`       | 全局技能                 |
 | `.opencode/tools/`                 | 项目级自定义工具         |
 | `.opencode/agents/`                | 项目级代理覆盖           |
