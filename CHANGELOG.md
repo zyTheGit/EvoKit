@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.0.2 (2026-08-02)
+
+> **多助手同步落地：4 助手共享同一份知识（读助手无关 / 写经各自确认）**
+>
+> v1.0.2 把"项目上下文引擎"从 claude 单一助手扩展到全部 4 个 AI 助手（claude / codex / opencode / pi），知识根脱离任一助手私有目录、统一共享。
+
+### Major（范畴 B 引擎）
+
+- 🧩 **知识单一数据访问层（KnowledgeRepository）** — 新增 `src/core/repository.ts`，统一管理 `.pending/`（待确认草稿）与 `knowledge/`（已背书条目）：createDraft / rejectDraft / confirmDraft / expire / collectStale / regenerateIndex。learn/review/boot/migrate 全部收敛到该层。
+- 📦 **`evokit learn` 命令** — 确认背书 + 显式声明双路径（#25/#31）：无内容列出 `.pending/` 逐条确认/拒绝 + 裁定 scope；带内容当场背书（source=explicit, FRESH）。
+- 🔄 **索引作为派生物** — `KnowledgeRepository.regenerateIndex()` 让 `knowledge-index.md` 可从实际条目自助再生成，消除手维护漂移。
+- 🏛 **架构型条目推理标注**（#33）— 写路径强制 `## 影响范围` 标注，索引前置 🏛 标记引导 AI 主动追索全文。
+- ♻️ **多助手同步研究**（#32）— 4 adapter 确认钩子 / 共享目录 / 信号桥接评估。
+
+### Breaking Changes
+
+- 🗂️ **知识根统一为 agent 无关共享根** — 个人知识根从 claude 私有 `~/.claude/memory/evokit/` 改为中性 `~/.evokit/knowledge/`，项目知识根改为 `<project>/.evokit/`（均脱离任一助手私有目录，与卸载管理 `~/.evokit/backup/`、`manifest.json` 物理隔离）。
+- 🗑️ **废弃概念全清** — 4 个 adapter 模板清空 v0 废弃管线（corrections.jsonl / observations.jsonl / learned-rules.md / evolution-log.md / sessions.jsonl / violations.jsonl / evokit-evolve / evokit-memory record-*），全部改为对话提取 + 确认背书。
+
+### Major
+
+- 🪛 **codex 模板平移** — AGENTS.md + hooks 指向共享根，确认入口 `evokit learn`。
+- 🧰 **opencode 模板平移** — 无 Stop 钩子 → 新增 `evokit-session --action flush_pending` 会话末落盘；新增 evokit-learn 工具；删除 v0 evokit-memory。
+- 🛠️ **pi 模板平移** — 新增 evokit-learn 扩展；`session_shutdown` 检查 `.pending/` 提示确认；删除 v0 evokit-memory/evokit-session。
+- 🧪 **验收 seam** — 新增模板回查测试 + 安装契约扩展：4 adapter 模板含 evokit 结构、无 v0 废弃引用。（全量测试 416 → 433）
+- 📝 **文档/CI 同步** — 核心文档（FAQ/KNOWLEDGE/ARCHITECTURE/INSTALL/ADAPTER_SPEC/DEV_STANDARDS/MULTI_AGENT 中英）改 v1.0 共享根语义；CI 模板断言对齐 v1.0 工具/扩展集。
+
 ## v1.0.1 (2026-07-31)
 
 ### Bug Fixes
