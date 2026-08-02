@@ -113,6 +113,43 @@ export function getArchiveDir(homeDir: string, adapterId = 'claude'): string {
   return dir;
 }
 
+// ─── 共享知识根（canonical root, spec #36 / T1）────────────────
+
+/**
+ * 个人知识根目录（agent 无关，跨助手共享）。
+ * 固定为 `~/.evokit/knowledge/`，不放入任一 adapter 的私有目录，
+ * 且与卸载管理的 `~/.evokit/backup/`、`~/.evokit/manifest.json` 物理隔离。
+ * 四个 adapter 的个人级知识读写均映射到这一唯一位置。
+ */
+export function getPersonalKnowledgeRoot(homeDir: string): string {
+  return path.join(homeDir, '.evokit', 'knowledge');
+}
+
+/**
+ * 项目知识根目录（agent 无关，随 git 走）。
+ * 固定为 `<projectDir>/.evokit/`（区别于常被忽略的 `.claude/`），
+ * 同一项目的四个 adapter 共享同一 `.evokit/`。
+ */
+export function getProjectKnowledgeRoot(projectDir: string): string {
+  return path.join(projectDir, '.evokit');
+}
+
+/**
+ * 从规范知识根导出三个子路径（`knowledge-index.md` / `knowledge/` / `.pending/`）。
+ * 个人根与项目根的子结构完全一致。
+ */
+export function getKnowledgeRootParts(root: string): {
+  index: string;
+  entries: string;
+  pending: string;
+} {
+  return {
+    index: path.join(root, 'knowledge-index.md'),
+    entries: path.join(root, 'knowledge'),
+    pending: path.join(root, '.pending'),
+  };
+}
+
 /** 将 ISO 时间戳字符串转换为 Date；输入无效时返回 null */
 export function parseTimestamp(ts: string): Date | null {
   try {

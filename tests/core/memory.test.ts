@@ -10,6 +10,9 @@ import {
   getFileLineCount,
   getClaudeDir,
   getMemoryDir,
+  getPersonalKnowledgeRoot,
+  getProjectKnowledgeRoot,
+  getKnowledgeRootParts,
   isOlderThanDays,
 } from '../../src/core/memory.js';
 
@@ -118,6 +121,38 @@ describe('memory', () => {
     it('returns correct paths', () => {
       expect(getClaudeDir('/home/user')).toBe('/home/user/.claude');
       expect(getMemoryDir('/home/user')).toBe('/home/user/.claude/memory');
+    });
+  });
+
+  describe('共享知识根（canonical root, spec #36 / T1）', () => {
+    it('个人知识根 = ~/.evokit/knowledge/（agent 无关）', () => {
+      expect(getPersonalKnowledgeRoot('/home/user')).toBe('/home/user/.evokit/knowledge');
+    });
+
+    it('个人知识根不依赖任一 adapter 私有路径（4 助手共享同一根）', () => {
+      // 不再是 per-adapter 的 ~/.claude ~/.codex ~/.config/opencode ~/.pi
+      const home = '/home/user';
+      const root = getPersonalKnowledgeRoot(home);
+      for (const adapterPath of [
+        '.claude/memory',
+        '.codex/memory',
+        '.config/opencode/memory',
+        '.pi/agent/memory',
+      ]) {
+        expect(root).not.toMatch(adapterPath);
+      }
+      expect(root).toBe(path.join(home, '.evokit', 'knowledge'));
+    });
+
+    it('项目知识根 = <projectDir>/.evokit/（随 git 走）', () => {
+      expect(getProjectKnowledgeRoot('/work/myproj')).toBe('/work/myproj/.evokit');
+    });
+
+    it('从规范根导出三个子路径（index / entries / .pending）', () => {
+      const parts = getKnowledgeRootParts('/work/myproj/.evokit');
+      expect(parts.index).toBe('/work/myproj/.evokit/knowledge-index.md');
+      expect(parts.entries).toBe('/work/myproj/.evokit/knowledge');
+      expect(parts.pending).toBe('/work/myproj/.evokit/.pending');
     });
   });
 
