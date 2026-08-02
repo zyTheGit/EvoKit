@@ -30,6 +30,7 @@ import { doctorCommand } from './commands/doctor.js';
 import { uninstallCommand } from './commands/uninstall.js';
 import { updateCommand } from './commands/update.js';
 import { migrateCommand } from './commands/migrate.js';
+import { reviewCommand } from './commands/review.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
@@ -50,6 +51,7 @@ program
   init                 install 的别名（向后兼容）
   project              在项目目录中生成 .claude/ 规范文件（规则、代理、命令）
   doctor               验证 EvoKit 系统完整性（钩子、清单、知识库）
+  review               复审过期的知识条目（confidence ≤ 0.5）
   migrate              迁移旧数据为 v1.0 知识条目格式
   export               导出 EvoKit 系统状态（v1.0 暂不可用）
   import <压缩包>      从迁移压缩包导入 EvoKit 系统状态（v1.0 暂不可用）
@@ -60,6 +62,7 @@ program
   evokit update                  更新所有适配器的模板文件
   evokit uninstall claude        卸载 Claude Code 的 EvoKit
   evokit doctor                  检查系统健康状态
+  evokit review                  复审过期知识条目
   evokit migrate                 迁移旧版本数据到 v1.0 格式
   evokit project                 在当前项目生成规范文件
 
@@ -72,6 +75,7 @@ program.addCommand(initCommand);
 program.addCommand(updateCommand);
 program.addCommand(projectCommand);
 program.addCommand(migrateCommand);
+program.addCommand(reviewCommand);
 program.addCommand(exportCommand);
 program.addCommand(importCommand);
 program.addCommand(doctorCommand);
