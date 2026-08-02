@@ -488,3 +488,78 @@ export function convertRuleToMigrated(
     deprecated: parsed.deprecated,
   };
 }
+
+// ─── confidence 三档离散状态机 (ADR 0002) ───────────────────
+
+/**
+ * confidence 三档离散值（非透明数值，是维护/新鲜度信号）。
+ *
+ * - FRESH  0.9 — 已确认且有效（人工背书后初始值，无条件成立的高值前提）
+ * - STALE  0.5 — 待复审（过期检测命中后标记，进 /evokit-review 名单）
+ * - RETIRED 0.1 — 疑失效（复审后仍存疑，交用户定留/删）
+ *
+ * 时间流逝不自动衰减 confidence；降档只来自过期检测的二分判断。
+ */
+export const KnowledgeConfidence = {
+  FRESH: 0.9,
+  STALE: 0.5,
+  RETIRED: 0.1,
+} as const;
+
+/** confidence 三档取值类型 */
+export type KnowledgeConfidenceValue =
+  (typeof KnowledgeConfidence)[keyof typeof KnowledgeConfidence];
+
+/**
+ * confidence 转移事件（触发是二分判断，落到是指定档位）。
+ *
+ * | 事件              | 触发点                          | 前→后        |
+ * |-------------------|---------------------------------|--------------|
+ * | `expire`          | 过期检测命中                    | FRESH→STALE  |
+ * | `review-doubtful` | 复审后仍存疑                    | STALE→RETIRED|
+ * | `review-confirm`  | 复审确认仍有效                  | STALE→FRESH  |
+ */
+export type ConfidenceEvent = 'expire' | 'review-doubtful' | 'review-confirm';
+
+/**
+ * 计算 confidence 转移后的下一档。
+ *
+ * 遵循 ADR 0002：降档只来自过期检测（expire）；复审确认可回升 FRESH；
+ * 复审后仍存疑降至 RETIRED，交用户定留/删（删除即不进状态机）。
+ * 非法转移（如直接 RETIRED→STALE）返回当前值不变。
+ */
+export function transitionConfidence(
+  current: KnowledgeConfidenceValue,
+  event: ConfidenceEvent,
+): KnowledgeConfidenceValue {
+  switch (current) {
+    case KnowledgeConfidence.FRESH:
+      return event === 'expire' ? KnowledgeConfidence.STALE : current;
+    case KnowledgeConfidence.STALE:
+      if (event === 'review-confirm') return KnowledgeConfidence.FRESH;
+      if (event === 'review-doubtful') return KnowledgeConfidence.RETIRED;
+      return current;
+    case KnowledgeConfidence.RETIRED:
+      if (event === 'review-confirm') return KnowledgeConfidence.FRESH;
+      return current;
+    default:
+      return current;
+  }
+}
+
+/**
+ * 判断 confidence 是否已列入复审名单（≤ STALE）。
+ * 用于 /evokit-review 全量复审阈值判断。
+ */
+export function needsReview(confidence: number): boolean {
+  return confidence <= KnowledgeConfidence.STALE;
+}
+
+/** 判断 confidence 是否落在三档合法取值内 */
+export function isKnownConfidence(confidence: number): boolean {
+  return (
+    confidence === KnowledgeConfidence.FRESH ||
+    confidence === KnowledgeConfidence.STALE ||
+    confidence === KnowledgeConfidence.RETIRED
+  );
+}

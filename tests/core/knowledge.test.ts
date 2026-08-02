@@ -24,6 +24,10 @@ import {
   isEmptyLearnedRules,
   parseLearnedRulesForMigration,
   convertRuleToMigrated,
+  KnowledgeConfidence,
+  transitionConfidence,
+  needsReview,
+  isKnownConfidence,
 } from '../../src/core/knowledge.js';
 import type { KnowledgeEntry } from '../../src/core/types.js';
 
@@ -726,5 +730,78 @@ describe('convertRuleToMigrated', () => {
     // ID 应有后缀避免冲突
     expect(result.entry.id).not.toBe('convention-use-uv-instead');
     expect(result.entry.id).toMatch(/^convention-use-uv-instead/);
+  });
+});
+
+// ─── confidence 三档状态机 (ADR 0002) ──────────────────────
+
+describe('KnowledgeConfidence 三档常量', () => {
+  it('取值严格为 FRESH 0.9 / STALE 0.5 / RETIRED 0.1', () => {
+    expect(KnowledgeConfidence.FRESH).toBe(0.9);
+    expect(KnowledgeConfidence.STALE).toBe(0.5);
+    expect(KnowledgeConfidence.RETIRED).toBe(0.1);
+  });
+});
+
+describe('transitionConfidence 状态机转移', () => {
+  it('FRESH 命中过期检测 → STALE', () => {
+    expect(transitionConfidence(KnowledgeConfidence.FRESH, 'expire')).toBe(
+      KnowledgeConfidence.STALE,
+    );
+  });
+
+  it('FRESH 不可直接跃迁 RETIRED', () => {
+    expect(transitionConfidence(KnowledgeConfidence.FRESH, 'review-doubtful')).toBe(
+      KnowledgeConfidence.FRESH,
+    );
+  });
+
+  it('STALE 复审后仍存疑 → RETIRED', () => {
+    expect(transitionConfidence(KnowledgeConfidence.STALE, 'review-doubtful')).toBe(
+      KnowledgeConfidence.RETIRED,
+    );
+  });
+
+  it('STALE 复审确认仍有效 → FRESH', () => {
+    expect(transitionConfidence(KnowledgeConfidence.STALE, 'review-confirm')).toBe(
+      KnowledgeConfidence.FRESH,
+    );
+  });
+
+  it('RETIRED 用户留用（复审确认）→ FRESH', () => {
+    expect(transitionConfidence(KnowledgeConfidence.RETIRED, 'review-confirm')).toBe(
+      KnowledgeConfidence.FRESH,
+    );
+  });
+
+  it('RETIRED 不再降档，保持 RETIRED', () => {
+    expect(transitionConfidence(KnowledgeConfidence.RETIRED, 'expire')).toBe(
+      KnowledgeConfidence.RETIRED,
+    );
+  });
+});
+
+describe('needsReview', () => {
+  it('STALE 及以下列入复审名单', () => {
+    expect(needsReview(KnowledgeConfidence.STALE)).toBe(true);
+    expect(needsReview(KnowledgeConfidence.RETIRED)).toBe(true);
+  });
+
+  it('FRESH 不列入复审名单', () => {
+    expect(needsReview(KnowledgeConfidence.FRESH)).toBe(false);
+  });
+});
+
+describe('isKnownConfidence', () => {
+  it('识别三档合法取值', () => {
+    expect(isKnownConfidence(0.9)).toBe(true);
+    expect(isKnownConfidence(0.5)).toBe(true);
+    expect(isKnownConfidence(0.1)).toBe(true);
+  });
+
+  it('识别非法取值', () => {
+    expect(isKnownConfidence(0.7)).toBe(false);
+    expect(isKnownConfidence(0)).toBe(false);
+    expect(isKnownConfidence(NaN)).toBe(false);
   });
 });

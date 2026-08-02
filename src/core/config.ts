@@ -6,8 +6,6 @@ const defaults: EvoConfig = {
   maxLines: 500,
   maxDays: 30,
   maxLinesArchive: 1000,
-  confidenceDecayDays: 60,
-  confidenceThreshold: 0.3,
   promoteThreshold: 2,
   graduateSessions: 10,
   learnedRulesMax: 50,

@@ -31,8 +31,9 @@ export interface KnowledgeEntry {
   type: KnowledgeType;
   /** 必填，来源 */
   source: KnowledgeSource;
-  /** 必填，置信度 0.0–1.0 */
-  confidence: number;
+  /** 必填，维护/新鲜度信号（非可信度）。三档离散值：0.9 FRESH · 0.5 STALE · 0.1 RETIRED
+   *  详值见 KnowledgeConfidence 常量与 transitionConfidence 状态机（ADR 0002）。 */
+  confidence: 0.9 | 0.5 | 0.1;
   /** 必填，创建时间 ISO 8601 */
   created: string;
   /** 可选，最后更新时间 ISO 8601 */
@@ -74,8 +75,6 @@ export interface EvoConfig {
   maxLines?: number;
   maxDays?: number;
   maxLinesArchive?: number;
-  confidenceDecayDays?: number;
-  confidenceThreshold?: number;
   promoteThreshold?: number;
   graduateSessions?: number;
   learnedRulesMax?: number;
