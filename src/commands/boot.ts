@@ -25,12 +25,11 @@ import { resolveHomeDir } from './shared.js';
 import { getMemoryDir, getFileLineCount } from '../core/memory.js';
 import {
   getEvokitDir,
-  getKnowledgeDir,
   getKnowledgeIndexPath,
   readKnowledgeEntry,
-  listKnowledgeEntries,
   readKnowledgeIndex,
 } from '../core/knowledge.js';
+import { KnowledgeRepository } from '../core/repository.js';
 
 /** 单个检查结果 */
 export interface BootCheck {
@@ -59,16 +58,20 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
   for (const memoryDir of config.memoryDirs) {
     const scopeLabel = memoryDir === config.memoryDirs[0] ? '个人级' : '项目级';
     const evokitDir = getEvokitDir(memoryDir);
-    const knowledgeDir = getKnowledgeDir(memoryDir);
     const indexPath = getKnowledgeIndexPath(memoryDir);
+    const repo = new KnowledgeRepository({ memoryDir });
 
     // 1. 目录结构
     const dirsOk =
-      fs.existsSync(evokitDir) && fs.existsSync(knowledgeDir) && fs.existsSync(indexPath);
+      fs.existsSync(evokitDir) &&
+      fs.existsSync(repo.knowledgeDir) &&
+      fs.existsSync(indexPath);
     checks.push({
       name: `[${scopeLabel}] 目录结构 (evokit/knowledge/index)`,
       pass: dirsOk,
-      detail: dirsOk ? undefined : `缺失: ${evokitDir} 或 knowledge/ 或 knowledge-index.md`,
+      detail: dirsOk
+        ? undefined
+        : `缺失: ${evokitDir} 或 knowledge/ 或 knowledge-index.md`,
     });
     if (!dirsOk) continue;
 
@@ -85,8 +88,8 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
         : '缺少 ## 个人知识 或 ## 项目知识 section 头',
     });
 
-    // 3. 索引引用的条目是否存在
-    const ids = listKnowledgeEntries(knowledgeDir);
+    // 3. 索引引用的条目是否存在（经 KnowledgeRepository 单一数据访问层）
+    const ids = repo.listActive();
     const indexedIds = [...evokit, ...claude]
       .map((l) => l.match(/^- \[([^\]]+)\]/))
       .map((m) => (m ? m[1] : ''))
@@ -105,7 +108,7 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
     let bad = 0;
     const badIds: string[] = [];
     for (const id of ids) {
-      const filePath = path.join(knowledgeDir, `${id}.md`);
+      const filePath = path.join(repo.knowledgeDir, `${id}.md`);
       if (!readKnowledgeEntry(filePath)) {
         bad++;
         badIds.push(id);
@@ -117,14 +120,8 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
       detail: bad > 0 ? `不合法: ${badIds.join(', ')}` : `${ids.length} 条约 ok`,
     });
 
-    // 5. .pending/ 待确认条目
-    const pendingDir = path.join(evokitDir, '.pending');
-    let pendingCount = 0;
-    if (fs.existsSync(pendingDir)) {
-      pendingCount = fs
-        .readdirSync(pendingDir)
-        .filter((f) => f.endsWith('.md')).length;
-    }
+    // 5. .pending/ 待确认条目（经 KnowledgeRepository 单一数据访问层）
+    const pendingCount = repo.listPending().length;
     if (pendingCount > 0) {
       checks.push({
         name: `[${scopeLabel}] 待确认条目`,

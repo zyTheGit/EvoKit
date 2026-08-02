@@ -18,16 +18,13 @@ import { intro, log, select, isCancel, cancel, note, outro } from '@clack/prompt
 import { resolveHomeDir } from './shared.js';
 import { getMemoryDir } from '../core/memory.js';
 import {
-  getKnowledgeDir,
   getKnowledgeIndexPath,
-  readKnowledgeEntry,
   writeKnowledgeEntry,
-  listKnowledgeEntries,
   readKnowledgeIndex,
   writeKnowledgeIndex,
   transitionConfidence,
-  needsReview,
 } from '../core/knowledge.js';
+import { KnowledgeRepository } from '../core/repository.js';
 import type { KnowledgeEntry } from '../core/types.js';
 
 const FRONTMATTER_DELIMITER = '---';
@@ -42,8 +39,9 @@ export interface ReviewCandidate {
 }
 
 /**
- * 从 knowledge 目录扫描 confidence ≤ STALE 的条目。
+ * 从 knowledge 目录扫描 confidence ≤ STALE 的条目（#34 待复审名单）。
  * 供 `evokit review` 全量复审名单。
+ * 统一走 KnowledgeRepository.collectStale（单一数据访问层，范畴 B）。
  */
 export function collectStaleEntries(
   memoryDirs: string[],
@@ -51,14 +49,10 @@ export function collectStaleEntries(
   const candidates: ReviewCandidate[] = [];
 
   for (const memoryDir of memoryDirs) {
-    const knowledgeDir = getKnowledgeDir(memoryDir);
-    const ids = listKnowledgeEntries(knowledgeDir);
-    for (const id of ids) {
-      const filePath = path.join(knowledgeDir, `${id}.md`);
-      const entry = readKnowledgeEntry(filePath);
-      if (entry && needsReview(entry.confidence)) {
-        candidates.push({ entry, knowledgeDir, memoryDir });
-      }
+    const repo = new KnowledgeRepository({ memoryDir });
+    // 跨个人+项目目录共享的待复审名单定义（confidence ≤ 0.5）
+    for (const entry of repo.collectStale()) {
+      candidates.push({ entry, knowledgeDir: repo.knowledgeDir, memoryDir });
     }
   }
 

@@ -3,13 +3,6 @@ import { EvoConfig } from './types.js';
 
 const defaults: EvoConfig = {
   homeDir: process.env.HOME || process.env.USERPROFILE || '',
-  maxLines: 500,
-  maxDays: 30,
-  maxLinesArchive: 1000,
-  promoteThreshold: 2,
-  graduateSessions: 10,
-  learnedRulesMax: 50,
-  claudeMdMax: 150,
   dryRun: false,
 };
 

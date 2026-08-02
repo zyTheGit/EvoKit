@@ -21,6 +21,14 @@ export type KnowledgeSource = 'conversation' | 'explicit' | 'git-history';
 /** 知识条目作用域 */
 export type KnowledgeScope = 'personal' | 'project';
 
+/**
+ * 知识条目生命周期状态。
+ *
+ * - `pending` — 待确认草稿（`.pending/`），识别后未背书；无 scope/confidence（未猜作用域、未背书）。
+ * - `active`  — 已背书条目（`knowledge/`），scope/confidence 齐备。
+ */
+export type KnowledgeStatus = 'pending' | 'active';
+
 /** v1.0 知识条目数据结构（YAML frontmatter + 正文） */
 export interface KnowledgeEntry {
   /** 必填，= 文件名去掉 .md */
@@ -42,6 +50,35 @@ export interface KnowledgeEntry {
   context?: string;
   /** 可选，标签数组 */
   tags?: string[];
+}
+
+/**
+ * 待确认草稿（`.pending/` 条目，见 #31 D1）。
+ *
+ * 对话识别后静默写入 `.pending/`，此时尚未背书，因此：
+ * - **不含 `scope`**（识别时不猜作用域，确认时人工裁定）
+ * - **不含 `confidence`**（未背书不给高值前提，确认背书后才设 FRESH 0.9）
+ *
+ * 确认时由 /evokit-learn 补齐 scope + confidence + updated，转成 KnowledgeEntry 移入 knowledge/。
+ */
+export interface PendingKnowledgeEntry {
+  id: string;
+  type: KnowledgeType;
+  source: KnowledgeSource;
+  created: string;
+  context?: string;
+  tags?: string[];
+}
+
+/**
+ * 架构型条目的推理标注（type=architecture 必填，见 #33 / ADR 0002）。
+ * 检索按类型分裂：architecture 需全文推理标注，AI 才能按需追索而非只看摘要。
+ */
+export interface ArchitectureAnnotation {
+  /** ## 影响范围 — 该架构决策依赖什么前提、影响哪些模块/服务/数据流 */
+  impact: string;
+  /** ## 相关决策 — 相关/上下游决策的引用 */
+  relatedDecisions?: string[];
 }
 
 /** 迁移解析结果：从 learned-rules.md 条目转换为待确认的知识条目 */
@@ -67,18 +104,11 @@ export interface MigrationDetection {
   paths: Record<string, string>;
 }
 
-/** 演化管道的配置（保留供 config.ts 使用） */
+/** EvoKit v1.0 配置（已移除 v0.x 废弃晋升/旋转/归档配置项）。 */
 export interface EvoConfig {
   homeDir: string;
   /** 适配器 ID（决定 memory 目录路径，默认 'claude'） */
   adapterId?: string;
-  maxLines?: number;
-  maxDays?: number;
-  maxLinesArchive?: number;
-  promoteThreshold?: number;
-  graduateSessions?: number;
-  learnedRulesMax?: number;
-  claudeMdMax?: number;
   dryRun?: boolean;
 }
 
