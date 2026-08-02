@@ -70,9 +70,10 @@
 - **与模型冲突**：CONTEXT.md 多助手小节要求「所有助手共享同一份 `knowledge/` + 索引」。
 - **矛盾根因**：`knowledge/` 在 `memory.ts` 下按 adapter 解析（`getMemoryDir(home, adapterId)` → `.../evokit/knowledge/`），
   adapterId 不同 → 目录不同 → 无共享。
-- **建议**（已由 spec #36 拍板为方案 X，canonical root 定为 **agent 无关的中性目录 `~/.evokit/`**）：
-  1. **方案 X（共享物理目录，已决策）**：canonical knowledge root = **`~/.evokit/`**（`.pending/`/`knowledge/`/`knowledge-index.md`），**不放入任一 agent 的工具/私有目录**（避免与某 adapter 生命周期/卸载耦合）；4 个 adapter 的 `getMemoryDir` 改为**映射到同一个 root**；代码层把「知识目录」从 adapter 私有 memory 解耦，`getMemoryDir` 只保留 adapter 各自的历史/非知识数据，知识目录统一收口到 `~/.evokit/`。
+- **建议**（已由 spec #36 拍板为方案 X，canonical root 定为 **agent 无关的中性目录 `~/.evokit/knowledge/`**）：
+  1. **方案 X（共享物理目录，已决策）**：canonical knowledge root = **`~/.evokit/knowledge/`**（`.pending/`/`knowledge/`/`knowledge-index.md`），**不放入任一 agent 的工具/私有目录**，且与卸载管理的 `~/.evokit/backup/`、`~/.evokit/manifest.json` **物理隔离**（避免与某 adapter 生命周期/卸载耦合，也不破坏既有卸载清理逻辑）；4 个 adapter 的 `getMemoryDir` 改为**映射到同一个 root**；代码层把「知识目录」从 adapter 私有 memory 解耦，`getMemoryDir` 只保留 adapter 各自的历史/非知识数据，知识目录统一收口到 `~/.evokit/knowledge/`。
   2. 方案 Y（软链/引用）：各 adapter 私有目录放符号链接/索引引用指向 canonical —— 复杂、易碎，不推荐。
+- **项目级同步决策**：项目知识根同样脱离助手目录，定为 `<project>/.evokit/`（与个人级同命名、同构；随 git 走，`.evokit/` 应提交，区别于常被忽略的 `.claude/`）。4 个助手在同一项目的项目级知识共享同一 `.evokit/`。
 - **注意**：这个决定把「个人级 shared root」定死，会影响 `getMemoryDir`/`ADAPTER_MEMORY_PATHS` 的改造面（当前
   `src/core/memory.ts` + 4 adapter 模板 + boot/review/learn 命令的目录解析），已纳入 spec #36，随 /to-tickets 拆分落地。
 

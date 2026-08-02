@@ -31,6 +31,7 @@ EvoKit v0.x 的核心定位是"自进化纠错系统"——通过纠错→观察
 | 核心定位 | 自进化纠错系统                 | 项目上下文引擎                              |
 | 数据文件 | 6 个 JSONL + 2 个 MD           | knowledge-index.md + knowledge/*.md         |
 | 存储位置 | 扁平放 memory/                 | memory/evokit/ 子目录隔离                   |
+| 知识根落点（多助手同步后演进） | 各助手各自 memory/evokit/ | 个人知识根 `~/.evokit/knowledge/`、项目知识根 `<project>/.evokit/`（agent 无关、与卸载管理隔离、4 助手共享） |
 | 知识来源 | 纠错 + 自动观察                | 对话提取 + 显式声明 + Git 历史              |
 | 钩子     | 5 个                           | 2 个（SessionStart + Stop）                 |
 | 命令     | /boot, /evolve, /evokit-review | /evokit-boot, /evokit-learn, /evokit-review |

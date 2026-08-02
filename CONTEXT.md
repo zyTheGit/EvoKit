@@ -13,8 +13,8 @@
 | **知识（Knowledge）**                    | AI 不可能从训练数据中获知的、项目或个人专属的信息                   | 核心概念 |
 | **知识条目（Knowledge Entry）**          | 一条结构化的知识，含类型、来源、置信度、内容、上下文                | 存储单元 |
 | **知识索引（Knowledge Index）**          | `knowledge-index.md`，每条知识的摘要行，始终加载                    | 查询入口 |
-| **项目知识（Project Knowledge）**        | 作用域为特定项目的知识，存储在项目 `.claude/memory/evokit/` 下      | 项目级   |
-| **个人知识（Personal Knowledge）**       | 作用域为个人的知识，存储在 `~/.claude/memory/evokit/` 下            | 个人级   |
+| **项目知识（Project Knowledge）**        | 作用域为特定项目的知识，存储在项目 `.evokit/` 下                   | 项目级   |
+| **个人知识（Personal Knowledge）**       | 作用域为个人的知识，存储在 `~/.evokit/knowledge/` 下              | 个人级   |
 | **团队知识（Team Knowledge）**           | 作用域为团队的知识 — **v1.0 不做**                                  | 搁置     |
 | **对话提取（Conversation Extraction）**  | AI 在对话中识别项目知识，静默写入 .pending/，会话结束时提示确认     | 核心机制 |
 | **待确认知识（Pending Knowledge）**      | AI 识别后写入 `.pending/` 的知识条目，等待用户确认后移入 knowledge/ | 中间状态 |
@@ -54,8 +54,8 @@
 
 | 层级 | 存储位置                   | 生命周期             | v1.0    |
 | ---- | -------------------------- | -------------------- | ------- |
-| 个人 | `~/.claude/memory/evokit/` | 跨项目持久           | ✅      |
-| 项目 | `.claude/memory/evokit/`   | 跟项目走，可提交 git | ✅      |
+| 个人 | `~/.evokit/knowledge/` | 跨项目持久           | ✅      |
+| 项目 | `.evokit/`              | 跟项目走，可提交 git | ✅      |
 | 团队 | 待定                       | 跟组织走             | ❌ 搁置 |
 
 > **作用域判定判据**：问自己——"这条知识 *换到另一个项目还成立吗？*"
@@ -130,7 +130,7 @@ evokit/
     architecture-api-upstream.md
 ```
 
-个人级（`~/.claude/memory/evokit/`）与项目级（`.claude/memory/evokit/`）结构完全相同。
+个人级（`~/.evokit/knowledge/`）与项目级（`.evokit/`）结构完全相同。知识根脱离任一助手（agent）目录，4 个助手共享同一份个人/项目知识（读助手无关，写经各自确认）；与卸载管理 `~/.evokit/backup/`、`manifest.json` 物理隔离。
 
 ### knowledge-index.md 格式
 
@@ -168,7 +168,7 @@ evokit/
 
 ### 静默标记
 
-AI 识别知识 → Write `.claude/memory/evokit/.pending/{type}-{slug}.md`（frontmatter `status: pending`）→ 回复中不提及。
+AI 识别知识 → 写入项目 `.evokit/.pending/{type}-{slug}.md`（frontmatter `status: pending`）→ 回复中不提及。
 
 > **`.pending/` 一律按当前项目存放**（对话提取发生在当前项目会话中，语境一致）。确认时可指定作用域后归档。
 > 识别时**不猜测作用域**，`scope` 延后到确认时由人工裁定（见下方确认流程）。
@@ -180,7 +180,7 @@ AI 识别知识 → Write `.claude/memory/evokit/.pending/{type}-{slug}.md`（fr
 3. AI 执行：确认的移入 `knowledge/`，拒绝的删除
 
 > **作用域在确认时裁定，而非识别时猜测**：AI 展示待确认条目时显式标注建议的 `scope`（个人/项目），用户可在确认时指定归属，如"确认 1 为个人，3 为项目"。
-> 确认时若指定了个人的，条目移往 `~/.claude/memory/evokit/knowledge/`；否则留在 `.claude/memory/evokit/knowledge/`。
+> 确认时若指定了个人的，条目移往 `~/.evokit/knowledge/`；否则留在当前项目 `.evokit/knowledge/`。项目级 `.evokit/` 应随 git 提交（区别于常被忽略的 `.claude/`），以兑现“跟项目走、可提交”承诺。
 
 ### 触发方式
 
