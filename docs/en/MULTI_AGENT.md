@@ -5,9 +5,9 @@
 
 ## Motivation
 
-EvoKit currently works with Claude Code via its hook system. However, the evolution pipeline (corrections → observations → promotion → graduation) is **assistant-agnostic** — any AI coding assistant can benefit from it.
+EvoKit works with 4 AI coding assistants (Claude Code, Codex, OpenCode, Pi) via hooks/extensions/tools, providing a **project-context engine** (conversation extraction + endorsement). Knowledge is **assistant-agnostic** — any assistant can read/write the same knowledge.
 
-The adapter architecture decouples the evolution engine from the specific AI assistant, allowing shared learning across tools.
+The adapter architecture decouples the knowledge engine from any one assistant, allowing knowledge to be shared across tools (read-agnostic / write-per-assistant confirmation).
 
 ## Adapter Interface
 
@@ -36,7 +36,7 @@ interface AgentAdapter {
 
   /**
    * Export learning data from the assistant.
-   * Extracts what the assistant has learned (corrections, observations).
+   * Extracts what the assistant has learned (corrections, observations) — v0.  v1.0 knowledge lives in shared root; no export needed.
    */
   exportMemory(): Promise<MemoryData>;
 
@@ -67,6 +67,7 @@ interface HookEvent {
 }
 
 interface MemoryData {
+  // v0 shape (deprecated). In v1.0 knowledge flows via the shared knowledge root `~/.evokit/knowledge/` + endorsement; this interface no longer holds corrections/observations/sessions.
   corrections: Correction[];
   observations: Observation[];
   learnedRules: string;
@@ -89,7 +90,7 @@ interface CommandResult {
 | ------------ | ----------------------------------------------------------------------------- |
 | Installation | Copy template to `~/.claude/` (global) + `.claude/` (project-level, optional) |
 | Hooks        | `settings.json` hooks config                                                  |
-| Memory       | File-based in `.claude/memory/`                                               |
+| Memory       | Private data in `.claude/memory/`; shared knowledge in `~/.evokit/knowledge/` + `<project>/.evokit/` |
 | Commands     | Slash commands in `.claude/commands/`                                         |
 | Agents       | Sub-agent definitions in `.claude/agents/`                                    |
 | Status       | ✅ Complete                                                                   |
@@ -108,7 +109,7 @@ Claude Code supports both global (`~/.claude/`) and project-level (`.claude/` in
 | `.claude/commands/`     | Project-level slash commands                   |
 | `.claude/agents/`       | Project-level sub-agent definitions            |
 | `.claude/skills/`       | Project-level skills                           |
-| `.claude/memory/`       | Project-level learning data                    |
+| `.claude/memory/`       | Private-data dir (shared knowledge lives in `.evokit/` root)      |
 
 #### EvoKit → Claude Code Project-Level Mapping
 
@@ -119,7 +120,7 @@ Claude Code supports both global (`~/.claude/`) and project-level (`.claude/` in
 | `~/.claude/rules/`         | `<project>/.claude/rules/`           |
 | `~/.claude/commands/`      | `<project>/.claude/commands/`        |
 | `~/.claude/agents/`        | `<project>/.claude/agents/`          |
-| `~/.claude/memory/`        | `<project>/.claude/memory/`          |
+| `~/.claude/memory/`        | `<project>/.claude/memory/` (private data; knowledge in `.evokit/`)          |
 | —                          | `<project>/.claude/skills/`          |
 
 ### Codex CLI Adapter (v0.3 — ✅ Implemented)
@@ -129,7 +130,7 @@ Claude Code supports both global (`~/.claude/`) and project-level (`.claude/` in
 | Installation   | `evokit init --adapter codex` — copies to `~/.codex/` (global) + `.codex/` (project-level, optional) |
 | Hooks          | `hooks.json` — SessionStart, Stop, PreToolUse events                                                 |
 | Rules          | Starlark `.rules` files in `~/.codex/rules/`                                                         |
-| Memory         | `~/.codex/memory/` (per-adapter, tagged with `assistant: "codex"`)                                   |
+| Memory         | `~/.codex/memory/` (private data; shared knowledge in `~/.evokit/knowledge/`)                                   |
 | Cognitive Core | `~/.codex/AGENTS.md` (analogous to CLAUDE.md)                                                        |
 | Config         | `~/.codex/config.toml` (features, model, permissions)                                                |
 | Commands       | `evokit evolve`, `evokit doctor`, shell-based `/boot`                                                |
@@ -149,7 +150,7 @@ Codex CLI supports both global (`~/.codex/`) and project-level (`.codex/` in the
 | `.codex/agents/`     | Project-level sub-agents                       |
 | `.codex/skills/`     | Project-level skills                           |
 | `.codex/hooks/`      | Project-level lifecycle hook scripts           |
-| `.codex/memory/`     | Project-level learning data                    |
+| `.codex/memory/`     | Private-data dir (shared knowledge in `.evokit/` root)                    |
 
 #### EvoKit → Codex CLI Mapping
 
@@ -160,7 +161,7 @@ Codex CLI supports both global (`~/.codex/`) and project-level (`.codex/` in the
 | `.claude/rules/` (markdown)   | `.codex/rules/` (Starlark `.rules`)  |
 | `.claude/agents/`             | Subagents + Skills                   |
 | `.claude/commands/` (`/boot`) | SessionStart hook + `codex exec`     |
-| `.claude/memory/` (JSONL)     | `~/.codex/memory/` (per-adapter)     |
+| `.claude/memory/` (JSONL)     | `~/.codex/memory/` (private data; knowledge in shared root)     |
 
 #### EvoKit → Codex CLI Project-Level Mapping
 
@@ -170,7 +171,7 @@ Codex CLI supports both global (`~/.codex/`) and project-level (`.codex/` in the
 | `~/.codex/config.toml`    | `<project>/.codex/config.toml`     |
 | `~/.codex/rules/`         | `<project>/.codex/rules/`          |
 | `~/.codex/agents/`        | `<project>/.codex/agents/`         |
-| `~/.codex/memory/`        | `<project>/.codex/memory/`         |
+| `~/.codex/memory/`        | `<project>/.codex/memory/` (private data; knowledge in `.evokit/`)         |
 | —                         | `<project>/.codex/skills/`         |
 | —                         | `<project>/.codex/hooks/`          |
 
@@ -187,7 +188,7 @@ When installed with `evokit init --adapter codex`, the following is created:
 │   └── evokit-base.rules  # Starlark safety rules (rm -rf, git push --force, sudo...)
 ├── hooks-scripts/
 │   ├── session-start.sh   # Boot verification on session start
-│   ├── stop.sh            # Session recording to ~/.codex/memory/
+│   ├── stop.sh            # Session-end pending hint (knowledge in ~/.evokit/knowledge/)
 │   └── pre-tool-use.sh    # Learned rules context injection
 └── memory/
     └── README.md          # Learning data directory
@@ -199,7 +200,7 @@ When installed with `evokit init --adapter codex`, the following is created:
 | -------------- | ----------------------------------------------------------------- |
 | Installation   | `evokit init --adapter opencode` (or `bash install.sh`, option 3) |
 | Hooks          | None — replaced by custom tools in `.opencode/tools/`             |
-| Memory         | `.opencode/memory/` (per-adapter, project-level)                  |
+| Memory         | `.opencode/memory/` (private data; shared knowledge in `~/.evokit/knowledge/`)                  |
 | Commands       | Custom tools using `@opencode-ai/plugin`                          |
 | Cognitive Core | Project root `AGENTS.md`                                          |
 | Config         | Project root `opencode.json`                                      |
@@ -216,7 +217,7 @@ When installed with `evokit init --adapter codex`, the following is created:
 | `.claude/rules/` (markdown)      | `opencode.json` → `instructions` field (glob patterns) |
 | `.claude/agents/`                | `.opencode/agents/` (Markdown + YAML frontmatter)      |
 | `.claude/commands/` (`/boot`)    | `.opencode/tools/evokit-boot.ts`                       |
-| `.claude/memory/` (JSONL)        | `.opencode/memory/` (per-adapter)                      |
+| `.claude/memory/` (JSONL)        | `.opencode/memory/` (private data; knowledge in shared root)                      |
 | SessionStart hook                | Custom tool `evokit-boot.ts` (AI-invoked)              |
 | Stop hook                        | Custom tool `evokit-session.ts` (AI-invoked)           |
 
@@ -225,7 +226,7 @@ When installed with `evokit init --adapter codex`, the following is created:
 OpenCode has no SessionStart/Stop lifecycle hooks, so:
 
 - **Boot verification is not automatic** — AI must call `evokit-boot.ts` (instructed via `AGENTS.md`)
-- **Session recording is not automatic** — AI must call `evokit-session.ts` with `action: "end"` before finishing
+- **Session-end flush is not automatic** — AI must call `evokit-session.ts` with `action: "flush_pending"` before finishing (no-Stop equivalent trigger)
 - All tools are idempotent — safe to call multiple times
 
 #### Installed Structure
@@ -236,10 +237,9 @@ project-root/
 ├── opencode.json                      # OpenCode configuration
 └── .opencode/
     ├── tools/
-    │   ├── evokit-boot.ts             # Boot verification tool
-    │   ├── evokit-evolve.ts           # Evolution audit tool
-    │   ├── evokit-memory.ts           # Memory management tool
-    │   └── evokit-session.ts          # Session recording tool
+    │   ├── evokit-boot.ts             # Knowledge integrity check tool
+    │   ├── evokit-learn.ts            # Endorse / explicit declare tool
+    │   └── evokit-session.ts          # Session-end flush_pending tool
     ├── agents/
     │   ├── architect.md               # Architect sub-agent
     │   └── reviewer.md                # Reviewer sub-agent
@@ -253,8 +253,8 @@ project-root/
 | -------------- | -------------------------------------------------------------------------------- |
 | Installation   | `evokit init --adapter pi` — copies to `~/.pi/agent/` + `.pi/`                   |
 | Hooks          | TypeScript extensions via `pi.on()` — session_start, session_shutdown, tool_call |
-| Memory         | `~/.pi/agent/memory/` (per-adapter, tagged `assistant: "pi"`)                    |
-| Commands       | Custom extensions — evokit-boot, evokit-evolve, evokit-memory, evokit-session    |
+| Memory         | `~/.pi/agent/memory/` (private data; shared knowledge in `~/.evokit/knowledge/`)                    |
+| Commands       | Custom extensions — evokit-boot, evokit-learn                        |
 | Cognitive Core | `~/.pi/agent/AGENTS.md` (analogous to CLAUDE.md)                                 |
 | Config         | `~/.pi/agent/settings.json` (skills + extensions)                                |
 | Skills         | `~/.pi/agent/skills/evokit/` (Agent Skills standard)                             |
@@ -271,7 +271,7 @@ project-root/
 | `.claude/rules/` (markdown)      | `AGENTS.md` + extensions (no dedicated rules directory) |
 | `.claude/agents/`                | `~/.pi/agent/agent/` (Markdown + YAML frontmatter)      |
 | `.claude/commands/` (`/boot`)    | `~/.pi/agent/extensions/evokit-boot.ts`                 |
-| `.claude/memory/` (JSONL)        | `~/.pi/agent/memory/` (per-adapter)                     |
+| `.claude/memory/` (JSONL)        | `~/.pi/agent/memory/` (private data; knowledge in shared root)                     |
 | SessionStart hook                | `pi.on("session_start")` in evokit-lifecycle.ts         |
 | Stop hook                        | `pi.on("session_shutdown")` in evokit-lifecycle.ts      |
 | PreToolUse hook                  | `pi.on("tool_call")` in evokit-lifecycle.ts             |
@@ -283,7 +283,7 @@ Pi CLI uses TypeScript extensions for lifecycle events, not shell-based hooks:
 - **Boot verification is automatic** — `evokit-lifecycle.ts` subscribes to `session_start` via `pi.on()`
 - **Session recording is automatic** — `evokit-lifecycle.ts` subscribes to `session_shutdown`
 - **Learned rules injection is automatic** — `evokit-lifecycle.ts` subscribes to `tool_call`
-- Manual commands also available via `/evokit-boot`, `/evokit-evolve`, `/evokit-memory`, `/evokit-session`
+- Manual commands also available via `evokit-boot`, `evokit learn`
 
 #### Installed Structure
 
@@ -292,11 +292,9 @@ Pi CLI uses TypeScript extensions for lifecycle events, not shell-based hooks:
 ├── AGENTS.md                  # L1 cognitive core (thinking framework, evolution protocol)
 ├── settings.json              # Skills + extensions configuration
 ├── extensions/
-│   ├── evokit-lifecycle.ts    # Lifecycle events (session_start, session_shutdown, tool_call)
-│   ├── evokit-boot.ts        # Boot verification command
-│   ├── evokit-evolve.ts      # Evolution audit command
-│   ├── evokit-memory.ts      # Memory management command
-│   └── evokit-session.ts     # Session recording command
+│   ├── evokit-lifecycle.ts    # Lifecycle events (session_start, session_shutdown)
+│   ├── evokit-boot.ts        # Knowledge integrity check command
+│   └── evokit-learn.ts       # Endorse / explicit declare command
 ├── skills/evokit/
 │   └── SKILL.md              # EvoKit skill definition
 ├── agent/
@@ -306,41 +304,22 @@ Pi CLI uses TypeScript extensions for lifecycle events, not shell-based hooks:
     └── README.md              # Learning data directory
 ```
 
-## Per-Adapter Learning Data
+## Shared Knowledge Root (v1.0)
 
-Each adapter stores its learning data in its own directory:
+All assistants share the same knowledge (read-agnostic / write-per-assistant confirmation); the knowledge roots are detached from any assistant's private directory:
 
-| Adapter      | Memory Path (Global)         | Memory Path (Project)         |
-| ------------ | ---------------------------- | ----------------------------- |
-| Claude Code  | `~/.claude/memory/`          | `<project>/.claude/memory/`   |
-| Codex CLI    | `~/.codex/memory/`           | `<project>/.codex/memory/`    |
-| OpenCode CLI | `~/.config/opencode/memory/` | `<project>/.opencode/memory/` |
-| Pi CLI       | `~/.pi/agent/memory/`        | `<project>/.pi/memory/`       |
+| Tier    | Location                  | Description                                  |
+| ------- | ------------------------- | -------------------------------------------- |
+| Personal | `~/.evokit/knowledge/`   | Cross-project, agent-agnostic (shared by 4)  |
+| Project | `<project>/.evokit/`     | Follows git, shared by 4 assistants           |
 
-Each session record identifies the assistant with a tag:
+Each root contains `knowledge-index.md` (index) / `knowledge/` (entries) / `.pending/` (drafts).
 
-```json
-{
-  "timestamp": "2026-06-11T14:30:00",
-  "assistant": "opencode",
-  "duration_seconds": 300,
-  "corrections": 2,
-  "score": "A"
-}
-```
+The only write gate = **human endorsement**: each assistant triggers confirmation (claude/codex=Stop, opencode=`evokit-session --action flush_pending` session-end flush, pi=`session_shutdown`), all landing on the same `evokit learn` semantics.
 
-Each session record identifies the assistant:
+## Deprecated Concepts
 
-```json
-{
-  "timestamp": "2026-06-11T14:30:00",
-  "assistant": "claude-code",
-  "duration_seconds": 300,
-  "corrections": 2,
-  "observations": 1,
-  "score": "A"
-}
-```
+The v0.x per-adapter independent `memory/` (corrections.jsonl / observations.jsonl / learned-rules.md / evolution-log.md / sessions.jsonl / violations.jsonl) and `evokit-evolve` / `evokit-memory` record-* are **deprecated in v1.0**, replaced by the shared knowledge root + conversation extraction + endorsement above.
 
 ## Contribution
 

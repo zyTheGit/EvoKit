@@ -12,7 +12,7 @@ No. EvoKit is a community project that extends Claude Code's capabilities via it
 
 ### Does EvoKit send my data anywhere?
 
-**No.** All data stays in the local `evokit/` knowledge base directory (e.g. `~/.claude/memory/evokit/`). No cloud, no telemetry, no external API calls.
+**No.** All data stays in the local knowledge roots (`~/.evokit/knowledge/`, `<project>/.evokit/`). No cloud, no telemetry, no external API calls.
 
 ## Knowledge System
 
@@ -97,7 +97,8 @@ This installs EvoKit templates to `~/.codex/`, configuring:
 - `AGENTS.md` — cognitive core with thinking framework and knowledge protocol
 - `hooks.json` — lifecycle hooks (SessionStart, Stop, PreToolUse)
 - `rules/` — Starlark safety rules
-- Independent `~/.codex/memory/evokit/` knowledge base directory
+- Independent `~/.codex/` global + `.codex/` project install (cognitive core/hooks/rules)
+- Knowledge uses shared roots `~/.evokit/knowledge/` (personal) + `<project>/.evokit/` (project)
 
 ### Does EvoKit work with OpenCode?
 
@@ -107,7 +108,7 @@ This installs EvoKit templates to `~/.codex/`, configuring:
 evokit install --adapter opencode
 ```
 
-This installs EvoKit templates into the project directory, configuring custom tools (`evokit-boot.ts`, `evokit-learn.ts`, etc.) instead of lifecycle hooks. OpenCode has its own independent `~/.config/opencode/memory/evokit/` knowledge base directory.
+This installs EvoKit templates into the project directory, configuring custom tools (`evokit-boot.ts`, `evokit-learn.ts`, etc.) instead of lifecycle hooks. Knowledge uses shared roots `~/.evokit/knowledge/` (personal) + `<project>/.evokit/` (project).
 
 ### Does EvoKit work with Pi CLI?
 
@@ -117,11 +118,15 @@ This installs EvoKit templates into the project directory, configuring custom to
 evokit install --adapter pi
 ```
 
-This installs EvoKit templates to `~/.pi/agent/`, configuring TypeScript extensions (`evokit-lifecycle.ts`, etc.) for lifecycle events. Pi CLI has its own independent `~/.pi/agent/memory/evokit/` knowledge base directory.
+This installs EvoKit templates to `~/.pi/agent/`, configuring TypeScript extensions (`evokit-lifecycle.ts`, `evokit-learn.ts`, etc.) for lifecycle events. Knowledge uses shared roots (see below).
 
 ### Do different AI assistants share knowledge?
 
-**No.** Each adapter has its own independent `evokit/` knowledge base directory (e.g. `~/.claude/memory/evokit/`, `~/.codex/memory/evokit/`, `~/.config/opencode/memory/evokit/`). This ensures knowledge from different assistants doesn't interfere. If you need to share specific knowledge across assistants, you can manually declare it in another assistant using `/evokit-learn "content"`.
+**Yes.** All assistants share the same knowledge (read-agnostic / write-per-assistant confirmation):
+- **Personal knowledge**: `~/.evokit/knowledge/` (agent-agnostic, shared)
+- **Project knowledge**: `<project>/.evokit/` (shared by all 4 assistants, follows git)
+
+The only write gate = **human endorsement**: each assistant triggers confirmation via `evokit learn` (claude/codex=Stop, opencode=session-end `flush_pending`, pi=session_shutdown), landing on the same confirmation semantics.
 
 ### How do I check if my installation is healthy?
 

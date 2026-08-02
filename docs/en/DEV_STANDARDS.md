@@ -119,9 +119,8 @@
 - **`settings.json`** also uses the `__HOME__` placeholder (replaced via `sed -i` during install).
 - **Line limits**:
   - `template/claude/CLAUDE.md` ≤ **150 lines** (cognitive core, not a dumping ground).
-  - `learned-rules.md` ≤ **50 lines**.
-- **Memory files are append-only**: entries in `corrections.jsonl` and `observations.jsonl` are never deleted.
-- **Rotation & decay**: handled by the `/evolve` command — archive entries older than 30 days, gzip beyond 1000 lines; halve confidence after 60 days.
+- **Knowledge roots (v1.0)**: templates point to agent-agnostic shared roots — personal `~/.evokit/knowledge/`, project `<project>/.evokit/`; never bound to any assistant-private `memory/`.
+- **No deprecated concepts**: templates must not reference v0 files (corrections.jsonl / observations.jsonl / learned-rules.md / evolution-log.md / sessions.jsonl / violations.jsonl / evokit-evolve / evokit-memory record-*). Knowledge uses conversation extraction + endorsement.
 - **Embedded Python**: hooks like `stop.sh` prefer `uv run --isolated python3` for JSON processing (falling back to `python3` when unavailable).
 
 ## 8. AI Collaboration Rules
@@ -132,17 +131,15 @@
   2. **Plan** — outline an approach for complex tasks (>3 steps) before acting.
   3. **Verify** — confirm changes work (run tests, check output).
   4. **Learn** — corrected patterns are recorded to memory.
-- **Completion standard**: a task is "done" only when — changes are tested/verifiable; no leftover `TODO`/`FIXME`/`console.log`/`debugger`; no files deleted without an explicit user request; `/boot` passes without violations.
-- **Evolution pipeline**:
+- **Completion standard**: a task is "done" only when — changes are tested/verifiable; no leftover `TODO`/`FIXME`/`console.log`/`debugger`; no files deleted without an explicit user request; `/evokit-boot` passes without violations.
+- **Knowledge identification & endorsement**: when you recognize project/personal knowledge, silently write `.pending/` (do not guess scope); endorse happens at confirmation. Explicit declaration = `evokit learn "…"` (immediate endorsement).
 
   ```
-  correction (1st occurrence) → corrections.jsonl
-  correction (2nd, same pattern) → learned-rules.md (with a verify line)
-  learned-rules.md (10+ sessions, verified) → rules/ or CLAUDE.md (via /evolve)
-  rejected rules → evolution-log.md (never re-proposed)
+  AI recognizes knowledge → write <project>/.evokit/.pending/{type}-{slug}.md
+  → user runs evokit learn to endorse (single human-endorsement gate) → move into knowledge/ + update index
   ```
 
-- **Evolution commands**: `/boot` (session-start verification), `/evolve` (audit roughly every 10 sessions), `/review` (reviewer agent reviews current changes).
+- **Knowledge commands**: `/evokit-boot` (knowledge integrity), `/evokit-learn` (endorse/declare), `/evokit-review` (revisit stale knowledge, confidence ≤ 0.5).
 
 ## 9. Appendix: Command Cheat Sheet
 

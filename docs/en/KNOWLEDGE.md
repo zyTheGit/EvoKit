@@ -105,8 +105,8 @@ tags?: string[]      # Optional, tag array
 
 | Level | Storage Location | Lifecycle | Description |
 |-------|-----------------|-----------|-------------|
-| Personal | `~/.claude/memory/evokit/` | Persists across projects | Personal preferences, toolchain preferences |
-| Project | `.claude/memory/evokit/` | Follows project, can be committed to git | Project conventions, architecture decisions |
+| Personal | `~/.evokit/knowledge/` | Persists across projects | Personal preferences, toolchain preferences (shared by 4 assistants) |
+| Project | `<project>/.evokit/` | Follows project, can be committed to git | Project conventions, architecture decisions (shared by 4 assistants) |
 
 ## Relationship with Claude Code Memory
 

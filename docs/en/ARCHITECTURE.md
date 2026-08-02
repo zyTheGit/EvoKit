@@ -132,10 +132,10 @@ Use uv instead of pip
        v                  v                   v               v
 +---------------------------------------------------------------+
 |              EvoKit Adapter Layer                               |
-|  install → setup-hooks → status → uninstall                    |
+|  install → verify → status → uninstall                        |
 +---------------------------------------------------------------+
-|              Independent Knowledge Base per Adapter             |
-|  ~/.claude/memory/evokit/  ~/.codex/memory/evokit/  ...        |
+|            Shared Knowledge Root (agent-agnostic)              |
+|  Personal ~/.evokit/knowledge/  Project <project>/.evokit/ ... |
 +---------------------------------------------------------------+
 ```
 

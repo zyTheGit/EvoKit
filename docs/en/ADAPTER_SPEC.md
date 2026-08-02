@@ -245,10 +245,12 @@ include_only = ["PATH", "HOME", "USER"]
 
 | EvoKit Feature    | OpenCode Mechanism              | Auto-triggered  |
 | ----------------- | ------------------------------- | --------------- |
-| SessionStart hook | `evokit-boot.ts` custom tool    | ❌ AI must call |
-| Stop hook         | `evokit-session.ts` custom tool | ❌ AI must call |
-| PreToolUse hook   | `evokit-memory.ts` custom tool  | ❌ AI must call |
-| /evolve command   | `evokit-evolve.ts` custom tool  | ❌ AI must call |
+| EvoKit Feature            | OpenCode Mechanism                          | Auto-triggered                    |
+| ------------------------- | ------------------------------------------ | --------------------------------- |
+| SessionStart hook         | `evokit-boot.ts` custom tool                | ❌ AI must call                   |
+| Stop hook                 | `evokit-session.ts --action flush_pending`（session-end `.pending/` flush）| ❌ AI must call |
+| Endorse / explicit declare | `evokit-learn.ts` custom tool               | ❌ via CLI `evokit learn`        |
+| Knowledge check           | `evokit-boot.ts` custom tool                | ❌ AI must call                   |
 
 ### Custom Tools System
 
@@ -470,4 +472,4 @@ Pi deliberately omits the following features, making them buildable via extensio
 | Skills           | `.claude/skills/`     | —                        | —                            | `skills/` (Agent Skills)   |
 | Sub-agents       | `.claude/agents/`     | Sub-agents + Skills      | `.opencode/agents/`          | None built-in (extensions) |
 | Commands         | `.claude/commands/`   | —                        | `.opencode/tools/`           | Extensions + prompts/      |
-| Learning data    | `~/.claude/memory/`   | `~/.codex/memory/`       | `~/.config/opencode/memory/` | `~/.pi/agent/memory/`      |
+| Learning data (shared root) | `~/.evokit/knowledge/`（personal） | same (4 assistants) | same | same |

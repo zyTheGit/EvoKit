@@ -11,6 +11,14 @@
 - **Shell:** bash 4.0+
 - **Tools:** `curl` or `wget` (for remote install)
 
+## Knowledge Roots (v1.0, shared by 4 assistants)
+
+Knowledge roots are **detached from any assistant's private directory** (agent-agnostic):
+- **Personal knowledge**: `~/.evokit/knowledge/` (shared by 4 assistants; contains `knowledge-index.md`/`knowledge/`/`.pending/`)
+- **Project knowledge**: `<project>/.evokit/` (follows git, shared by 4 assistants)
+
+Physically isolated from uninstall management (`~/.evokit/backup/`, `~/.evokit/manifest.json`).
+
 ## Quick Install (Recommended)
 
 ### npm (Node.js 20.12+)
@@ -258,19 +266,20 @@ If you prefer to install manually or want to understand what the installer does:
 ### Claude Code
 
 ```bash
-# 1. Create .claude directory structure
-mkdir -p ~/.claude/{rules,agents,commands,memory/evokit/knowledge,memory/evokit/.pending,hooks,skills}
+# 1. Create .claude directory structure + shared knowledge root
+mkdir -p ~/.claude/{rules,agents,commands,hooks,skills}
+mkdir -p ~/.evokit/knowledge/{knowledge,.pending}
 
 # 2. Copy template files
-cp template/CLAUDE.md ~/
-cp template/MEMORY.md ~/.claude/
-cp template/settings.json ~/.claude/
-cp template/hooks/*.sh ~/.claude/hooks/
-cp template/rules/*.md ~/.claude/rules/
-cp template/agents/*.md ~/.claude/agents/
-cp template/commands/*.md ~/.claude/commands/
-cp -r template/skills/* ~/.claude/skills/
-cp template/memory/evokit/knowledge-index.md ~/.claude/memory/evokit/
+cp template/claude/CLAUDE.md ~/
+cp template/claude/MEMORY.md ~/.claude/
+cp template/claude/settings.json ~/.claude/
+cp template/claude/hooks/*.sh ~/.claude/hooks/
+cp template/claude/rules/*.md ~/.claude/rules/
+cp template/claude/agents/*.md ~/.claude/agents/
+cp template/claude/commands/*.md ~/.claude/commands/
+cp -r template/claude/skills/* ~/.claude/skills/
+cp template/claude/memory/evokit/knowledge-index.md ~/.evokit/knowledge/
 
 # 3. Replace path placeholders in settings.json
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.claude/settings.json
@@ -286,14 +295,15 @@ chmod +x ~/.claude/hooks/*.sh
 ### OpenCode
 
 ```bash
-# 1. Create global config directory
-mkdir -p ~/.config/opencode/{agent,memory/evokit/knowledge,memory/evokit/.pending,skills}
+# 1. Create global config dir + shared knowledge root
+mkdir -p ~/.config/opencode/{agent,skills}
+mkdir -p ~/.evokit/knowledge/{knowledge,.pending}
 
 # 2. Copy global config files
 cp template/opencode/AGENTS.md ~/.config/opencode/
 cp template/opencode/opencode.json ~/.config/opencode/
 cp template/opencode/agent/*.md ~/.config/opencode/agent/
-cp template/opencode/memory/evokit/knowledge-index.md ~/.config/opencode/memory/evokit/
+cp template/opencode/memory/evokit/knowledge-index.md ~/.evokit/knowledge/
 
 # 3. Replace path placeholders
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.config/opencode/opencode.json
