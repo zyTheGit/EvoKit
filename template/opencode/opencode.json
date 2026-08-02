@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md", "__HOME__/.config/opencode/memory/learned-rules.md"],
+  "instructions": ["AGENTS.md", "__HOME__/.evokit/knowledge/knowledge-index.md"],
   "agent": {
     "build": {
       "mode": "primary",
@@ -25,8 +25,7 @@
   },
   "permission": {
     "evokit-boot": "allow",
-    "evokit-evolve": "allow",
-    "evokit-memory": "allow",
+    "evokit-learn": "allow",
     "evokit-session": "allow"
   },
   "compaction": {

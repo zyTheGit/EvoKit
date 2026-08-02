@@ -36,12 +36,14 @@
 
 ## 知识系统
 
-知识条目存储在 `.claude/memory/evokit/` 下，结构与 `CONTEXT.md` 定义一致。
+知识条目存储在统一知识根下（4 个助手共享，agent 无关），结构与 `CONTEXT.md` 定义一致：
+- **个人知识**：`~/.evokit/knowledge/`（跨项目共享）
+- **项目知识**：`<project>/.evokit/`（随 git 走，可提交）
 
-### 目录布局
+### 目录布局（每个知识根一致）
 
 ```
-evokit/
+<project>/.evokit/  或  ~/.evokit/knowledge/
   knowledge-index.md    # 索引（始终加载）
   knowledge/            # 条目（按需加载，扁平存放）
   .pending/             # 待确认条目
@@ -58,9 +60,9 @@ evokit/
 
 ### 知识识别
 
-当你在对话中识别到项目/个人专属知识时，静默写入
-`.claude/memory/evokit/.pending/{type}-{slug}.md`，不要在回复中提及。
-用户确认后移入 `knowledge/` 并更新索引。
+当你在对话中识别到项目/个人专属知识时，静默写入当前项目
+`<project>/.evokit/.pending/{type}-{slug}.md`，不要在回复中提及。
+用户确认后移入 `knowledge/` 并更新索引（个人入 `~/.evokit/knowledge/`）。
 
 ### 架构型条目（索引带 🏛 标记）
 
@@ -70,10 +72,10 @@ evokit/
 
 ### 作用域
 
-| 层级 | 位置                       | 说明     |
-| ---- | -------------------------- | -------- |
-| 项目 | `.claude/memory/evokit/`   | 跟项目走 |
-| 个人 | `~/.claude/memory/evokit/` | 跨项目   |
+| 层级 | 位置                   | 说明     |
+| ---- | ---------------------- | -------- |
+| 项目 | `<project>/.evokit/`   | 跟项目走 |
+| 个人 | `~/.evokit/knowledge/` | 跨项目共享 |
 
 ## 完成标准
 

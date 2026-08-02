@@ -29,7 +29,7 @@ export const OPENCODE_ADAPTER_VERSION = '0.5.0';
 
 const GLOBAL_DIRS = ['agent', 'memory', 'skills'] as const;
 const PROJECT_SUBDIRS = ['tools', 'agent', 'memory'] as const;
-const TOOL_FILES = ['evokit-boot.ts', 'evokit-memory.ts', 'evokit-session.ts'] as const;
+const TOOL_FILES = ['evokit-boot.ts', 'evokit-learn.ts', 'evokit-session.ts'] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
 const MEMORY_SEED_FILES = ['README.md', 'evokit/knowledge-index.md'] as const;
 

@@ -1,67 +1,43 @@
 import { tool } from "@opencode-ai/plugin";
-import { appendFileSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync } from "fs";
 import { join, homedir } from "path";
 
-const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
+const PERSONAL_ROOT = join(homedir(), ".evokit", "knowledge");
 
 /**
- * EvoKit session recording tool.
- *
- * IMPORTANT: Since OpenCode has no automatic Stop hook,
- * you MUST call this tool with action: "end" before the
- * conversation ends to ensure session data is saved.
+ * EvoKit 会话末落盘工具（v1.0）。
+ * IMPORTANT: OpenCode 无自动 Stop 钩子 → 会话结束前**必须**调用本工具
+ * `action: "flush_pending"`，把在途待确认草稿 .pending/ 落盘并提示运行 `evokit learn` 确认。
+ * "会话末批量落盘 + 提示确认"在 opencode 的等价触发点。
  */
 export default tool({
-  description: "Record EvoKit session lifecycle — always call with action: end before finishing",
+  description: "EvoKit 会话末 flush — 落盘 .pending/ 待确认草稿并提示确认（无 Stop 钩子必须调用）",
   args: {
     action: tool.schema
-      .enum(["start", "end"])
-      .describe("Session lifecycle event"),
-    duration: tool.schema
-      .number()
-      .optional()
-      .describe("Session duration in seconds"),
-    model: tool.schema
-      .string()
-      .optional()
-      .describe("Model used in this session"),
-    score: tool.schema
-      .string()
-      .optional()
-      .describe("Session score (A/B/C/D)"),
-    corrections: tool.schema
-      .number()
-      .optional()
-      .describe("Number of corrections recorded this session"),
-    observations: tool.schema
-      .number()
-      .optional()
-      .describe("Number of observations recorded this session"),
+      .enum(["flush_pending"])
+      .describe("Session lifecycle event — 会话结束前调用"),
   },
-  async execute(args, _context) {
-    mkdirSync(MEMORY_DIR, { recursive: true });
+  async execute(args, context) {
+    const pendings: Array<[string, string]> = [
+      ["个人", join(PERSONAL_ROOT, ".pending")],
+      ["项目", join(context.directory, ".evokit", ".pending")],
+    ];
 
-    const sessionsPath = join(MEMORY_DIR, "sessions.jsonl");
+    let total = 0;
+    const lines: string[] = [];
+    for (const [scope, pending] of pendings) {
+      if (!existsSync(pending)) continue;
+      const count = readdirSync(pending).filter((f) => f.endsWith(".md")).length;
+      if (count > 0) {
+        total += count;
+        lines.push(`  ${scope}: ${count} 条待确认草稿`);
+      }
+    }
+    mkdirSync(PERSONAL_ROOT, { recursive: true });
 
-    const entry = JSON.stringify({
-      timestamp: new Date().toISOString(),
-      assistant: "opencode",
-      session_id: _context.sessionID || _context.messageID || "unknown",
-      model: args.model || _context.agent || "unknown",
-      action: args.action,
-      duration_seconds: args.duration || 0,
-      corrections: args.corrections || 0,
-      observations: args.observations || 0,
-      score: args.score || "",
-    });
-
-    appendFileSync(sessionsPath, entry + "\n", "utf-8");
-
-    const message =
-      args.action === "start"
-        ? "Session started — remember to call evokit-session with action: end before finishing."
-        : "Session ended — data recorded for evolution analytics.";
-
-    return `✅ ${message}\n`;
+    if (total === 0) {
+      return "✅ 无待确认草稿，知识库一致。\n";
+    }
+    return `📋 有 ${total} 条待确认知识落盘：\n${lines.join("\n")}\n运行 evokit learn 确认背书（同一道人工背书闸门）。\n`;
   },
 });

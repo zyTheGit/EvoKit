@@ -2,7 +2,7 @@
 # Stop 钩子 — 检查 .pending/ 是否有待确认知识
 # 会话结束时执行，非空时输出提示，空时静默跳过
 
-EVOKIT_DIR="__HOME__/.claude/memory/evokit"
+EVOKIT_DIR="__HOME__/.evokit/knowledge"
 PENDING_DIR="${EVOKIT_DIR}/.pending"
 
 if [ -d "$PENDING_DIR" ]; then

@@ -1,65 +1,29 @@
-# Self-Evolving Memory System
+# EvoKit — 知识库目录
 
-## Overview
+本目录保存 EvoKit 项目上下文引擎的知识（与 4 个助手共享同一份，agent 无关）。
 
-This directory is the learning infrastructure for the Self-Evolving System. It stores corrections, observations, learned rules, and session data that persist across AI coding assistant sessions.
+## Knowledge Roots
 
-## File Reference
+- **项目知识根**：`<project>/.evokit/`（随 git 走，可提交）
+- **个人知识根**：`~/.evokit/knowledge/`（跨项目共享，不与任一助手私有目录绑定）
 
-### `corrections.jsonl`
-- **Format:** `{"timestamp":"ISO8601","pattern":"error description","context":"what happened","count":1}`
-- **Auto-generated:** Yes — appended when the user corrects the AI.
-- **Promotion:** When the same `pattern` appears **2+ times**, it graduates to `learned-rules.md`.
-- **Append-only:** Never delete or edit entries. Let `/evolve` handle rotation.
+4 个助手（claude / codex / opencode / pi）共享同一份个人/项目知识（读助手无关 / 写经各自确认），知识不存放在任一助手私有 memory。
 
-### `observations.jsonl`
-- **Format:** `{"timestamp":"ISO8601","pattern":"observed pattern","confidence":0.7,"source":"auto"}`
-- **Auto-generated:** Yes — appended during analysis.
-- **Promotion:** High-confidence patterns may be proposed for promotion in `/evolve`.
-- **Confidence decay:** Entries older than **60 days** → confidence halved. Below **0.3** → archived.
+## 目录布局（每个知识根一致）
 
-### `learned-rules.md`
-- **Format:** Markdown with `<!-- verify: ... -->` comments for machine-checkable conditions.
-- **Max:** **50 lines.** When full, run `/evolve` to prune.
-- **Verification:** Each rule MUST have a `verify` line. Without one, it's a wish, not a rule.
+```
+knowledge-index.md    # 索引（始终加载）
+knowledge/            # 已背书条目（按需加载，扁平存放）
+.pending/             # 待确认草稿（AI 识别后静默写入，用户确认后入 knowledge/）
+```
 
-### `evolution-log.md`
-- **Format:** Chronological log of `/evolve` audit decisions.
-- **Purpose:** Records which rules were promoted, pruned, or rejected. **Rejected rules are never re-proposed.**
+## 生命周期
 
-### `violations.jsonl`
-- **Format:** `{"timestamp":"ISO8601","rule":"...","file":"...","detail":"..."}`
-- **Auto-generated:** Yes — by `/boot` verification scan.
-- **Severity indicators:** `🔴 Hard violation` / `⚠ Warning` / `ℹ Info`
+- **对话提取**：识别到项目/个人知识 → 静默写入 `.pending/`（不猜测 scope）
+- **确认背书**：`evokit learn` 逐条确认/拒绝 + 裁定 scope；确认后入 `knowledge/` + 更新索引
+- **显式声明**：用户带内容发起 `evokit learn "…"` → 当场背书（source=explicit, FRESH）
+- **过期检测**：`evokit review` 复审 confidence ≤ 0.5 条目
 
-### `sessions.jsonl`
-- **Format:** `{"timestamp":"ISO8601","duration_seconds":N,"corrections":N,"observations":N,"score":"A/B/C"}`
-- **Auto-generated:** Yes — written by Stop hook at session end.
+## 废弃概念
 
-## When to Record
-
-| Trigger | Record To | Example Entry |
-|---------|-----------|--------------|
-| User explicitly corrects you | `corrections.jsonl` | `{"pattern":"prefer-named-exports","context":"User requested named exports over default","count":1}` |
-| You discover a reusable code pattern | `observations.jsonl` | `{"pattern":"project-uses-pascalcase-components","confidence":0.8,"source":"auto"}` |
-| A rule is violated during boot | `violations.jsonl` | `{"rule":"claude-md-line-limit","detail":"CLAUDE.md is 182 lines (limit 150)"}` |
-| Session ends | `sessions.jsonl` | `{"duration_seconds":340,"corrections":2,"observations":1,"score":"B"}` |
-
-## Confidence System
-
-Used by `/evolve` to decide which observations to promote or prune:
-
-| Confidence | Meaning | Action |
-|------------|---------|--------|
-| 0.8–1.0 | High — pattern observed many times, well-established | Promote to `learned-rules.md` on next `/evolve` |
-| 0.4–0.7 | Medium — pattern observed a few times | Wait for more evidence |
-| 0.1–0.3 | Low — pattern rarely observed | Archive on next `/evolve` |
-| Below 0.3 | Decayed — observation is stale or contradicted | Auto-archived (never re-proposed) |
-
-## Key Constraints
-
-- `learned-rules.md` ≤ **50 lines**
-- `corrections.jsonl` / `observations.jsonl` → `.gitignore` (personal session data)
-- `learned-rules.md` / `evolution-log.md` → can be committed (team knowledge)
-- Same pattern in `corrections.jsonl` twice → auto-promote to `learned-rules.md`
-- Confidentiality: corrections/observations/violations contain personal work context — keep in `.gitignore`
+v0.x 概念在 v1.0 已废弃，不再使用：`corrections.jsonl` / `observations.jsonl` / `learned-rules.md` / `evolution-log.md` / `sessions.jsonl` / `violations.jsonl` / `/evolve` / `/evokit-evolve` / evokit-memory record-*。知识改为对话提取 + 确认背书。

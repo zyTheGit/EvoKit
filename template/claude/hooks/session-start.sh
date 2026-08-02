@@ -3,7 +3,7 @@
 # 每次会话启动时执行，静默通过，有问题时输出警告
 # 详细检查留给 /evokit-boot
 
-EVOKIT_DIR="__HOME__/.claude/memory/evokit"
+EVOKIT_DIR="__HOME__/.evokit/knowledge"
 INDEX_FILE="${EVOKIT_DIR}/knowledge-index.md"
 KNOWLEDGE_DIR="${EVOKIT_DIR}/knowledge"
 PENDING_DIR="${EVOKIT_DIR}/.pending"

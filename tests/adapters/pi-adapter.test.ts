@@ -87,7 +87,7 @@ describe('pi-adapter installer', () => {
 
       // 摘要计数
       expect(summary.filesCreated).toBeGreaterThan(0);
-      expect(summary.hooksInstalled).toBe(4); // 4 个扩展文件
+      expect(summary.hooksInstalled).toBe(3); // 3 个扩展文件（lifecycle/boot/learn）
     });
 
     it('respects dry-run mode', () => {
@@ -126,8 +126,7 @@ describe('pi-adapter installer', () => {
       const extDir = path.join(resolvePiHome(homeDir), 'extensions');
       expect(fs.existsSync(path.join(extDir, 'evokit-lifecycle.ts'))).toBe(true);
       expect(fs.existsSync(path.join(extDir, 'evokit-boot.ts'))).toBe(true);
-      expect(fs.existsSync(path.join(extDir, 'evokit-memory.ts'))).toBe(true);
-      expect(fs.existsSync(path.join(extDir, 'evokit-session.ts'))).toBe(true);
+      expect(fs.existsSync(path.join(extDir, 'evokit-learn.ts'))).toBe(true);
     });
 
     it('installs agent definitions', () => {
@@ -178,7 +177,7 @@ describe('pi-adapter interface', () => {
     const result = adapter.install({ homeDir, templateDir });
 
     expect(result.filesCreated).toBeGreaterThan(0);
-    expect(result.hooksInstalled).toBe(4);
+    expect(result.hooksInstalled).toBe(3);
     expect(result.adapterHome).toBe(resolvePiHome(homeDir));
   });
 

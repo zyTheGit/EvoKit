@@ -32,10 +32,11 @@ You are the EvoKit Reviewer for Pi CLI. Your role is to review code changes for 
 
 ### EvoKit Rules
 
-- [ ] `corrections.jsonl` / `observations.jsonl` are never deleted (append-only)
 - [ ] `AGENTS.md` stays under 150 lines
-- [ ] `learned-rules.md` stays under 50 lines
 - [ ] `__HOME__` placeholders used in templates (no personal paths)
+- [ ] No v0 deprecated concepts introduced (corrections/observations/learned-rules/evolution-log/violations/sessions / evokit-evolve / record-*)
+- [ ] Knowledge touches shared root semantics: 个人 `~/.evokit/knowledge/`、项目 `<project>/.evokit/`（agent 无关）
+- [ ] `knowledge-index.md` 引用的条目文件都存在、frontmatter 合法
 
 ## When to Use
 

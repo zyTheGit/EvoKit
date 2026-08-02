@@ -1,9 +1,11 @@
 #!/bin/bash
 # EvoKit — Codex CLI SessionStart 钩子
 # 快速检查知识库完整性，静默通过，有问题时输出警告
-# 详细检查留给 /evokit-boot
+# 详细检查留给 evokit-boot
+# 个人知识根 = ~/.evokit/knowledge/（agent 无关共享）；项目知识根 = <project>/.evokit/
+# 此处检查个人根（跨会话），项目根由 boot/learn 覆盖
 
-EVOKIT_DIR="__HOME__/.codex/memory/evokit"
+EVOKIT_DIR="__HOME__/.evokit/knowledge"
 INDEX_FILE="${EVOKIT_DIR}/knowledge-index.md"
 KNOWLEDGE_DIR="${EVOKIT_DIR}/knowledge"
 PENDING_DIR="${EVOKIT_DIR}/.pending"
@@ -55,7 +57,7 @@ fi
 if [ -d "$PENDING_DIR" ]; then
   PENDING_COUNT=$(find "$PENDING_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l)
   if [ "$PENDING_COUNT" -gt 0 ]; then
-    echo "⚠ 有 ${PENDING_COUNT} 条待确认知识，运行 /evokit-learn 确认"
+    echo "⚠ 有 ${PENDING_COUNT} 条待确认知识，运行 evokit learn 确认"
     WARN=$((WARN + 1))
   fi
 fi

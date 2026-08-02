@@ -1,18 +1,22 @@
-# EvoKit — Codex CLI Learning Data
+# EvoKit — Codex Project Context Knowledge
 
-This directory stores learning data for your Codex CLI EvoKit integration.
+本目录安装 EvoKit 项目上下文引擎的知识库骨架（与 4 个助手共享同一份知识，agent 无关）。
 
-## Data Location
+## Knowledge Roots
 
-All evolution data lives at: **`~/.codex/memory/`**
+- **项目知识根**：`<project>/.evokit/`（随 git 走，可提交）
+- **个人知识根**：`~/.evokit/knowledge/`（跨项目共享，不与任一助手私有目录绑定）
 
-| File | Purpose |
-|------|---------|
-| `corrections.jsonl` | User corrections (append-only, never deleted) |
-| `observations.jsonl` | Self-noticed patterns |
-| `learned-rules.md` | Promoted permanent rules (max 50 lines) |
-| `evolution-log.md` | Audit trail of evolution decisions |
-| `sessions.jsonl` | Session scorecards (tagged by assistant) |
-| `violations.jsonl` | Boot verification violations |
+4 个助手（claude / codex / opencode / pi）共享同一份个人/项目知识（读助手无关 / 写经各自确认），知识不存放在任一助手私有 memory。
 
-This memory directory is local to Codex CLI and not shared with other assistants.
+## 目录布局（每个知识根一致）
+
+```
+knowledge-index.md    # 索引（始终加载）
+knowledge/            # 已背书条目（按需加载，扁平存放）
+.pending/             # 待确认草稿（AI 识别后静默写入，用户确认后入 knowledge/）
+```
+
+## 废弃概念
+
+以下 v0.x 概念在 v1.0 已废弃，不再使用：`corrections.jsonl` / `observations.jsonl` / `learned-rules.md` / `evolution-log.md` / `sessions.jsonl` / `violations.jsonl` / `evokit-evolve` / evokit-memory record-*。知识改为对话提取 + 确认背书。

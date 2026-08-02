@@ -1,107 +1,79 @@
 import { tool } from "@opencode-ai/plugin";
-import { readFileSync, existsSync, mkdirSync, appendFileSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync } from "fs";
 import { join, homedir } from "path";
 
-const MEMORY_DIR = join(homedir(), ".config", "opencode", "memory");
+const PERSONAL_ROOT = join(homedir(), ".evokit", "knowledge");
 
 /**
- * EvoKit boot verification tool.
- * Checks system integrity and runs learned rule verifications.
+ * EvoKit boot 知识库完整性检查工具（v1.0，只读）。
+ * 检查个人根 ~/.evokit/knowledge/ 与项目根 <cwd>/.evokit/ 的
+ * 目录结构、索引、frontmatter、待确认。不修改任何文件。
  */
 export default tool({
-  description: "Run EvoKit boot verification — check system integrity and learned rules",
+  description: "Run EvoKit boot verification — check shared knowledge base integrity（只读）",
   args: {},
   async execute(_args, context) {
-    mkdirSync(MEMORY_DIR, { recursive: true });
+    const projectRoot = join(context.directory, ".evokit");
     const results: string[] = [];
     let passed = 0;
     let failed = 0;
+    const mark = (ok: boolean) => {
+      ok ? passed++ : failed++;
+      return ok ? "✅" : "❌";
+    };
 
-    results.push("# 🔍 EvoKit Boot Verification\n");
+    results.push("# 🔍 EvoKit 知识库检查 (v1.0)\n");
 
-    // ── 1. Core files (global + project) ──
+    // ── 1. Core files ──
     results.push("## Core Files\n");
     const globalDir = join(homedir(), ".config", "opencode");
     for (const file of ["AGENTS.md", "opencode.json"]) {
-      const globalOk = existsSync(join(globalDir, file));
-      results.push(`${globalOk ? "✅" : "❌"} ~/.config/opencode/${file} (global)`);
-      if (globalOk) passed++;
-      else failed++;
-
-      const projectOk = existsSync(join(context.directory, file));
-      results.push(`${projectOk ? "✅" : "❌"} ${file} (project)`);
-      if (projectOk) passed++;
-      else failed++;
+      results.push(`${mark(existsSync(join(globalDir, file)))} ~/.config/opencode/${file} (global)`);
+      results.push(`${mark(existsSync(join(context.directory, file)))} ${file} (project)`);
     }
 
-    // ── 2. Memory files (global) ──
-    results.push("\n## Memory Files\n");
-    for (const file of ["corrections.jsonl", "observations.jsonl", "learned-rules.md", "evolution-log.md"]) {
-      const ok = existsSync(join(MEMORY_DIR, file));
-      results.push(`${ok ? "✅" : "⚠️"} memory/${file}`);
-      if (ok) passed++;
-      else failed++;
+    // ── 2. Knowledge roots ──
+    results.push("\n## Knowledge Roots\n");
+    for (const [scope, root] of [
+      ["个人", PERSONAL_ROOT],
+      ["项目", projectRoot],
+    ] as const) {
+      results.push(`\n### ${scope} \`${root}\``);
+      const indexOk = existsSync(join(root, "knowledge-index.md"));
+      const knowOk = existsSync(join(root, "knowledge"));
+      const pendingOk = existsSync(join(root, ".pending"));
+      results.push(`${mark(indexOk)} knowledge-index.md`);
+      results.push(`${mark(knowOk)} knowledge/`);
+      results.push(`${mark(pendingOk)} .pending/`);
+
+      // frontmatter 检查
+      const knowledgeDir = join(root, "knowledge");
+      if (existsSync(knowledgeDir)) {
+        let bad = 0;
+        for (const f of readdirSync(knowledgeDir)) {
+          if (!f.endsWith(".md")) continue;
+          const first = readFileSync(join(knowledgeDir, f), "utf-8").split("\n")[0];
+          if (first.trim() !== "---") bad++;
+        }
+        if (bad > 0) {
+          results.push(`❌ ${bad} 个条目缺少 frontmatter`);
+          failed += bad;
+        } else {
+          results.push("✅ 条目 frontmatter 合法");
+          passed++;
+        }
+      }
     }
 
-    // ── 3. AGENTS.md constraints ──
+    // ── 3. AGENTS.md 行数 ──
     results.push("\n## Constraints\n");
     const agentsPath = join(context.directory, "AGENTS.md");
     if (existsSync(agentsPath)) {
       const lines = readFileSync(agentsPath, "utf-8").split("\n").length;
-      const ok = lines <= 150;
-      results.push(`${ok ? "✅" : "❌"} AGENTS.md: ${lines} lines (limit 150)`);
-      if (ok) passed++;
-      else failed++;
+      results.push(`${mark(lines <= 150)} AGENTS.md: ${lines} lines (limit 150)`);
     }
 
-    // ── 4. learned-rules.md line limit ──
-    const rulesPath = join(MEMORY_DIR, "learned-rules.md");
-    if (existsSync(rulesPath)) {
-      const rulesLines = readFileSync(rulesPath, "utf-8").split("\n").length;
-      const ok = rulesLines <= 50;
-      results.push(`${ok ? "✅" : "❌"} learned-rules.md: ${rulesLines} lines (limit 50)`);
-      if (ok) passed++;
-      else failed++;
-    }
-
-    // ── 5. Run verify commands from learned-rules.md ──
-    results.push("\n## Rule Verifications\n");
-    if (existsSync(rulesPath)) {
-      const rules = readFileSync(rulesPath, "utf-8");
-      const verifyRegex = /verify:\s*(.+)$/gm;
-      let match;
-      let hasVerifies = false;
-      while ((match = verifyRegex.exec(rules)) !== null) {
-        hasVerifies = true;
-        const cmd = match[1].trim();
-        try {
-          const { execSync } = await import("child_process" as string);
-          execSync(cmd, { cwd: context.directory, timeout: 10000, stdio: "pipe" });
-          results.push(`✅ verify: \`${cmd}\``);
-          passed++;
-        } catch {
-          results.push(`❌ verify: \`${cmd}\``);
-          failed++;
-        }
-      }
-      if (!hasVerifies) {
-        results.push("  No verify commands found.");
-      }
-    }
-
-    // ── Summary ──
-    results.push(`\n---\n**${passed} passed, ${failed} failed**\n`);
-
-    // Record violations
-    if (failed > 0) {
-      const entry = JSON.stringify({
-        timestamp: new Date().toISOString(),
-        bootFailed: failed,
-        bootPassed: passed,
-      });
-      appendFileSync(join(MEMORY_DIR, "violations.jsonl"), entry + "\n", "utf-8");
-    }
-
+    results.push(`\n---\n**${passed} passed, ${failed} failed**`);
     return results.join("\n");
   },
 });

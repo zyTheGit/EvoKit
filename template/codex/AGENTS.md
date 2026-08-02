@@ -1,115 +1,113 @@
-# EvoKit — Self-Evolving System Protocol
+# EvoKit — 项目上下文引擎
 
-*This file is the L1 cognitive core of the self-evolving system. It is loaded by Codex at every session start and shapes agent behavior through the evolution pipeline.*
+让 AI 秒懂项目，持久化 AI 不可能知道的项目/个人专属知识。
 
----
+## 核心机制
 
-## 1. Thinking Framework
+1. **对话提取** — AI 识别项目知识，静默写入 `.pending/`，用户确认后持久化
+2. **知识索引** — `knowledge-index.md` 始终加载，条目按需加载
+3. **过期检测** — 定期检查知识条目是否仍然适用
 
-Before every coding task, follow this hierarchy:
+## 命令
 
-1. **Understand** — Read relevant files first. Never edit what you haven't read.
-2. **Plan** — For complex tasks (>3 steps), outline the approach before acting.
-3. **Verify** — After changes, confirm they work (run tests, check output).
-4. **Learn** — If corrected, record the pattern for future sessions.
+- `evokit-boot` — 知识库完整性深度检查
+- `evokit learn` — 回顾对话提取知识 / 显式声明知识
+- `evokit review` — 复审过期知识（confidence ≤ 0.5）
 
-### Self-Check Before Acting
+## 思维框架
 
-- Have I read every file I'm about to modify?
-- Do I understand the existing patterns I should match (naming, imports, structure)?
-- Is there an existing utility, helper, or convention I should reuse?
-- Are my proposed commands safe and reversible?
+1. **理解** — Read 相关文件，确认变更范围
+2. **规划** — 复杂任务先列方案，简单任务直接执行
+3. **验证** — 运行测试，确认无回归
+4. **学习** — 识别项目知识，静默写入 `.pending/`，用户确认后持久化
 
-### Self-Check After Changes
+### 自检
 
-- Did I run the relevant tests?
-- Did I check for leftover `TODO`, `FIXME`, `console.log`, or `debugger`?
-- Did I record any corrections received?
+**行动前：**
 
----
+- 已读取要修改的文件？
+- 理解现有模式？
+- 有可复用的工具/约定？
 
-## 2. Completion Standards
+**变更后：**
 
-A task is "done" ONLY when ALL conditions are met:
+- 测试通过？无 TODO/FIXME/console.log/debugger 残留？
+- 识别到项目知识？→ 静默写入 `<project>/.evokit/.pending/`
 
-| Condition | How to Verify |
-|-----------|---------------|
-| All changes tested | Run the project's test command |
-| No debug artifacts | `grep -r 'console.log\|TODO\|FIXME\|debugger' --include='*.{ts,js,py,sh}'` |
-| No accidental deletions | Check git status — confirm only intended files changed |
-| Corrections recorded | If user corrected you, entry exists in `__HOME__/.codex/memory/corrections.jsonl` |
+## 知识系统
 
----
+知识条目存储在统一知识根下（4 个助手共享），结构与 `CONTEXT.md` 定义一致：
 
-## 3. Evolution Pipeline
+- **项目知识**：`<project>/.evokit/`（随 git 走，可提交）
+- **个人知识**：`~/.evokit/knowledge/`（跨项目共享，agent 无关）
 
-The evolution pipeline transforms raw corrections into permanent behavioral rules.
-
-### Promotion Ladder
+### 目录布局
 
 ```
-correction (1st occurrence) → corrections.jsonl
-correction (2nd same pattern) → learned-rules.md (with verify line)
-learned-rules.md (10+ sessions, verified) → AGENTS.md or rules/ (via /evolve)
-rejected rules → evolution-log.md (never re-propose)
+<project>/.evokit/        # 项目知识根
+  knowledge-index.md      # 索引（始终加载）
+  knowledge/              # 条目（按需加载，扁平存放）
+  .pending/               # 待确认条目
+
+~/.evokit/knowledge/      # 个人知识根
+  knowledge-index.md
+  knowledge/
+  .pending/
 ```
 
-### When to Record
+### 知识类型
 
-| Trigger | Record To | Example |
-|---------|-----------|---------|
-| User explicitly corrects you | `corrections.jsonl` | "Use `let`/`const`, never `var`" |
-| You notice a reusable pattern | `observations.jsonl` | "Project uses PascalCase for component files" |
-| A rule is violated | `violations.jsonl` | "AGENTS.md exceeded 150 lines" |
+| 类型         | 说明       | 示例                          |
+| ------------ | ---------- | ----------------------------- |
+| convention   | 项目约定   | "使用 Result<T> 而非 throw"   |
+| preference   | 个人偏好   | "使用 uv 而非 pip"            |
+| architecture | 架构决策   | "packages/api 是上游"         |
+| workflow     | 工作流规则 | "commit 用 conventional 格式" |
 
-### Where Learning Data Lives
+### 知识识别
 
-All evolution data is stored in `__HOME__/.codex/memory/`:
+当你在对话中识别到项目/个人专属知识时，静默写入当前项目
+`<project>/.evokit/.pending/{type}-{slug}.md`，不要在回复中提及。
+用户确认后移入 `knowledge/` 并更新索引（个人知识入 `~/.evokit/knowledge/`）。
 
-- `corrections.jsonl` — User corrections (append-only)
-- `observations.jsonl` — Self-noticed patterns
-- `learned-rules.md` — Promoted permanent rules (max 50 lines)
-- `evolution-log.md` — Audit trail of evolution decisions
-- `sessions.jsonl` — Session scorecards (tagged by assistant)
-- `violations.jsonl` — Boot verification violations
+### 架构型条目（索引带 🏛 标记）
 
-### Confidence & Retention
+检索按类型分裂：规则型（convention / preference / workflow）摘要即知识，看索引即可；
+**架构型（architecture）摘要不足以触发加载** —— 你在讨论模块依赖 / 服务划分 / 数据流时，
+若索引见到 `🏛` 标记的条目，**主动打开对应 `knowledge/` 全文**追索推理链并校正 `## 影响范围` / `## 相关决策`，而非只看摘要行。
 
-- Observations older than **60 days** → confidence halved
-- Confidence below **0.3** → auto-archived
-- Archives >**1000 lines** → gzip-compressed
+### 作用域
 
----
+| 层级 | 位置                 | 说明     |
+| ---- | -------------------- | -------- |
+| 项目 | `<project>/.evokit/` | 跟项目走 |
+| 个人 | `~/.evokit/knowledge/` | 跨项目共享 |
 
-## 4. Tool & Subagent Usage
+## 完成标准
 
-### Tool Priority
+1. **改动已验证** — 运行测试，确认无回归
+2. **代码已清理** — 无 TODO/FIXME/console.log/debugger 残留
+3. **知识库完整** — 索引引用的条目文件都存在，格式合法
 
-1. **Read/review relevant files** before writing code
-2. **Use appropriate shell commands** for builds, tests, git operations
-3. **Prefer safe commands** — avoid destructive operations without confirmation
+## 钩子事件
 
-### Subagents
+| Event        | Purpose                                         | Hook Script        |
+| ------------ | ----------------------------------------------- | ------------------ |
+| SessionStart | Quick knowledge base integrity check            | `session-start.sh` |
+| Stop         | Check pending knowledge, prompt user to confirm | `stop.sh`          |
 
-| Subagent Use Case | When to USE | When NOT to Use |
-|-------------------|-------------|-----------------|
-| Parallel exploration | Broad search across many files | Simple lookups you can do directly |
-| Code review | Before committing, after large changes | Trivial one-line changes |
-| Planning | Complex multi-step work | Simple edits, rote changes |
+SessionStart performs a fast check on knowledge base integrity（检查 `<project>/.evokit/` 与 `~/.evokit/knowledge/`：索引存在、条目文件、frontmatter、待确认）。详细诊断交给 `evokit-boot`。
 
----
+Stop 钩子检查 `.pending/` 非空时提示运行 `evokit learn` 确认。Codex 无 slash 命令，靠本文件指令与 Stop 提示让 AI 会话中触发 `evokit learn`。
 
-## 5. Integrity Rules
+## 完整性规则
 
-### Invariants
-- `corrections.jsonl` and `observations.jsonl` are **append-only** — never delete or edit.
-- **Never modify files outside the project** without explicit user permission.
-- `__HOME__/.codex/memory/` is the **canonical data store** — write corrections and observations there.
-
-### Error Reporting
-- If a command fails: explain what went wrong and suggest a fix.
-- If you're unsure: say so. Don't fabricate results.
-- If the user corrects you: acknowledge, fix, and **record the correction**.
+- **先读后改** — 未读取的文件不编辑
+- **不删未授权文件** — 用户未要求的不删除
+- **不硬编码个人路径** — 模板中使用 `__HOME__` 占位符
+- **不跳过测试** — 变更后必须验证
+- **错误如实报告** — 不假装成功，不静默重试
+- **多方案先问** — 2+ 合理方案时，列出选项让用户决定
 
 ---
 
