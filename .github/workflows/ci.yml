@@ -47,7 +47,8 @@ jobs:
           test -f template/opencode/AGENTS.md
           test -f template/opencode/opencode.json
           test -f template/opencode/tools/evokit-boot.ts
-          test -f template/opencode/tools/evokit-memory.ts
+          test -f template/opencode/tools/evokit-learn.ts
+          test -f template/opencode/tools/evokit-session.ts
           # OpenCode v1.0 知识库结构
           test -f template/opencode/memory/evokit/knowledge-index.md
           test -f template/opencode/memory/evokit/knowledge/.gitkeep
@@ -55,6 +56,9 @@ jobs:
 
           # Pi CLI template
           test -f template/pi/AGENTS.md
+          test -f template/pi/extensions/evokit-lifecycle.ts
+          test -f template/pi/extensions/evokit-boot.ts
+          test -f template/pi/extensions/evokit-learn.ts
           # Pi v1.0 知识库结构
           test -f template/pi/memory/evokit/knowledge-index.md
           test -f template/pi/memory/evokit/knowledge/.gitkeep
