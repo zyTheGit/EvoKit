@@ -246,9 +246,9 @@ include_only = ["PATH", "HOME", "USER"]
 | EvoKit 功能       | OpenCode 实现方式              | 自动触发          |
 | ----------------- | ------------------------------ | ----------------- |
 | SessionStart hook | `evokit-boot.ts` 自定义工具    | ❌ 需 AI 主动调用 |
-| Stop hook         | `evokit-session.ts` 自定义工具 | ❌ 需 AI 主动调用 |
-| PreToolUse hook   | `evokit-memory.ts` 自定义工具  | ❌ 需 AI 主动调用 |
-| /evolve 命令      | `evokit-evolve.ts` 自定义工具  | ❌ 需 AI 主动调用 |
+| Stop hook         | `evokit-session.ts --action flush_pending`（会话末落盘 .pending） | ❌ 需 AI 主动调用 |
+| 确认背书 / 显式声明 | `evokit-learn.ts` 自定义工具   | ❌ 经 CLI `evokit learn` |
+| 知识库检查        | `evokit-boot.ts` 自定义工具    | ❌ 需 AI 主动调用 |
 
 ### 自定义工具系统
 
@@ -470,4 +470,4 @@ Pi 刻意省略以下功能，通过扩展实现：
 | Skills      | `.claude/skills/`     | —                        | —                            | `skills/` (Agent Skills) |
 | 子代理      | `.claude/agents/`     | 子代理 + Skills          | `.opencode/agents/`          | 无内置（扩展）           |
 | 命令        | `.claude/commands/`   | —                        | `.opencode/tools/`           | 扩展 + prompts/          |
-| 学习数据    | `~/.claude/memory/`   | `~/.codex/memory/`       | `~/.config/opencode/memory/` | `~/.pi/agent/memory/`    |
+| 学习数据（共享根） | `~/.evokit/knowledge/`（个人） | 同左（4 助手共享） | 同左 | 同左 |

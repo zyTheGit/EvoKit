@@ -119,9 +119,8 @@
 - **`settings.json`** 同样使用 `__HOME__` 占位符（安装时 `sed -i` 替换）。
 - **行数限制**：
   - `template/claude/CLAUDE.md` ≤ **150 行**（认知核心，不是垃圾场）。
-  - `learned-rules.md` ≤ **50 行**。
-- **Memory 文件 append-only**：`corrections.jsonl` 与 `observations.jsonl` 条目永不删除。
-- **轮转与衰减**：由 `/evolve` 命令负责——归档 30 天以上条目、超过 1000 行 gzip 压缩；置信度 60 天后减半。
+- **知识根（v1.0）**：模板指向 agent 无关共享根 —— 个人 `~/.evokit/knowledge/`、项目 `<project>/.evokit/`；不绑定任一助手私有 `memory/`。
+- **不引废弃概念**：模板不得引用 v0 文件（corrections.jsonl / observations.jsonl / learned-rules.md / evolution-log.md / sessions.jsonl / violations.jsonl / evokit-evolve / evokit-memory record-*）。知识改为对话提取 + 确认背书。
 - **内嵌 Python**：`stop.sh` 等 hook 的 JSON 处理优先使用 `uv run --isolated python3`（不可用时回退 `python3`）。
 
 ## 8. AI 协作规则
@@ -133,16 +132,14 @@
   3. **Verify** — 改动后验证（跑测试、检查输出）。
   4. **Learn** — 被纠正的模式记入 memory。
 - **完成标准**：任务"完成"须满足——改动已测试/可验证；无遗留 `TODO`/`FIXME`/`console.log`/`debugger`；未经用户明确要求不删除文件；`/boot` 无违规。
-- **演化管线**：
+- **知识识别与确认**：识别到项目/个人知识 → 静默写入 `.pending/`（不猜 scope），用户确认后背书入库；显式声明 = `evokit learn "…"` 当场背书。
 
   ```
-  correction（第 1 次） → corrections.jsonl
-  correction（第 2 次同模式） → learned-rules.md（附 verify 行）
-  learned-rules.md（10+ 会话验证） → rules/ 或 CLAUDE.md（经 /evolve）
-  被拒规则 → evolution-log.md（不再提议）
+  AI 识别知识 → 写入 <project>/.evokit/.pending/{type}-{slug}.md
+  → 用户运行 evokit learn 确认（同一人工背书闸门）→ 移入 knowledge/ + 更新索引
   ```
 
-- **演化命令**：`/boot`（会话启动验证）、`/evolve`（约每 10 会话审计一次）、`/review`（reviewer agent 评审当前变更）。
+- **知识命令**：`/evokit-boot`（知识库完整性）、`/evokit-learn`（确认背书/显式声明）、`/evokit-review`（复审过期知识 confidence ≤ 0.5）。
 
 ## 9. 附录：常用命令速查
 

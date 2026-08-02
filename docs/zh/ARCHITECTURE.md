@@ -131,11 +131,11 @@ created: "2026-07-30"
        |                  |                   |               |
        v                  v                   v               v
 +---------------------------------------------------------------+
-|              EvoKit 适配器层                                     |
-|  install → setup-hooks → status → uninstall                    |
+|               EvoKit 适配器层                                     |
+|  install → verify → status → uninstall                          |
 +---------------------------------------------------------------+
-|              各适配器独立知识库                                   |
-|  ~/.claude/memory/evokit/  ~/.codex/memory/evokit/  ...        |
+|              共享知识根（agent 无关）                            |
+|  个人 ~/.evokit/knowledge/   项目 <project>/.evokit/  ...        |
 +---------------------------------------------------------------+
 ```
 

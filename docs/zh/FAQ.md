@@ -12,7 +12,7 @@ EvoKit 是一个开源的**项目上下文引擎**，让 AI 编程助手（Claud
 
 ### EvoKit 会把我的数据发送到任何地方吗？
 
-**不会。** 所有数据都保存在本地的 `evokit/` 知识库目录中（如 `~/.claude/memory/evokit/`）。无云端、无遥测、不进行任何外部 API 调用。
+**不会。** 所有数据都保存在本地的知识根目录（如 `~/.evokit/knowledge/`、`<project>/.evokit/`）。无云端、无遥测、不进行任何外部 API 调用。
 
 ## 知识系统
 
@@ -97,7 +97,8 @@ evokit install --adapter codex
 - `AGENTS.md` — 包含思维框架和知识协议的认知核心
 - `hooks.json` — 生命周期钩子（SessionStart、Stop、PreToolUse）
 - `rules/` — Starlark 安全规则
-- 独立的 `~/.codex/memory/evokit/` 知识库目录
+- 独立的 `~/.codex/` 全局 + `.codex/` 项目级安装（认知核心/hooks/规则）
+- 知识库用共享根 `~/.evokit/knowledge/`（个人）+ `<project>/.evokit/`（项目）
 
 ### EvoKit 支持 OpenCode 吗？
 
@@ -107,7 +108,7 @@ evokit install --adapter codex
 evokit install --adapter opencode
 ```
 
-这会将 EvoKit 模板安装到项目目录，配置自定义工具（`evokit-boot.ts`、`evokit-learn.ts` 等）替代生命周期钩子。OpenCode 拥有独立的 `~/.config/opencode/memory/evokit/` 知识库目录。
+这会将 EvoKit 模板安装到项目目录，配置自定义工具（`evokit-boot.ts`、`evokit-learn.ts` 等）替代生命周期钩子。知识库用共享根 `~/.evokit/knowledge/`（个人）+ `<project>/.evokit/`（项目）。
 
 ### EvoKit 支持 Pi CLI 吗？
 
@@ -117,11 +118,15 @@ evokit install --adapter opencode
 evokit install --adapter pi
 ```
 
-这会将 EvoKit 模板安装到 `~/.pi/agent/`，配置 TypeScript 扩展（`evokit-lifecycle.ts` 等）处理生命周期事件。Pi CLI 拥有独立的 `~/.pi/agent/memory/evokit/` 知识库目录。
+这会将 EvoKit 模板安装到 `~/.pi/agent/`，配置 TypeScript 扩展（`evokit-lifecycle.ts`、`evokit-learn.ts` 等）处理生命周期事件。知识库使用共享根（见下）。
 
 ### 不同 AI 助手之间共享知识吗？
 
-**不共享。** 每个适配器拥有独立的 `evokit/` 知识库目录（如 `~/.claude/memory/evokit/`、`~/.codex/memory/evokit/`、`~/.config/opencode/memory/evokit/`）。这确保了各助手的知识互不干扰。如需跨助手共享特定知识，可以使用 `/evokit-learn "内容"` 在另一个助手中手动声明。
+**共享。** 所有助手共享同一份知识（读助手无关 / 写经各自确认）：
+- **个人知识**：`~/.evokit/knowledge/`（跨助手共享，agent 无关）
+- **项目知识**：`<project>/.evokit/`（随 git 走，4 个助手共享同一 `.evokit/`）
+
+唯一写入闸门 = **人工背书**：各助手各自触发确认（claude/codex=Stop、opencode=会话末 `flush_pending`、pi=session_shutdown），但都经 `evokit learn` 落到同一套确认语义。
 
 ### 如何检查我的安装是否健康？
 

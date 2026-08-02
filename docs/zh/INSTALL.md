@@ -11,6 +11,14 @@
 - **Shell：** bash 4.0+
 - **工具：** `curl` 或 `wget`（用于远程安装）
 
+## 知识库位置（v1.0，4 助手共享）
+
+知识根**脱离任一助手私有目录**（agent 无关）：
+- **个人知识**：`~/.evokit/knowledge/`（4 助手共享，含 `knowledge-index.md`/`knowledge/`/`.pending/`）
+- **项目知识**：`<project>/.evokit/`（随 git 走，4 助手共享）
+
+与卸载管理 `~/.evokit/backup/`、`~/.evokit/manifest.json` 物理隔离。
+
 ## 快速安装（推荐）
 
 ### npm（Node.js 20.12+）
@@ -256,19 +264,20 @@ evokit migrate --adapter codex --scope personal
 ### Claude Code
 
 ```bash
-# 1. 创建 .claude 目录结构
-mkdir -p ~/.claude/{rules,agents,commands,memory/evokit/knowledge,memory/evokit/.pending,hooks,skills}
+# 1. 创建 .claude 目录结构 + 共享知识根
+mkdir -p ~/.claude/{rules,agents,commands,hooks,skills}
+mkdir -p ~/.evokit/knowledge/{knowledge,.pending}
 
 # 2. 复制模板文件
-cp template/CLAUDE.md ~/
-cp template/MEMORY.md ~/.claude/
-cp template/settings.json ~/.claude/
-cp template/hooks/*.sh ~/.claude/hooks/
-cp template/rules/*.md ~/.claude/rules/
-cp template/agents/*.md ~/.claude/agents/
-cp template/commands/*.md ~/.claude/commands/
-cp -r template/skills/* ~/.claude/skills/
-cp template/memory/evokit/knowledge-index.md ~/.claude/memory/evokit/
+cp template/claude/CLAUDE.md ~/
+cp template/claude/MEMORY.md ~/.claude/
+cp template/claude/settings.json ~/.claude/
+cp template/claude/hooks/*.sh ~/.claude/hooks/
+cp template/claude/rules/*.md ~/.claude/rules/
+cp template/claude/agents/*.md ~/.claude/agents/
+cp template/claude/commands/*.md ~/.claude/commands/
+cp -r template/claude/skills/* ~/.claude/skills/
+cp template/claude/memory/evokit/knowledge-index.md ~/.evokit/knowledge/
 
 # 3. 替换 settings.json 中的路径占位符
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.claude/settings.json
@@ -284,14 +293,15 @@ chmod +x ~/.claude/hooks/*.sh
 ### OpenCode
 
 ```bash
-# 1. 创建全局配置目录
-mkdir -p ~/.config/opencode/{agent,memory/evokit/knowledge,memory/evokit/.pending,skills}
+# 1. 创建全局配置目录 + 共享知识根
+mkdir -p ~/.config/opencode/{agent,skills}
+mkdir -p ~/.evokit/knowledge/{knowledge,.pending}
 
 # 2. 复制全局配置文件
 cp template/opencode/AGENTS.md ~/.config/opencode/
 cp template/opencode/opencode.json ~/.config/opencode/
 cp template/opencode/agent/*.md ~/.config/opencode/agent/
-cp template/opencode/memory/evokit/knowledge-index.md ~/.config/opencode/memory/evokit/
+cp template/opencode/memory/evokit/knowledge-index.md ~/.evokit/knowledge/
 
 # 3. 替换路径占位符
 sed -i 's|__HOME__|'"$HOME"'|g' ~/.config/opencode/opencode.json
