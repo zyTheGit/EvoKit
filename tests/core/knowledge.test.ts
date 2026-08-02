@@ -95,7 +95,7 @@ id: convention-test
 scope: project
 type: architecture
 source: conversation
-confidence: 0.8
+confidence: 0.9
 created: 2026-07-30
 ---`;
     const entry = parseKnowledgeFrontmatter(content);
@@ -109,7 +109,7 @@ id: preference-dark-mode
 scope: personal
 type: preference
 source: explicit
-confidence: 1.0
+confidence: 0.9
 created: "2026-01-01"
 updated: "2026-07-30"
 context: 适用于所有项目
@@ -138,6 +138,18 @@ scope: personal
 
   it('空字符串返回 null', () => {
     expect(parseKnowledgeFrontmatter('')).toBeNull();
+  });
+
+  it('非三档合法 confidence 返回 null (ADR 0002)', () => {
+    const content = `---
+id: test-invalid-conf
+scope: personal
+type: convention
+source: explicit
+confidence: 0.3
+created: "2026-01-01"
+---`;
+    expect(parseKnowledgeFrontmatter(content)).toBeNull();
   });
 
   it('解析布尔值', () => {

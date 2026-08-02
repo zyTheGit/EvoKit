@@ -47,6 +47,12 @@ export function parseKnowledgeFrontmatter(content: string): KnowledgeEntry | nul
     return null;
   }
 
+  // confidence 必须落在离散三档合法取值（ADR 0002 状态机）
+  const confidence = entry.confidence as number;
+  if (!isKnownConfidence(confidence)) {
+    return null;
+  }
+
   return entry as unknown as KnowledgeEntry;
 }
 
@@ -437,8 +443,9 @@ export function parseLearnedRulesForMigration(content: string): Array<{
 /**
  * 将解析后的 learned-rules.md 条目转换为 MigratedRule。
  *
- * 转换规则：
- * - type=convention, source=explicit, confidence=0.9
+ * 转换规则（对齐领域模型 + ADR 0002）：
+ * - type=convention, source=explicit（当场背书，migrate 由用户确认交互背书）
+ * - confidence=FRESH(0.9)，接入三档状态机
  * - verify 丢弃
  * - promoted 提取日期作为 created
  * - deprecated 条目标记为跳过
@@ -467,8 +474,8 @@ export function convertRuleToMigrated(
     id,
     scope,
     type: 'convention',
-    source: 'explicit',
-    confidence: 0.9,
+    source: 'explicit', // 当场背书：migrate 用户确认即入库，不经过 .pending/ 批量确认
+    confidence: KnowledgeConfidence.FRESH,
     created,
     context: parsed.explanation || undefined,
   };
