@@ -32,6 +32,7 @@ import { updateCommand } from './commands/update.js';
 import { migrateCommand } from './commands/migrate.js';
 import { reviewCommand } from './commands/review.js';
 import { bootCommand } from './commands/boot.js';
+import { learnCommand } from './commands/learn.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
@@ -54,6 +55,7 @@ program
   doctor               验证 EvoKit 系统完整性（钩子、清单、知识库）
   review               复审过期的知识条目（confidence ≤ 0.5）
   boot                 会话启动校验 — 知识库深度完整性检查
+  learn                知识提取确认背书 / 显式声明
   migrate              迁移旧数据为 v1.0 知识条目格式
   export               导出 EvoKit 系统状态（v1.0 暂不可用）
   import <压缩包>      从迁移压缩包导入 EvoKit 系统状态（v1.0 暂不可用）
@@ -64,6 +66,7 @@ program
   evokit update                  更新所有适配器的模板文件
   evokit uninstall claude        卸载 Claude Code 的 EvoKit
   evokit doctor                  检查系统健康状态
+  evokit learn                   确认待确认知识 / 显式声明知识
   evokit review                  复审过期知识条目
   evokit boot                    会话启动知识库校验
   evokit migrate                 迁移旧版本数据到 v1.0 格式
@@ -80,6 +83,7 @@ program.addCommand(projectCommand);
 program.addCommand(migrateCommand);
 program.addCommand(reviewCommand);
 program.addCommand(bootCommand);
+program.addCommand(learnCommand);
 program.addCommand(exportCommand);
 program.addCommand(importCommand);
 program.addCommand(doctorCommand);

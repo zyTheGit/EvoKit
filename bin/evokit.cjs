@@ -51,6 +51,7 @@ Run 'evokit <command> --help' for more information on a command.
     const knownCommands = [
       'install', 'uninstall', 'update', 'init', 'project',
       'doctor', 'migrate', 'export', 'import',
+      'review', 'boot', 'learn',
     ];
     const cmd = args[0];
     if (!cmd.startsWith('-') && !knownCommands.includes(cmd)) {
