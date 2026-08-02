@@ -231,3 +231,29 @@ describe('ensureDirs', () => {
     expect(fs.existsSync(r.knowledgeDir)).toBe(true);
   });
 });
+
+describe('regenerateIndex（索引作为派生物，范畴 B）', () => {
+  it('从 knowledge/ 重建 EvoKit 段，保留 claude 段', () => {
+    const memoryDir = tmpDir();
+    writeActive(memoryDir, { id: 'convention-a', context: '规则A' });
+    writeActive(memoryDir, { id: 'preference-b', context: '偏好B', type: 'preference' });
+    // 手动写入一个含 claude 段的旧索引
+    fs.mkdirSync(path.dirname(getKnowledgeIndexPath(memoryDir)), { recursive: true });
+    fs.writeFileSync(
+      getKnowledgeIndexPath(memoryDir),
+      ['## 个人知识', '', '- [convention-a] 过期摘要', '', '## 项目知识', '', '- [claude-native] Claude 原生', ''].join('\n'),
+      'utf-8',
+    );
+
+    const r = repo(memoryDir);
+    const count = r.regenerateIndex();
+    expect(count).toBe(2);
+
+    const idx = readKnowledgeIndex(getKnowledgeIndexPath(memoryDir));
+    // EvoKit 段已重建（含偏好B，摘要更新为 context）
+    expect(idx.evokit.some((l) => l.includes('preference-b'))).toBe(true);
+    expect(idx.evokit.some((l) => l.includes('规则A'))).toBe(true);
+    // claude 段保留
+    expect(idx.claude.some((l) => l.includes('claude-native'))).toBe(true);
+  });
+});

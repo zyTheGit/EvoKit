@@ -33,6 +33,8 @@ import {
   listKnowledgeEntries,
   writeKnowledgeEntry,
   readKnowledgeEntry as readActiveEntry,
+  readKnowledgeIndex,
+  writeKnowledgeIndex,
   appendToKnowledgeIndex,
   generateSlug,
 } from './knowledge.js';
@@ -234,6 +236,22 @@ export class KnowledgeRepository {
   /** 列出全部条目（draft + active）id，用于跨区判重。 */
   listAll(): string[] {
     return [...new Set([...this.listPending(), ...this.listActive()])];
+  }
+
+  /**
+   * 再生成 index 的 EvoKit 段（knowledge-index.md 作为派生物，范畴 B）。
+   * 从 knowledge/ 实际条目重建 `## 个人知识` 段，消除手维护漂移/漏删；保留 `## 项目知识`（claude）段。
+   * 返回重建后的 evokit 行数。
+   */
+  regenerateIndex(): number {
+    const { claude } = readKnowledgeIndex(this.indexPath);
+    const evokitLines = this.listActive()
+      .map((id) => this.getActive(id))
+      .filter((e): e is KnowledgeEntry => e !== null)
+      .map((e) => `- [${e.id}] ${e.context ?? e.id}`)
+      .sort();
+    writeKnowledgeIndex(this.indexPath, evokitLines, claude);
+    return evokitLines.length;
   }
 
   // ── 过期检测（#26/#27/#34）────────────────────────────
