@@ -11,6 +11,8 @@ import os from 'node:os';
 import {
   KnowledgeRepository,
   getPendingDir,
+  validateArchitectureAnnotation,
+  ensureArchitectureAnnotation,
 } from '../../src/core/repository.js';
 import {
   getKnowledgeDir,
@@ -255,5 +257,63 @@ describe('regenerateIndex（索引作为派生物，范畴 B）', () => {
     expect(idx.evokit.some((l) => l.includes('规则A'))).toBe(true);
     // claude 段保留
     expect(idx.claude.some((l) => l.includes('claude-native'))).toBe(true);
+  });
+});
+
+describe('架构型条目推理标注（#33 写路径强制）', () => {
+  it('createDraft 时 architecture 自动补 ## 影响范围 占位', () => {
+    const r = repo();
+    const d = r.createDraft({ type: 'architecture', content: 'packages/api 是 packages/web 的上游' });
+    const raw = fs.readFileSync(path.join(r.pendingDir, `${d.id}.md`), 'utf-8');
+    expect(raw).toContain('## 影响范围');
+    expect(raw).not.toContain('## 相关决策'); // 相关决策为建议非必填
+  });
+
+  it('非 architecture 类型不注入影响范围', () => {
+    const r = repo();
+    const d = r.createDraft({ type: 'convention', content: '使用 Result' });
+    const raw = fs.readFileSync(path.join(r.pendingDir, `${d.id}.md`), 'utf-8');
+    expect(raw).not.toContain('## 影响范围');
+  });
+
+  it('confirmDraft 确认 architecture 草稿时保留/确保标注', () => {
+    const memoryDir = tmpDir();
+    const r = repo(memoryDir);
+    const d = r.createDraft({ type: 'architecture', content: '网关是核心的上游' });
+    const confirmed = r.confirmDraft(d.id, 'project');
+    const onDisk = fs.readFileSync(
+      path.join(getKnowledgeDir(memoryDir), `${confirmed!.id}.md`),
+      'utf-8',
+    );
+    expect(onDisk).toContain('## 影响范围');
+  });
+
+  it('regenerateIndex 时 architecture 条目带 🏛 追索标记', () => {
+    const memoryDir = tmpDir();
+    writeActive(memoryDir, { id: 'architecture-gateway', type: 'architecture', context: '网关上流' });
+    writeActive(memoryDir, { id: 'convention-x', context: '普通约定' });
+    const r = repo(memoryDir);
+    r.regenerateIndex();
+    const idx = readKnowledgeIndex(getKnowledgeIndexPath(memoryDir));
+    expect(idx.evokit.some((l) => l.includes('🏛') && l.includes('architecture-gateway'))).toBe(true);
+    expect(idx.evokit.some((l) => l === '- [convention-x] 普通约定')).toBe(true);
+  });
+});
+
+describe('validateArchitectureAnnotation', () => {
+  it('含影响范围通过；缺则返回缺项', () => {
+    expect(validateArchitectureAnnotation('## 内容\n\nx\n\n## 影响范围\n\n影响')).toEqual([]);
+    expect(validateArchitectureAnnotation('## 内容\n\nx')).toEqual(['## 影响范围']);
+  });
+});
+
+describe('ensureArchitectureAnnotation', () => {
+  it('architecture 缺标注时补最小占位，非架构原样返回', () => {
+    const arch = ensureArchitectureAnnotation('architecture', '## 内容\n\nx');
+    expect(arch.annotated).toBe(true);
+    expect(arch.body).toContain('## 影响范围');
+    const conv = ensureArchitectureAnnotation('convention', '## 内容\n\nx');
+    expect(conv.annotated).toBe(false);
+    expect(conv.body).toBe('## 内容\n\nx');
   });
 });

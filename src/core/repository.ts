@@ -35,7 +35,6 @@ import {
   readKnowledgeEntry as readActiveEntry,
   readKnowledgeIndex,
   writeKnowledgeIndex,
-  appendToKnowledgeIndex,
   generateSlug,
 } from './knowledge.js';
 import { KnowledgeConfidence, transitionConfidence } from './knowledge.js';
@@ -45,6 +44,53 @@ const PENDING_DIR = '.pending';
 
 /** 前端 YAML frontmatter，草稿缺失 scope/confidence，须以 status 区分 */
 const FRONTMATTER_DELIMITER = '---';
+
+/** 架构型条目推理标注的正文小节标题（#33 / CONTEXT.md）。 */
+const IMPACT_HEADING = '## 影响范围';
+
+/** 使架构声明自带的最小清单尾部（写路径强制 #33） */
+const ARCHITECTURE_TAIL = `${IMPACT_HEADING}\n\n（该架构决策依赖什么前提？影响哪些模块/服务/数据流？推理链留在此处。）`;
+
+/** 架构型条目在索引中的标记（#33 索引引导：让 AI 遇模块/依赖/数据流话题主动去查全文）。 */
+const ARCHITECTURE_MARKER = '🏛';
+
+/** 生成索引摘要行；架构型在 context 前置标记以示需追索全文（#33 索引引导）。 */
+function indexLineFor(entry: KnowledgeEntry): string {
+  const marker = entry.type === 'architecture' ? `${ARCHITECTURE_MARKER} ` : '';
+  return `- [${entry.id}] ${marker}${entry.context ?? entry.id}`;
+}
+
+/**
+ * 校验架构型条目的推理标注（#33 写路径强制）。
+ *
+ * 规则型（convention/preference/workflow）摘要即知识；架构型（architecture）结论依赖推理链，
+ * 必须带 `## 影响范围`（关键模块/服务/数据流），建议带 `## 相关决策`。
+ *
+ * @returns 缺少的小节标题列表；空数组表示通过。
+ */
+export function validateArchitectureAnnotation(body: string): string[] {
+  const missing: string[] = [];
+  if (!body.includes(IMPACT_HEADING)) missing.push(IMPACT_HEADING);
+  return missing;
+}
+
+/**
+ * 确保正文含 `## 影响范围`：缺则追加最小推理标注占位（#33）。
+ * 仅对 `type === 'architecture'` 调用，其它类型原样返回。
+ * @returns { body, annotated } — annotated 表示是否补写了占位标注。
+ */
+export function ensureArchitectureAnnotation(
+  type: KnowledgeType,
+  body: string,
+): { body: string; annotated: boolean } {
+  if (type !== 'architecture') return { body, annotated: false };
+  if (validateArchitectureAnnotation(body).length === 0) {
+    return { body, annotated: false };
+  }
+  const trimmed = body.trim();
+  const next = trimmed.endsWith('\n') ? trimmed : trimmed + '\n';
+  return { body: next + '\n' + ARCHITECTURE_TAIL + '\n', annotated: true };
+}
 
 // ─── 目录定位 ───────────────────────────────────────────────
 
@@ -166,7 +212,11 @@ export class KnowledgeRepository {
       context: input.context,
       tags: input.tags,
     };
-    const body = `## 内容\n\n${input.content}`;
+    // 架构型在写路径即强制补推理标注占位（#33）
+    let body = `## 内容\n\n${input.content}`;
+    if (input.type === 'architecture') {
+      body = ensureArchitectureAnnotation(input.type, body).body;
+    }
     const filePath = path.join(this.pendingDir, `${id}.md`);
     writePendingFile(filePath, entry, body);
     return entry;
@@ -202,11 +252,26 @@ export class KnowledgeRepository {
     };
 
     const filePath = path.join(this.knowledgeDir, `${entry.id}.md`);
-    const body = this.readPendingBody(id) ?? `## 内容\n\n${pending.context ?? ''}`.trim();
+    let body = this.readPendingBody(id) ?? `## 内容\n\n${pending.context ?? ''}`.trim();
+    // 架构型在确认背书写路径也强制补推理标注（#33 自兜底）
+    body = ensureArchitectureAnnotation(entry.type, body).body;
     writeKnowledgeEntry(filePath, entry, body || undefined);
-    appendToKnowledgeIndex(this.indexPath, entry.id, entry.context ?? entry.id);
+    this.appendIndex(entry);
     this.rejectDraft(id);
     return entry;
+  }
+
+  /** 追加一条索引行（架构型带追索标记），幂等（按 id 去重）。 */
+  private appendIndex(entry: KnowledgeEntry): void {
+    const { claude } = readKnowledgeIndex(this.indexPath);
+    const line = indexLineFor(entry);
+    const evokit = readKnowledgeIndex(this.indexPath).evokit;
+    const exists = evokit.some((l) => {
+      const m = l.match(/^- \[([^\]]+)\]/);
+      return m && m[1] === entry.id;
+    });
+    if (exists) return;
+    writeKnowledgeIndex(this.indexPath, [...evokit, line], claude);
   }
 
   /** 读取草稿正文（确认时保留）。 */
@@ -248,7 +313,7 @@ export class KnowledgeRepository {
     const evokitLines = this.listActive()
       .map((id) => this.getActive(id))
       .filter((e): e is KnowledgeEntry => e !== null)
-      .map((e) => `- [${e.id}] ${e.context ?? e.id}`)
+      .map((e) => indexLineFor(e))
       .sort();
     writeKnowledgeIndex(this.indexPath, evokitLines, claude);
     return evokitLines.length;

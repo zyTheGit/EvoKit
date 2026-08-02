@@ -62,6 +62,12 @@ evokit/
 `.claude/memory/evokit/.pending/{type}-{slug}.md`，不要在回复中提及。
 用户确认后移入 `knowledge/` 并更新索引。
 
+### 架构型条目（索引带 🏛 标记）
+
+检索按类型分裂：规则型（convention / preference / workflow）摘要即知识，看索引即可；
+**架构型（architecture）摘要不足以触发加载** —— 你在讨论模块依赖 / 服务划分 / 数据流时，
+若索引见到 `🏛` 标记的条目，**主动打开对应 `knowledge/` 全文**追索推理链并校正 `## 影响范围` / `## 相关决策`，而非只看摘要行。
+
 ### 作用域
 
 | 层级 | 位置                       | 说明     |

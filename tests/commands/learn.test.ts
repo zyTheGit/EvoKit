@@ -133,3 +133,33 @@ describe('rejectPendingCandidate（拒绝草稿）', () => {
     expect(rejectPendingCandidate(r.memoryDir, d.id)).toBe(false);
   });
 });
+
+describe('declareExplicit 架构型标注（#33）', () => {
+  it('type=architecture + impact 写入 ## 影响范围', () => {
+    const home = tmpHome();
+    const r = repoFor(home);
+    const e = declareExplicit(r.memoryDir, {
+      type: 'architecture',
+      content: '网关是核心上游',
+      scope: 'project',
+      impact: '影响 packages/web 的部署与鉴权流程',
+    });
+    const raw = fs.readFileSync(path.join(r.knowledgeDir, `${e.id}.md`), 'utf-8');
+    expect(raw).toContain('## 影响范围');
+    expect(raw).toContain('影响 packages/web 的部署与鉴权流程');
+  });
+
+  it('type=architecture 缺 impact 时补最小占位并标记索引', () => {
+    const home = tmpHome();
+    const r = repoFor(home);
+    const e = declareExplicit(r.memoryDir, {
+      type: 'architecture',
+      content: 'A 是 B 的上游',
+      scope: 'project',
+    });
+    const raw = fs.readFileSync(path.join(r.knowledgeDir, `${e.id}.md`), 'utf-8');
+    expect(raw).toContain('## 影响范围');
+    const idx = readKnowledgeIndex(getKnowledgeIndexPath(r.memoryDir));
+    expect(idx.evokit.some((l) => l.includes('🏛') && l.includes(e.id))).toBe(true);
+  });
+});

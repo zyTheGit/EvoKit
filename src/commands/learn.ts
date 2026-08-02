@@ -21,13 +21,12 @@ import path from 'node:path';
 import { intro, log, note, outro, select, isCancel, cancel } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
 import { getMemoryDir } from '../core/memory.js';
-import { KnowledgeRepository } from '../core/repository.js';
-import type { KnowledgeScope, KnowledgeType } from '../core/types.js';
 import {
-  appendToKnowledgeIndex,
-  generateSlug,
-  KnowledgeConfidence,
-} from '../core/knowledge.js';
+  KnowledgeRepository,
+  ensureArchitectureAnnotation,
+} from '../core/repository.js';
+import type { KnowledgeScope, KnowledgeType } from '../core/types.js';
+import { generateSlug, KnowledgeConfidence } from '../core/knowledge.js';
 
 /** 待确认候选（含来源 repo，便于确认/拒绝后写回） */
 export interface PendingCandidate {
@@ -92,7 +91,14 @@ export function rejectPendingCandidate(memoryDir: string, id: string): boolean {
  */
 export function declareExplicit(
   memoryDir: string,
-  opts: { type: KnowledgeType; content: string; scope: KnowledgeScope; context?: string },
+  opts: {
+    type: KnowledgeType;
+    content: string;
+    scope: KnowledgeScope;
+    context?: string;
+    /** 架构型显式声明的推理标注（#33）：写到 `## 影响范围` */
+    impact?: string;
+  },
 ) {
   const repo = new KnowledgeRepository({ memoryDir });
   const slug = uniqueActiveId(repo, opts.type, opts.content);
@@ -106,12 +112,18 @@ export function declareExplicit(
     context: opts.context,
   };
   const filePath = path.join(repo.knowledgeDir, `${slug}.md`);
-  const content = `## 内容\n\n${opts.content}`;
+  let content = `## 内容\n\n${opts.content}`;
+  // 架构型：带入用户提供的 impact 标注；缺省则补最小占位（#33 写路径强制）
+  if (opts.type === 'architecture' && opts.impact) {
+    content = `${content}\n\n## 影响范围\n\n${opts.impact}`;
+  } else if (opts.type === 'architecture') {
+    content = ensureArchitectureAnnotation(opts.type, content).body;
+  }
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   writeActiveFrontmatter(filePath, entry, content);
-  const summary = opts.context ?? opts.content;
   repo.ensureDirs();
-  appendToKnowledgeIndex(repo.indexPath, slug, summary);
+  // 索引作为派生物：再生成（架构型带追索标记 #33）
+  repo.regenerateIndex();
   return entry;
 }
 
@@ -168,6 +180,7 @@ export const learnCommand = new Command('learn')
   .option('--project-dir <path>', '项目知识目录（追加扫描项目级待确认，默认仅个人级）')
   .option('--scope <scope>', '作用域（personal | project），确认时缺省按当前项目')
   .option('--type <type>', '显式声明的知识类型（默认 convention）', 'convention')
+  .option('--impact <text>', '架构型显式声明的推理标注（## 影响范围，type=architecture 时建议提供）')
   .addHelpText(
     'after',
     `
@@ -201,11 +214,15 @@ export const learnCommand = new Command('learn')
     if (content) {
       const scope = (options.scope as KnowledgeScope) ?? 'project';
       const type = (options.type as KnowledgeType) ?? 'convention';
+      const impact = options.impact as string | undefined;
       const memoryDir = projectDir
         ? getMemoryDir(path.join(projectDir), adapterId)
         : memoryDirs[0];
-      const entry = declareExplicit(memoryDir, { type, content, scope });
+      const entry = declareExplicit(memoryDir, { type, content, scope, impact });
       log.success(`已声明知识 [${entry.type}] ${entry.id}（scope=${entry.scope}，当场背书）`);
+      if (type === 'architecture' && !impact) {
+        log.warn('架构型条目已补最小影响范围占位——建议补充具体影响（--impact），并加 ## 相关决策。');
+      }
       outro('Learn 完成');
       return;
     }
