@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.3
+
+### Bug Fixes
+
+- 🐛 **修复 init 后续步骤误提示 `/boot`** — Claude 安装后的后续步骤文案由错误的 `运行 /boot 进行验证` 改为 `运行 /evokit-boot 进行验证（或 npx evokit boot）`，与实际安装的斜杠命令（`commands/evokit-boot.md`）和 CLI 命令（`npx evokit boot`）对齐
+- 🐛 **修复适配器选择描述易误导** — claude / codex / opencode 的 description 由 `~/.claude/ + .claude/` 与 `~/.codex/ + .codex/`、`~/.config/opencode/ + .opencode/`（全局+相对路径混写，后者缺上下文易误导）改为 `全局 ~/.claude/（项目 .claude/ 可选）` 等清晰区分全局与可选项目级目录
+- 🐛 **安装结果补充各类别简要说明** — `formatInstallResult` 在分类计数后新增钩子/规则/代理/命令/技能各用途一句说明，帮助用户理解装了什么
+- 🐛 **修复 Settings hooks 合并** — 自定义 hook 事件（如 `SessionStart`）已被用户占用时，`mergeSettings` 此前会跳过整个事件导致 EvoKit hook 从未写入；现改为追加到事件数组尾部（按 JSON 精确去重，重装/升级幂等），manifest 精确记录以保证卸载可按条目反合并
+- 🐛 **修复启发式卸载误删用户自建 hook** — `buildVirtualManifest` 此前仅凭脚本位于 `adapterHome/hooks/` 路径前缀识别 EvoKit hook，会把用户同名目录下自建的 hook（如 `herdr-agent-state.sh`）误判为 EvoKit 并在卸载时从 settings.json 反合并掉；现改为按 EvoKit 已知 hook 脚本文件名（`session-start.sh` / `stop.sh`）精确识别，保留用户 hook
+
 ## v1.0.2 (2026-08-02)
 
 > **多助手同步落地：4 助手共享同一份知识（读助手无关 / 写经各自确认）**

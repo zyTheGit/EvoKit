@@ -59,7 +59,7 @@ describe('merge-settings', () => {
       expect(updated.hooks.SessionStart).toHaveLength(1);
     });
 
-    it('does not overwrite existing hook events', () => {
+    it('appends template hooks to existing event instead of skipping (v1.0.3)', () => {
       const settingsPath = path.join(tmpDir, 'settings.json');
       const templatePath = path.join(tmpDir, 'template-settings.json');
 
@@ -81,13 +81,49 @@ describe('merge-settings', () => {
       const { collector, build } = createCollector();
       const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
 
-      // PreToolUse 已存在，不应添加；autoMemoryEnabled 也一致
+      // 事件已存在时追加 EvoKit hook，而非跳过；用户 hook 保留，autoMemoryEnabled 一致不重复
+      expect(result.changed).toBe(true);
+      const manifest = build();
+      expect(manifest.hooks).toHaveLength(1);
+      expect(manifest.hooks[0].event).toBe('PreToolUse');
+
+      const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      // 用户 hook + EvoKit hook 并存（EvoKit 追加在末尾）
+      expect(updated.hooks.PreToolUse).toHaveLength(2);
+      expect(updated.hooks.PreToolUse[0]).toEqual(userHook[0]);
+      expect(updated.hooks.PreToolUse[1]).toEqual({
+        matcher: 'Edit',
+        hooks: [{ command: 'evokit-check.sh' }],
+      });
+    });
+
+    it('does not re-add an already-present identical EvoKit hook (idempotent)', () => {
+      const settingsPath = path.join(tmpDir, 'settings.json');
+      const templatePath = path.join(tmpDir, 'template-settings.json');
+
+      const evokitHook = [{ matcher: 'Edit', hooks: [{ command: 'evokit-check.sh' }] }];
+      const settings = {
+        autoMemoryEnabled: true,
+        hooks: { PreToolUse: evokitHook },
+      };
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+
+      const template = {
+        autoMemoryEnabled: true,
+        hooks: { PreToolUse: evokitHook },
+      };
+      fs.writeFileSync(templatePath, JSON.stringify(template, null, 2), 'utf-8');
+
+      const { collector, build } = createCollector();
+      const result = mergeSettings(settingsPath, templatePath, tmpDir, false, collector);
+
+      // 相同 hook 已存在 → 不重复追加、不改变
       expect(result.changed).toBe(false);
       const manifest = build();
       expect(manifest.hooks).toHaveLength(0);
 
       const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      expect(updated.hooks.PreToolUse).toEqual(userHook);
+      expect(updated.hooks.PreToolUse).toHaveLength(1);
     });
   });
 

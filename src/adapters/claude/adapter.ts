@@ -147,7 +147,7 @@ const LAYOUT_CONFIG: LayoutConfig = {
 export class ClaudeAdapter extends BaseAdapter {
   readonly id = 'claude';
   readonly label = 'Claude Code';
-  readonly description = '~/.claude/ + .claude/';
+  readonly description = '全局 ~/.claude/（项目 .claude/ 可选）';
   readonly version = CLAUDE_ADAPTER_VERSION;
   readonly supportedAgentVersion = '>=2.1.220';
 

@@ -129,7 +129,7 @@ const LAYOUT_CONFIG: LayoutConfig = {
 export class OpenCodeAdapter extends BaseAdapter {
   readonly id = 'opencode';
   readonly label = 'OpenCode CLI';
-  readonly description = '~/.config/opencode/ + .opencode/';
+  readonly description = '全局 ~/.config/opencode/（项目 .opencode/ 可选）';
   readonly version = OPENCODE_ADAPTER_VERSION;
   readonly supportedAgentVersion = '>=1.18.4';
 

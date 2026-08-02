@@ -118,8 +118,34 @@ export function getAdapterHeuristicConfig(
     skillsDir: null,
   };
 }
-
 // ─── 虚拟 manifest 构建 ──────────────────────────────────────
+
+/**
+ * EvoKit 已安装 hook 脚本文件名集合（取自安装布局中的 hooks）。
+ * 用于启发式卸载中精确识别 EvoKit hook，避免把用户自建 hook
+ * （脚本位于同一 hooks/ 目录、名字不在白名单内）误判为 EvoKit。
+ */
+const EVOKIT_HOOK_SCRIPT_NAMES = new Set(['session-start.sh', 'stop.sh']);
+
+/**
+ * 更新：避免用户 hook 被误判。从 command 字符串中提取被引用的脚本 basename，
+ * 仅当任一脚本名在 EvoKit 白名单中时才识别为 EvoKit hook。
+ */
+function getHookScriptNames(group: unknown): string[] {
+  const names: string[] = [];
+  if (!group || typeof group !== 'object') return names;
+  const hooksArr = (group as { hooks?: unknown }).hooks;
+  if (!Array.isArray(hooksArr)) return names;
+  for (const h of hooksArr) {
+    if (!h || typeof h !== 'object') continue;
+    const cmd = (h as { command?: unknown }).command;
+    if (typeof cmd !== 'string') continue;
+    // 取出被引用的脚本文件名，兼容 `bash /path/foo.sh` 与 `/path/foo.sh`
+    const match = cmd.match(/[\w.-]+\.sh/);
+    if (match) names.push(match[0]);
+  }
+  return names;
+}
 
 /**
  * 构建虚拟 manifest —— 用于启发式卸载中的反向合并 settings。
@@ -146,15 +172,16 @@ export function buildVirtualManifest(
       continue;
     }
 
-    // 提取引用适配器 hooks 目录的钩子
-    const hooksMarker = adapterHome.replace(/\\/g, '/') + '/hooks/';
+    // 提取 EvoKit hook —— 仅当 hook 引用的脚本文件名在 EvoKit 白名单内才识别。
+    // 之前按 `adapterHome/hooks/` 路径前缀匹配，会把用户在 hooks/ 下自建的
+    // hook（如 herdr-agent-state.sh）误判为 EvoKit，卸载时被错误移除。
     if (settings.hooks && typeof settings.hooks === 'object') {
       const hooksObj = settings.hooks as Record<string, unknown>;
       for (const [eventName, eventArr] of Object.entries(hooksObj)) {
         if (!Array.isArray(eventArr)) continue;
         for (const group of eventArr) {
-          const str = JSON.stringify(group).replace(/\\\\/g, '/');
-          if (str.includes(hooksMarker)) {
+          const scriptNames = getHookScriptNames(group);
+          if (scriptNames.some((n) => EVOKIT_HOOK_SCRIPT_NAMES.has(n))) {
             hooks.push({ event: eventName, entry: group as Record<string, unknown> });
           }
         }

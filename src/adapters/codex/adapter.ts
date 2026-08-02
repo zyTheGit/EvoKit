@@ -138,7 +138,7 @@ const LAYOUT_CONFIG: LayoutConfig = {
 export class CodexAdapter extends BaseAdapter {
   readonly id = 'codex';
   readonly label = 'Codex CLI';
-  readonly description = '~/.codex/ + .codex/';
+  readonly description = '全局 ~/.codex/（项目 .codex/ 可选）';
   readonly version = CODEX_ADAPTER_VERSION;
   readonly supportedAgentVersion = '>=0.145.0';
 

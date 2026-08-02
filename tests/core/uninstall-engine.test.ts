@@ -554,6 +554,61 @@ describe('uninstall-engine', () => {
       expect(result.heuristic).toBe(true);
       expect(result.warnings).toContain('未找到清单文件 — 使用启发式卸载。部分文件可能被遗漏。');
     });
+
+    it('keeps user-custom hooks in settings.json while removing EvoKit hooks (v1.0.3)', () => {
+      // 无 manifest → 启发式；settings.json 同时含用户自建 hook 与 EvoKit hook
+      const adapterHome = path.join(tmpHome, '.claude');
+      fse.ensureDirSync(adapterHome);
+
+      const settings = {
+        hooks: {
+          SessionStart: [
+            // 用户自建 hook（脚本名不在 EvoKit 白名单）
+            {
+              matcher: '*',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `bash '${adapterHome}/hooks/herdr-agent-state.sh' session`,
+                },
+              ],
+            },
+            // EvoKit hook（session-start.sh 在白名单）
+            {
+              matcher: 'startup|resume',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `bash '${adapterHome}/hooks/session-start.sh'`,
+                },
+              ],
+            },
+          ],
+        },
+      };
+      fs.writeFileSync(
+        path.join(adapterHome, 'settings.json'),
+        JSON.stringify(settings, null, 2),
+        'utf-8',
+      );
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      };
+
+      const result = executeUninstall(options);
+      expect(result.heuristic).toBe(true);
+
+      const updated = JSON.parse(fs.readFileSync(path.join(adapterHome, 'settings.json'), 'utf-8'));
+      expect(result.hooksRemoved).toBe(1);
+      // 用户自建 hook 保留，EvoKit 的 session-start.sh 被移除
+      expect(updated.hooks.SessionStart).toHaveLength(1);
+      expect(updated.hooks.SessionStart[0].hooks[0].command).toContain('herdr-agent-state.sh');
+    });
   });
 
   // ─── Dry-run mode ────────────────────────────────────────────

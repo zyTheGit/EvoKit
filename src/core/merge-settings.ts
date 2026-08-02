@@ -138,7 +138,9 @@ export function mergeSettings(
 
   let changed = false;
 
-  // 3. 合并 hooks — 仅添加缺失的 hook 事件
+  // 3. 合并 hooks — 对已存在的事件追加 EvoKit hook 组，否则新建
+  //     Claude settings.json 的每个事件是数组，支持多个 hook 组（matcher 维度）。
+  //     v1.0.3 起不再因事件已被用户占用而跳过，而是追加（去重，保证幂等）。
   const tHooks = (template.hooks as Record<string, unknown>) || {};
   if (Object.keys(tHooks).length > 0) {
     const eHooks = (
@@ -148,14 +150,21 @@ export function mergeSettings(
     ) as Record<string, unknown>;
     const mHooks = { ...eHooks };
     for (const [event, hooksList] of Object.entries(tHooks)) {
-      if (!(event in eHooks)) {
-        mHooks[event] = hooksList;
+      if (!Array.isArray(hooksList)) continue;
+      const existing = (eHooks[event] ?? []) as unknown[];
+      // 过滤出尚未安装的 hook 组（按 JSON 精确比对去重，重装/升级时保持幂等）
+      const existJson = new Set(existing.map((g) => JSON.stringify(g)));
+      const toAdd = hooksList.filter((entry) => !existJson.has(JSON.stringify(entry)));
+      if (existing.length === 0) {
+        mHooks[event] = toAdd;
+      } else if (toAdd.length > 0) {
+        mHooks[event] = [...existing, ...toAdd];
+      }
+      if (toAdd.length > 0) {
         changed = true;
-        // 记录添加事件中的每个匹配器组
-        if (Array.isArray(hooksList)) {
-          for (const entry of hooksList) {
-            collector?.recordHook(event, entry as Record<string, unknown>);
-          }
+        // 记录新增的每个匹配器组
+        for (const entry of toAdd) {
+          collector?.recordHook(event, entry as Record<string, unknown>);
         }
       }
     }

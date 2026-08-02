@@ -295,7 +295,7 @@ describe('CodexAdapter class', () => {
     const adapter = new CodexAdapter();
     expect(adapter.id).toBe('codex');
     expect(adapter.label).toBe('Codex CLI');
-    expect(adapter.description).toBe('~/.codex/ + .codex/');
+    expect(adapter.description).toBe('全局 ~/.codex/（项目 .codex/ 可选）');
     expect(adapter.supportedAgentVersion).toBe('>=0.145.0');
   });
 

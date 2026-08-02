@@ -104,7 +104,8 @@ describe('getNextStepsLines', () => {
   it('为 Claude 生成正确的后续步骤', () => {
     const lines = getNextStepsLines(['claude']);
     expect(lines.some((l) => l.includes('Claude Code'))).toBe(true);
-    expect(lines.some((l) => l.includes('/boot'))).toBe(true);
+    expect(lines.some((l) => l.includes('/evokit-boot'))).toBe(true);
+    expect(lines.some((l) => l.includes('npx evokit boot'))).toBe(true);
   });
 
   it('为 Codex 生成正确的后续步骤', () => {

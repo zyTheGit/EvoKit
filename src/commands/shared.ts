@@ -127,6 +127,13 @@ export function formatInstallResult(options: FormatInstallResultOptions): string
   if (result.commandsInstalled > 0) lines.push(`命令：已${verb} ${result.commandsInstalled} 个`);
   if (result.skillsInstalled > 0) lines.push(`技能：已${verb} ${result.skillsInstalled} 个`);
 
+  // 各类别简要说明（帮助用户理解装了什么）
+  if (result.hooksInstalled > 0) lines.push(`  钩子 — 会话启动/结束时自动检查知识库`);
+  if (result.rulesInstalled > 0) lines.push(`  规则 — 编码、安全与完整性约束`);
+  if (result.agentsInstalled > 0) lines.push(`  代理 — 内置 sub-agent（architect 等）`);
+  if (result.commandsInstalled > 0) lines.push(`  命令 — 斜杠命令（/evokit-boot、/evokit-learn、/evokit-review）`);
+  if (result.skillsInstalled > 0) lines.push(`  技能 — 能力扩展（learning-recorder 等）`);
+
   // 跳过提示
   if (result.filesSkipped > 0 && skipHint) {
     lines.push(`已跳过：${result.filesSkipped} 个文件（${skipHint}）`);
@@ -325,7 +332,10 @@ export function printVerificationSummary(
  * 集中管理，避免 install.ts 和 init.ts 中的 switch-case 重复。
  */
 const NEXT_STEPS_CLACK: Record<string, string> = {
-  claude: 'Claude Code：\n' + '  1. 启动 Claude Code\n' + '  2. 运行 /boot 进行验证',
+  claude:
+    'Claude Code：\n' +
+    '  1. 启动 Claude Code\n' +
+    '  2. 运行 /evokit-boot 进行验证（或 npx evokit boot）',
   codex:
     'Codex CLI：\n' +
     '  1. 启动 Codex（钩子自动运行）\n' +
