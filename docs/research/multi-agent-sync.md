@@ -70,13 +70,11 @@
 - **与模型冲突**：CONTEXT.md 多助手小节要求「所有助手共享同一份 `knowledge/` + 索引」。
 - **矛盾根因**：`knowledge/` 在 `memory.ts` 下按 adapter 解析（`getMemoryDir(home, adapterId)` → `.../evokit/knowledge/`），
   adapterId 不同 → 目录不同 → 无共享。
-- **建议**（供 task 决策，非本票拍板）：
-  1. **方案 X（共享物理目录，推荐方向）**：选一个 canonical memory root（默认 `~/.claude/memory`，因 claude adapter 最新），
-     其余 3 个 adapter 的 `getMemoryDir` 改为**映射到同一 root 下的 `evokit/`**；代码层把「知识目录」从
-     adapter 私有 memory 解耦，`getMemoryDir` 只保留 adapter 各自的历史/非知识数据，`evokit/` 子目录统一收口。
+- **建议**（已由 spec #36 拍板为方案 X，canonical root 定为 **agent 无关的中性目录 `~/.evokit/`**）：
+  1. **方案 X（共享物理目录，已决策）**：canonical knowledge root = **`~/.evokit/`**（`.pending/`/`knowledge/`/`knowledge-index.md`），**不放入任一 agent 的工具/私有目录**（避免与某 adapter 生命周期/卸载耦合）；4 个 adapter 的 `getMemoryDir` 改为**映射到同一个 root**；代码层把「知识目录」从 adapter 私有 memory 解耦，`getMemoryDir` 只保留 adapter 各自的历史/非知识数据，知识目录统一收口到 `~/.evokit/`。
   2. 方案 Y（软链/引用）：各 adapter 私有目录放符号链接/索引引用指向 canonical —— 复杂、易碎，不推荐。
 - **注意**：这个决定把「个人级 shared root」定死，会影响 `getMemoryDir`/`ADAPTER_MEMORY_PATHS` 的改造面（当前
-  `src/core/memory.ts` + 4 adapter 模板 + boot/review 命令的目录解析），需单独 task 落地。
+  `src/core/memory.ts` + 4 adapter 模板 + boot/review/learn 命令的目录解析），已纳入 spec #36，随 /to-tickets 拆分落地。
 
 ### 4.3 识别/钩子信号差异如何桥接
 
