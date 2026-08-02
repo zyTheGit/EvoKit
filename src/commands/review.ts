@@ -16,9 +16,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { intro, log, select, isCancel, cancel, note, outro } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
-import { getMemoryDir } from '../core/memory.js';
+import { getPersonalKnowledgeRoot, getProjectKnowledgeRoot } from '../core/memory.js';
 import {
-  getKnowledgeIndexPath,
   writeKnowledgeEntry,
   readKnowledgeIndex,
   writeKnowledgeIndex,
@@ -34,8 +33,8 @@ export interface ReviewCandidate {
   entry: KnowledgeEntry;
   /** 条目文件所在 knowledge 目录 */
   knowledgeDir: string;
-  /** 该 knowledge 目录对应的 memory 目录（用于索引路径） */
-  memoryDir: string;
+  /** 该 knowledge 目录对应的 knowledge-index.md 路径 */
+  indexPath: string;
 }
 
 /**
@@ -44,15 +43,15 @@ export interface ReviewCandidate {
  * 统一走 KnowledgeRepository.collectStale（单一数据访问层，范畴 B）。
  */
 export function collectStaleEntries(
-  memoryDirs: string[],
+  knowledgeRoots: string[],
 ): ReviewCandidate[] {
   const candidates: ReviewCandidate[] = [];
 
-  for (const memoryDir of memoryDirs) {
-    const repo = new KnowledgeRepository({ memoryDir });
+  for (const knowledgeRoot of knowledgeRoots) {
+    const repo = new KnowledgeRepository({ knowledgeRoot });
     // 跨个人+项目目录共享的待复审名单定义（confidence ≤ 0.5）
     for (const entry of repo.collectStale()) {
-      candidates.push({ entry, knowledgeDir: repo.knowledgeDir, memoryDir });
+      candidates.push({ entry, knowledgeDir: repo.knowledgeDir, indexPath: repo.indexPath });
     }
   }
 
@@ -112,9 +111,8 @@ export function applyReviewAction(
   action: 'confirm' | 'retire' | 'delete',
   dryRun = false,
 ): { confidence: number | null; filePath: string } {
-  const { entry, knowledgeDir, memoryDir } = candidate;
+  const { entry, knowledgeDir, indexPath } = candidate;
   const filePath = path.join(knowledgeDir, `${entry.id}.md`);
-  const indexPath = getKnowledgeIndexPath(memoryDir);
 
   if (action === 'delete') {
     if (!dryRun) {
@@ -176,18 +174,16 @@ export const reviewCommand = new Command('review')
       process.exit(1);
     }
 
-    const adapterId = (options.adapter as string) || 'claude';
     const dryRun = options.dryRun === true;
 
-    // 收集待扫描的 memory 目录
-    const memoryDirs: string[] = [getMemoryDir(homeDir, adapterId)];
+    // 个人知识根：agent 无关（共享 ~/.evokit/knowledge/），不再按 adapter 分叉
+    const knowledgeRoots: string[] = [getPersonalKnowledgeRoot(homeDir)];
     const projectDir = options.projectDir as string | undefined;
     if (projectDir) {
-      const projectMemory = getMemoryDir(path.join(projectDir), adapterId);
-      memoryDirs.push(projectMemory);
+      knowledgeRoots.push(getProjectKnowledgeRoot(path.join(projectDir)));
     }
 
-    const candidates = collectStaleEntries(memoryDirs);
+    const candidates = collectStaleEntries(knowledgeRoots);
 
     intro(pc.bgYellow(pc.black(' EvoKit 知识复审 ')));
 

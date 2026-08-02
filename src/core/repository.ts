@@ -28,8 +28,6 @@ import type {
 } from './types.js';
 import {
   getEvokitDir,
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   listKnowledgeEntries,
   writeKnowledgeEntry,
   readKnowledgeEntry as readActiveEntry,
@@ -135,28 +133,32 @@ function serializePendingFrontmatter(entry: PendingKnowledgeEntry): string {
 // ─── KnowledgeRepository ────────────────────────────────────
 
 export interface KnowledgeRepositoryOptions {
-  memoryDir: string;
+  /** 规范知识根（canonical root）：个人 `~/.evokit/knowledge/`、项目 `<project>/.evokit/`。 */
+  knowledgeRoot: string;
 }
 
 /**
  * 知识条目单一数据访问层。
  *
- * 一个 repository 绑定一个 memory 目录（适配器级），在本目录的 evokit/ 下工作。
- * 个人级与项目级各用一个 repository 实例。
+ * 绑定一个**规范知识根**（canonical knowledge root），其子结构即
+ * `knowledge-index.md` / `knowledge/` / `.pending/`（见 `getKnowledgeRootParts`）。
+ * 个人级与项目级各用一个 repository 实例：
+ * - 个人：`~/.evokit/knowledge/`（4 助手共享，agent 无关）
+ * - 项目：`<project>/.evokit/`（随 git 走）
  */
 export class KnowledgeRepository {
-  readonly memoryDir: string;
+  readonly knowledgeRoot: string;
   readonly evokitDir: string;
   readonly pendingDir: string;
   readonly knowledgeDir: string;
   readonly indexPath: string;
 
   constructor(options: KnowledgeRepositoryOptions) {
-    this.memoryDir = options.memoryDir;
-    this.evokitDir = getEvokitDir(this.memoryDir);
-    this.pendingDir = getPendingDir(this.memoryDir);
-    this.knowledgeDir = getKnowledgeDir(this.memoryDir);
-    this.indexPath = getKnowledgeIndexPath(this.memoryDir);
+    this.knowledgeRoot = options.knowledgeRoot;
+    this.evokitDir = this.knowledgeRoot;
+    this.pendingDir = path.join(this.evokitDir, PENDING_DIR);
+    this.knowledgeDir = path.join(this.evokitDir, 'knowledge');
+    this.indexPath = path.join(this.evokitDir, 'knowledge-index.md');
   }
 
   // ── 目录就绪 ──────────────────────────────────────────

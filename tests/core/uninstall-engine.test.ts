@@ -193,6 +193,31 @@ describe('uninstall-engine', () => {
       expect(fse.existsSync(manifestPath(tmpHome))).toBe(false);
     });
 
+    it('preserves shared ~/.evokit/knowledge/ after uninstalling last adapter (T2)', () => {
+      setupFullInstallation();
+      // 模拟共享知识根已存在（规范根 ~/.evokit/knowledge/，与卸载管理隔离）
+      const sharedIndex = path.join(tmpHome, '.evokit', 'knowledge', 'knowledge-index.md');
+      const sharedEntry = path.join(tmpHome, '.evokit', 'knowledge', 'knowledge', 'convention-shared.md');
+      fse.ensureDirSync(path.dirname(sharedEntry));
+      fse.writeFileSync(sharedIndex, '## 个人知识\n\n- [convention-shared] 共享知识\n', 'utf-8');
+      fse.writeFileSync(sharedEntry, '---\nid: convention-shared\n---\n## 内容', 'utf-8');
+
+      const options: UninstallOptions = {
+        homeDir: tmpHome,
+        adapterId: 'claude',
+        purge: false,
+        dryRun: false,
+        noBackup: true,
+      };
+      executeUninstall(options);
+
+      // manifest 清掉（无适配器剩余），但共享知识目录必须保留
+      expect(fse.existsSync(manifestPath(tmpHome))).toBe(false);
+      expect(fse.existsSync(sharedIndex)).toBe(true);
+      expect(fse.existsSync(sharedEntry)).toBe(true);
+      expect(fse.existsSync(path.join(tmpHome, '.evokit'))).toBe(true);
+    });
+
     it('preserves settings.json when it has user content after reverse merge', () => {
       setupFullInstallation();
       const settingsPath = path.join(tmpHome, '.claude', 'settings.json');

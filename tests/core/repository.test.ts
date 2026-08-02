@@ -15,8 +15,6 @@ import {
   ensureArchitectureAnnotation,
 } from '../../src/core/repository.js';
 import {
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   readKnowledgeEntry,
   listKnowledgeEntries,
   readKnowledgeIndex,
@@ -39,7 +37,7 @@ afterEach(() => {
 });
 
 function repo(memoryDir?: string): KnowledgeRepository {
-  return new KnowledgeRepository({ memoryDir: memoryDir ?? tmpDir() });
+  return new KnowledgeRepository({ knowledgeRoot: memoryDir ?? tmpDir() });
 }
 
 /** 直接写一条 active 条目（绕过 repository，模拟已有数据）。 */
@@ -57,7 +55,7 @@ function writeActive(
     context: '使用 uv 代替 pip',
     ...overrides,
   };
-  const knowledgeDir = getKnowledgeDir(memoryDir);
+  const knowledgeDir = path.join(memoryDir, 'knowledge');
   writeEntryFile(path.join(knowledgeDir, `${entry.id}.md`), entry, `## 内容\n\n${entry.context}`);
   return entry;
 }
@@ -130,12 +128,12 @@ describe('confirmDraft（确认背书，#25/#31 D5）', () => {
 
     // 草稿已移除，知识条目已落盘
     expect(r.listPending()).toEqual([]);
-    const active = readKnowledgeEntry(path.join(getKnowledgeDir(memoryDir), `${d.id}.md`));
+    const active = readKnowledgeEntry(path.join(path.join(memoryDir, 'knowledge'), `${d.id}.md`));
     expect(active!.id).toBe(d.id);
     expect(active!.scope).toBe('project');
 
     // 索引已更新
-    const idx = readKnowledgeIndex(getKnowledgeIndexPath(memoryDir));
+    const idx = readKnowledgeIndex(path.join(memoryDir, 'knowledge-index.md'));
     expect(idx.evokit.some((l) => l.includes(d.id))).toBe(true);
   });
 
@@ -196,7 +194,7 @@ describe('expire（过期检测触发点 1/2，#34）', () => {
     const after = r.expire('someting');
     expect(after).not.toBeNull();
     expect(after!.confidence).toBe(0.5);
-    const onDisk = readKnowledgeEntry(path.join(getKnowledgeDir(memoryDir), 'someting.md'));
+    const onDisk = readKnowledgeEntry(path.join(path.join(memoryDir, 'knowledge'), 'someting.md'));
     expect(onDisk!.confidence).toBe(0.5);
     expect(onDisk!.updated).toBeDefined();
   });
@@ -206,12 +204,12 @@ describe('expire（过期检测触发点 1/2，#34）', () => {
     writeActive(memoryDir, { id: 'already-stale', confidence: 0.5 });
     const r = repo(memoryDir);
     const before = readKnowledgeEntry(
-      path.join(getKnowledgeDir(memoryDir), 'already-stale.md'),
+      path.join(path.join(memoryDir, 'knowledge'), 'already-stale.md'),
     );
     const after = r.expire('already-stale');
     expect(after!.confidence).toBe(0.5);
     const onDisk = readKnowledgeEntry(
-      path.join(getKnowledgeDir(memoryDir), 'already-stale.md'),
+      path.join(path.join(memoryDir, 'knowledge'), 'already-stale.md'),
     );
     expect(onDisk!.updated).toBe(before!.updated); // 幂等：不刷新 updated
   });
@@ -240,9 +238,9 @@ describe('regenerateIndex（索引作为派生物，范畴 B）', () => {
     writeActive(memoryDir, { id: 'convention-a', context: '规则A' });
     writeActive(memoryDir, { id: 'preference-b', context: '偏好B', type: 'preference' });
     // 手动写入一个含 claude 段的旧索引
-    fs.mkdirSync(path.dirname(getKnowledgeIndexPath(memoryDir)), { recursive: true });
+    fs.mkdirSync(path.dirname(path.join(memoryDir, 'knowledge-index.md')), { recursive: true });
     fs.writeFileSync(
-      getKnowledgeIndexPath(memoryDir),
+      path.join(memoryDir, 'knowledge-index.md'),
       ['## 个人知识', '', '- [convention-a] 过期摘要', '', '## 项目知识', '', '- [claude-native] Claude 原生', ''].join('\n'),
       'utf-8',
     );
@@ -251,7 +249,7 @@ describe('regenerateIndex（索引作为派生物，范畴 B）', () => {
     const count = r.regenerateIndex();
     expect(count).toBe(2);
 
-    const idx = readKnowledgeIndex(getKnowledgeIndexPath(memoryDir));
+    const idx = readKnowledgeIndex(path.join(memoryDir, 'knowledge-index.md'));
     // EvoKit 段已重建（含偏好B，摘要更新为 context）
     expect(idx.evokit.some((l) => l.includes('preference-b'))).toBe(true);
     expect(idx.evokit.some((l) => l.includes('规则A'))).toBe(true);
@@ -282,7 +280,7 @@ describe('架构型条目推理标注（#33 写路径强制）', () => {
     const d = r.createDraft({ type: 'architecture', content: '网关是核心的上游' });
     const confirmed = r.confirmDraft(d.id, 'project');
     const onDisk = fs.readFileSync(
-      path.join(getKnowledgeDir(memoryDir), `${confirmed!.id}.md`),
+      path.join(path.join(memoryDir, 'knowledge'), `${confirmed!.id}.md`),
       'utf-8',
     );
     expect(onDisk).toContain('## 影响范围');
@@ -294,7 +292,7 @@ describe('架构型条目推理标注（#33 写路径强制）', () => {
     writeActive(memoryDir, { id: 'convention-x', context: '普通约定' });
     const r = repo(memoryDir);
     r.regenerateIndex();
-    const idx = readKnowledgeIndex(getKnowledgeIndexPath(memoryDir));
+    const idx = readKnowledgeIndex(path.join(memoryDir, 'knowledge-index.md'));
     expect(idx.evokit.some((l) => l.includes('🏛') && l.includes('architecture-gateway'))).toBe(true);
     expect(idx.evokit.some((l) => l === '- [convention-x] 普通约定')).toBe(true);
   });

@@ -19,7 +19,6 @@ import { KnowledgeRepository } from '../../src/core/repository.js';
 import {
   readKnowledgeEntry,
   readKnowledgeIndex,
-  getKnowledgeIndexPath,
   KnowledgeConfidence,
 } from '../../src/core/knowledge.js';
 
@@ -40,14 +39,14 @@ afterEach(() => {
 function repoFor(homeRoot: string): KnowledgeRepository {
   // 个人级用 ~/.claude/memory 模拟
   const base = path.join(homeRoot, '.claude', 'memory');
-  return new KnowledgeRepository({ memoryDir: base });
+  return new KnowledgeRepository({ knowledgeRoot: base });
 }
 
 describe('declareExplicit（显式声明，当场背书，#25）', () => {
   it('直接写入 knowledge/（source=explicit，confidence=FRESH，scope 由用户指定）+ 更新索引', () => {
     const home = tmpHome();
     const r = repoFor(home);
-    const entry = declareExplicit(r.memoryDir, {
+    const entry = declareExplicit(r.knowledgeRoot, {
       type: 'convention',
       content: '使用 uv 代替 pip',
       scope: 'project',
@@ -66,15 +65,15 @@ describe('declareExplicit（显式声明，当场背书，#25）', () => {
     expect(onDisk!.scope).toBe('project');
 
     // 索引已更新
-    const idx = readKnowledgeIndex(getKnowledgeIndexPath(r.memoryDir));
+    const idx = readKnowledgeIndex(path.join(r.knowledgeRoot, 'knowledge-index.md'));
     expect(idx.evokit.some((l) => l.includes(entry.id))).toBe(true);
   });
 
   it('生成唯一 id（跨 active+pending 去重）', () => {
     const home = tmpHome();
     const r = repoFor(home);
-    declareExplicit(r.memoryDir, { type: 'convention', content: 'Use uv instead of pip', scope: 'project' });
-    const second = declareExplicit(r.memoryDir, { type: 'convention', content: 'Use uv instead of pip', scope: 'project' });
+    declareExplicit(r.knowledgeRoot, { type: 'convention', content: 'Use uv instead of pip', scope: 'project' });
+    const second = declareExplicit(r.knowledgeRoot, { type: 'convention', content: 'Use uv instead of pip', scope: 'project' });
     // generateSlug('Use uv instead of pip') → 'use-uv-instead-of'
     expect(second.id).toBe('convention-use-uv-instead-of-2');
   });
@@ -87,15 +86,15 @@ describe('listPendingCandidates（确认路径，读取 .pending/）', () => {
     r.createDraft({ type: 'architecture', content: 'packages/api 是 packages/web 的上游' });
     r.createDraft({ type: 'workflow', content: 'commit 用 conventional' });
 
-    const candidates = listPendingCandidates([r.memoryDir]);
+    const candidates = listPendingCandidates([r.knowledgeRoot]);
     expect(candidates).toHaveLength(2);
-    expect(candidates.every((c) => c.repo.memoryDir === r.memoryDir)).toBe(true);
+    expect(candidates.every((c) => c.repo.knowledgeRoot === r.knowledgeRoot)).toBe(true);
   });
 
   it('无草稿时返回空数组', () => {
     const home = tmpHome();
     const r = repoFor(home);
-    expect(listPendingCandidates([r.memoryDir])).toEqual([]);
+    expect(listPendingCandidates([r.knowledgeRoot])).toEqual([]);
   });
 });
 
@@ -105,7 +104,7 @@ describe('confirmPendingCandidate（确认背书，#31 D5）', () => {
     const r = repoFor(home);
     const d = r.createDraft({ type: 'preference', content: '使用 pnpm' });
 
-    const entry = confirmPendingCandidate(r.memoryDir, d.id, 'personal');
+    const entry = confirmPendingCandidate(r.knowledgeRoot, d.id, 'personal');
     expect(entry).not.toBeNull();
     expect(entry!.scope).toBe('personal');
     expect(entry!.confidence).toBe(KnowledgeConfidence.FRESH);
@@ -113,13 +112,13 @@ describe('confirmPendingCandidate（确认背书，#31 D5）', () => {
     expect(r.listPending()).toEqual([]);
     const onDisk = readKnowledgeEntry(path.join(r.knowledgeDir, `${d.id}.md`));
     expect(onDisk!.id).toBe(d.id);
-    const idx = readKnowledgeIndex(getKnowledgeIndexPath(r.memoryDir));
+    const idx = readKnowledgeIndex(path.join(r.knowledgeRoot, 'knowledge-index.md'));
     expect(idx.evokit.some((l) => l.includes(d.id))).toBe(true);
   });
 
   it('草稿不存在时返回 null', () => {
     const home = tmpHome();
-    expect(confirmPendingCandidate(repoFor(home).memoryDir, 'nope', 'project')).toBeNull();
+    expect(confirmPendingCandidate(repoFor(home).knowledgeRoot, 'nope', 'project')).toBeNull();
   });
 });
 
@@ -128,9 +127,9 @@ describe('rejectPendingCandidate（拒绝草稿）', () => {
     const home = tmpHome();
     const r = repoFor(home);
     const d = r.createDraft({ type: 'convention', content: '不要这条' });
-    expect(rejectPendingCandidate(r.memoryDir, d.id)).toBe(true);
+    expect(rejectPendingCandidate(r.knowledgeRoot, d.id)).toBe(true);
     expect(r.listPending()).toEqual([]);
-    expect(rejectPendingCandidate(r.memoryDir, d.id)).toBe(false);
+    expect(rejectPendingCandidate(r.knowledgeRoot, d.id)).toBe(false);
   });
 });
 
@@ -138,7 +137,7 @@ describe('declareExplicit 架构型标注（#33）', () => {
   it('type=architecture + impact 写入 ## 影响范围', () => {
     const home = tmpHome();
     const r = repoFor(home);
-    const e = declareExplicit(r.memoryDir, {
+    const e = declareExplicit(r.knowledgeRoot, {
       type: 'architecture',
       content: '网关是核心上游',
       scope: 'project',
@@ -152,14 +151,14 @@ describe('declareExplicit 架构型标注（#33）', () => {
   it('type=architecture 缺 impact 时补最小占位并标记索引', () => {
     const home = tmpHome();
     const r = repoFor(home);
-    const e = declareExplicit(r.memoryDir, {
+    const e = declareExplicit(r.knowledgeRoot, {
       type: 'architecture',
       content: 'A 是 B 的上游',
       scope: 'project',
     });
     const raw = fs.readFileSync(path.join(r.knowledgeDir, `${e.id}.md`), 'utf-8');
     expect(raw).toContain('## 影响范围');
-    const idx = readKnowledgeIndex(getKnowledgeIndexPath(r.memoryDir));
+    const idx = readKnowledgeIndex(path.join(r.knowledgeRoot, 'knowledge-index.md'));
     expect(idx.evokit.some((l) => l.includes('🏛') && l.includes(e.id))).toBe(true);
   });
 });

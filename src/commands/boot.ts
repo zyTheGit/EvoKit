@@ -22,10 +22,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { intro, log, note, outro } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
-import { getMemoryDir, getFileLineCount } from '../core/memory.js';
+import { getFileLineCount, getPersonalKnowledgeRoot, getProjectKnowledgeRoot } from '../core/memory.js';
 import {
-  getEvokitDir,
-  getKnowledgeIndexPath,
   readKnowledgeEntry,
   readKnowledgeIndex,
 } from '../core/knowledge.js';
@@ -42,7 +40,7 @@ export interface BootCheck {
 
 /** 深度检查配置 */
 export interface BootConfig {
-  memoryDirs: string[];
+  knowledgeRoots: string[];
   /** 认知核心文件路径（CLAUDE.md / AGENTS.md），可选 */
   coreFilePath?: string;
   coreMaxLines?: number;
@@ -55,11 +53,11 @@ export interface BootConfig {
 export function runBootChecks(config: BootConfig): BootCheck[] {
   const checks: BootCheck[] = [];
 
-  for (const memoryDir of config.memoryDirs) {
-    const scopeLabel = memoryDir === config.memoryDirs[0] ? '个人级' : '项目级';
-    const evokitDir = getEvokitDir(memoryDir);
-    const indexPath = getKnowledgeIndexPath(memoryDir);
-    const repo = new KnowledgeRepository({ memoryDir });
+  for (const knowledgeRoot of config.knowledgeRoots) {
+    const scopeLabel = knowledgeRoot === config.knowledgeRoots[0] ? '个人级' : '项目级';
+    const repo = new KnowledgeRepository({ knowledgeRoot });
+    const evokitDir = repo.evokitDir;
+    const indexPath = repo.indexPath;
 
     // 1. 目录结构
     const dirsOk =
@@ -198,10 +196,11 @@ export const bootCommand = new Command('boot')
     }
 
     const adapterId = (options.adapter as string) || 'claude';
-    const memoryDirs: string[] = [getMemoryDir(homeDir, adapterId)];
+    // 个人知识根：agent 无关（共享 ~/.evokit/knowledge/），不再按 adapter 分叉
+    const knowledgeRoots: string[] = [getPersonalKnowledgeRoot(homeDir)];
     const projectDir = options.projectDir as string | undefined;
     if (projectDir) {
-      memoryDirs.push(getMemoryDir(path.join(projectDir), adapterId));
+      knowledgeRoots.push(getProjectKnowledgeRoot(path.join(projectDir)));
     }
 
     const corePath =
@@ -210,7 +209,7 @@ export const bootCommand = new Command('boot')
 
     intro(pc.bgCyan(pc.black(' EvoKit Boot — 知识库完整性 ')));
 
-    const checks = runBootChecks({ memoryDirs, coreFilePath: corePath, coreMaxLines: 150 });
+    const checks = runBootChecks({ knowledgeRoots, coreFilePath: corePath, coreMaxLines: 150 });
     const lines = checks.map((c) => {
       const icon = c.pass ? pc.green('✓') : c.warnOnly ? pc.yellow('⚠') : pc.red('✗');
       const suffix = c.detail ? pc.dim(` — ${c.detail}`) : '';

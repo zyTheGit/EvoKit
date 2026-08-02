@@ -9,11 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { runBootChecks, summarizeChecks } from '../../src/commands/boot.js';
-import { getMemoryDir } from '../../src/core/memory.js';
 import {
-  getEvokitDir,
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   writeKnowledgeEntry,
   appendToKnowledgeIndex,
 } from '../../src/core/knowledge.js';
@@ -34,12 +30,11 @@ afterEach(() => {
   }
 });
 
-/** 构建一个最小合法 memoryDir + knowledge-index + 一条合法条目 */
-function setupHealthy(memoryDir: string): void {
-  const evokitDir = getEvokitDir(memoryDir);
-  const knowledgeDir = getKnowledgeDir(memoryDir);
-  const indexPath = getKnowledgeIndexPath(memoryDir);
-  fs.mkdirSync(evokitDir, { recursive: true });
+/** 构建一个最小合法规范知识根 + knowledge-index + 一条合法条目 */
+function setupHealthy(knowledgeRoot: string): void {
+  const knowledgeDir = path.join(knowledgeRoot, 'knowledge');
+  const indexPath = path.join(knowledgeRoot, 'knowledge-index.md');
+  fs.mkdirSync(knowledgeDir, { recursive: true });
   writeKnowledgeEntry(
     path.join(knowledgeDir, 'convention-healthy.md'),
     {
@@ -60,11 +55,10 @@ function setupHealthy(memoryDir: string): void {
 
 describe('runBootChecks', () => {
   it('健康知识库全部通过', () => {
-    const homeDir = tmpDir();
-    const memoryDir = getMemoryDir(homeDir, 'claude');
-    setupHealthy(memoryDir);
+    const knowledgeRoot = tmpDir();
+    setupHealthy(knowledgeRoot);
 
-    const checks = runBootChecks({ memoryDirs: [memoryDir] });
+    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot] });
     const fails = checks.filter((c) => !c.pass && !c.warnOnly);
     // 至少有目录结构、索引格式、条目完整性、frontmatter 4 项
     expect(checks.length).toBeGreaterThanOrEqual(4);
@@ -72,8 +66,8 @@ describe('runBootChecks', () => {
   });
 
   it('缺失目录结构时报错', () => {
-    const memoryDir = getMemoryDir(tmpDir(), 'claude'); // 未初始化
-    const checks = runBootChecks({ memoryDirs: [memoryDir] });
+    const knowledgeRoot = tmpDir(); // 未初始化
+    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot] });
     const dirCheck = checks.find((c) => c.name.includes('目录结构'))!;
     expect(dirCheck.pass).toBe(false);
     // 目录缺失时跳过后续知识目录检查
@@ -81,30 +75,27 @@ describe('runBootChecks', () => {
   });
 
   it('索引引用缺失条目时报错', () => {
-    const homeDir = tmpDir();
-    const memoryDir = getMemoryDir(homeDir, 'claude');
-    setupHealthy(memoryDir);
+    const knowledgeRoot = tmpDir();
+    setupHealthy(knowledgeRoot);
     // 在索引手动加一条不存在的引用
-    const indexPath = getKnowledgeIndexPath(memoryDir);
+    const indexPath = path.join(knowledgeRoot, 'knowledge-index.md');
     appendToKnowledgeIndex(indexPath, 'ghost-entry', '不存在条目');
 
-    const checks = runBootChecks({ memoryDirs: [memoryDir] });
+    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot] });
     const check = checks.find((c) => c.name.includes('索引引用的条目存在'))!;
     expect(check.pass).toBe(false);
     expect(check.detail).toContain('ghost-entry');
   });
 
   it('frontmatter 缺失/confidence 非法时报错', () => {
-    const homeDir = tmpDir();
-    const memoryDir = getMemoryDir(homeDir, 'claude');
+    const knowledgeRoot = tmpDir();
     // 先建合法索引使目录结构检查通过
-    const evokitDir = getEvokitDir(memoryDir);
-    const indexPath = getKnowledgeIndexPath(memoryDir);
-    fs.mkdirSync(evokitDir, { recursive: true });
+    const indexPath = path.join(knowledgeRoot, 'knowledge-index.md');
+    fs.mkdirSync(path.join(knowledgeRoot, 'knowledge'), { recursive: true });
     appendToKnowledgeIndex(indexPath, 'convention-bad', '坏条目');
     // 写入 confidence 非三档值的不合法条目（#30 校验应拒绝）
     writeKnowledgeEntry(
-      path.join(getKnowledgeDir(memoryDir), 'convention-bad.md'),
+      path.join(knowledgeRoot, 'knowledge', 'convention-bad.md'),
       {
         id: 'convention-bad',
         scope: 'personal',
@@ -116,18 +107,18 @@ describe('runBootChecks', () => {
       '## 内容',
     );
 
-    const checks = runBootChecks({ memoryDirs: [memoryDir] });
+    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot] });
     const check = checks.find((c) => c.name.includes('frontmatter'))!;
     expect(check.pass).toBe(false);
     expect(check.detail).toContain('convention-bad');
   });
 
   it('认知核心文件行数超限时报错', () => {
-    const memoryDir = getMemoryDir(tmpDir(), 'claude');
+    const knowledgeRoot = tmpDir();
     const corePath = path.join(tmpDir(), 'CLAUDE.md');
     fs.writeFileSync(corePath, Array(160).fill('# line').join('\n'), 'utf-8');
 
-    const checks = runBootChecks({ memoryDirs: [memoryDir], coreFilePath: corePath, coreMaxLines: 150 });
+    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot], coreFilePath: corePath, coreMaxLines: 150 });
     const check = checks.find((c) => c.name.includes('认知核心文件行数'))!;
     expect(check.pass).toBe(false);
     expect(check.detail).toContain('160');

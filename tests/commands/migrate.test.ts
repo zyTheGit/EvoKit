@@ -16,8 +16,6 @@ import {
 } from '../../src/commands/migrate.js';
 import type { MigratedRule, MigrationDetection } from '../../src/core/types.js';
 import {
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   getArchiveV0Dir,
   readKnowledgeIndex,
   listKnowledgeEntries,
@@ -135,7 +133,7 @@ describe('detectLegacyData', () => {
 describe('parseAndConvertRules', () => {
   it('解析 learned-rules.md 并转换为 MigratedRule 列表', () => {
     const dir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const rulesPath = path.join(dir, 'learned-rules.md');
     fs.writeFileSync(
       rulesPath,
@@ -162,7 +160,7 @@ describe('parseAndConvertRules', () => {
 
   it('过滤 deprecated 规则并生成警告', () => {
     const dir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const rulesPath = path.join(dir, 'learned-rules.md');
     fs.writeFileSync(
       rulesPath,
@@ -178,7 +176,7 @@ describe('parseAndConvertRules', () => {
 
   it('空 learned-rules.md 返回空列表', () => {
     const dir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const rulesPath = path.join(dir, 'learned-rules.md');
     fs.writeFileSync(rulesPath, 'No rules have been promoted yet', 'utf-8');
     const result = parseAndConvertRules(rulesPath, 'personal', knowledgeDir);
@@ -188,7 +186,7 @@ describe('parseAndConvertRules', () => {
 
   it('使用指定的 scope', () => {
     const dir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const rulesPath = path.join(dir, 'learned-rules.md');
     fs.writeFileSync(rulesPath, '- **Project rule**\n', 'utf-8');
     const result = parseAndConvertRules(rulesPath, 'project', knowledgeDir);
@@ -217,16 +215,16 @@ describe('executeMigration', () => {
     };
 
     const rules = [makeMigratedRule()];
-    const result = executeMigration(rules, detection, dir, false);
+    const result = executeMigration(rules, detection, dir, dir, false);
 
     // 验证知识条目已写入
     expect(result.entriesWritten).toBe(1);
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const entries = listKnowledgeEntries(knowledgeDir);
     expect(entries).toContain('convention-use-uv');
 
     // 验证索引已更新
-    const indexPath = getKnowledgeIndexPath(dir);
+    const indexPath = path.join(dir, 'knowledge-index.md');
     const index = readKnowledgeIndex(indexPath);
     expect(index.evokit).toHaveLength(1);
 
@@ -255,7 +253,7 @@ describe('executeMigration', () => {
     };
 
     const rules = [makeMigratedRule()];
-    const result = executeMigration(rules, detection, dir, true);
+    const result = executeMigration(rules, detection, dir, dir, true);
 
     // dry-run 仍计数
     expect(result.entriesWritten).toBe(1);
@@ -263,7 +261,7 @@ describe('executeMigration', () => {
 
     // 但文件未被修改
     expect(fs.existsSync(path.join(dir, 'learned-rules.md'))).toBe(true);
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     expect(listKnowledgeEntries(knowledgeDir)).toHaveLength(0);
   });
 
@@ -279,7 +277,7 @@ describe('executeMigration', () => {
     };
 
     const rules = [makeMigratedRule()];
-    const result = executeMigration(rules, detection, dir, false);
+    const result = executeMigration(rules, detection, dir, dir, false);
 
     expect(result.entriesWritten).toBe(1);
     expect(result.filesArchived).toBe(0);
@@ -301,10 +299,10 @@ describe('executeMigration', () => {
       makeMigratedRule({ id: 'convention-rule-b' }),
       makeMigratedRule({ id: 'preference-rule-c', type: 'preference' }),
     ];
-    const result = executeMigration(rules, detection, dir, false);
+    const result = executeMigration(rules, detection, dir, dir, false);
 
     expect(result.entriesWritten).toBe(3);
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const entries = listKnowledgeEntries(knowledgeDir);
     expect(entries).toHaveLength(3);
   });
@@ -321,9 +319,9 @@ describe('executeMigration', () => {
     };
 
     const rules = [makeMigratedRule()];
-    executeMigration(rules, detection, dir, false);
+    executeMigration(rules, detection, dir, dir, false);
 
-    const knowledgeDir = getKnowledgeDir(dir);
+    const knowledgeDir = path.join(dir, 'knowledge');
     const fp = path.join(knowledgeDir, 'convention-use-uv.md');
     const content = fs.readFileSync(fp, 'utf-8');
     expect(content).toContain('## 内容');

@@ -184,14 +184,18 @@ export function executeUninstall(options: UninstallOptions): UninstallResult {
       if (fse.existsSync(mPath)) {
         fse.removeSync(mPath);
       }
-      // 尝试移除 ~/.evokit/（如果为空）
+      // 若顶层只剩管理残留、且不在共享知识目录之上，才清空 ~/.evokit/
+      // 共享知识根 ~/.evokit/knowledge/ 必须保留（除非用户主动删除），不随卸载/重装回流
       const evokitDir = path.join(homeDir, '.evokit');
       try {
-        if (fs.readdirSync(evokitDir).length === 0) {
+        const entries = fs.readdirSync(evokitDir);
+        // 只要存在共享知识子目录，就绝不移除 ~/.evokit/
+        const hasSharedKnowledge = entries.includes('knowledge');
+        if (!hasSharedKnowledge && entries.length === 0) {
           fse.removeSync(evokitDir);
         }
       } catch {
-        // 目录非空或不存在 — 忽略
+        // 目录不存在 — 忽略
       }
     }
   }

@@ -17,8 +17,6 @@ import {
 } from '../../src/commands/review.js';
 import type { KnowledgeEntry } from '../../src/core/types.js';
 import {
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   writeKnowledgeEntry,
   appendToKnowledgeIndex,
   readKnowledgeEntry,
@@ -54,7 +52,7 @@ function writeEntry(memoryDir: string, overrides: Partial<KnowledgeEntry> = {}):
     context: '使用 uv 代替 pip',
     ...overrides,
   };
-  const knowledgeDir = getKnowledgeDir(memoryDir);
+  const knowledgeDir = path.join(memoryDir, 'knowledge');
   writeKnowledgeEntry(path.join(knowledgeDir, `${entry.id}.md`), entry, `## 内容\n\n${entry.context}`);
   return entry;
 }
@@ -92,8 +90,8 @@ describe('collectStaleEntries', () => {
 describe('applyReviewAction', () => {
   it('confirm 将 STALE 回升 FRESH 并刷新 updated', () => {
     const memoryDir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(memoryDir);
-    const indexPath = getKnowledgeIndexPath(memoryDir);
+    const knowledgeDir = path.join(memoryDir, 'knowledge');
+    const indexPath = path.join(memoryDir, 'knowledge-index.md');
     writeEntry(memoryDir, { id: 'stale-one', confidence: 0.5 });
     appendToKnowledgeIndex(indexPath, 'stale-one', '使用 uv 代替 pip');
 
@@ -111,7 +109,7 @@ describe('applyReviewAction', () => {
 
   it('retire 将 STALE 降为 RETIRED', () => {
     const memoryDir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(memoryDir);
+    const knowledgeDir = path.join(memoryDir, 'knowledge');
     writeEntry(memoryDir, { id: 'stale-one', confidence: 0.5 });
 
     const candidates = collectStaleEntries([memoryDir]);
@@ -124,8 +122,8 @@ describe('applyReviewAction', () => {
 
   it('delete 删除文件并从索引移除', () => {
     const memoryDir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(memoryDir);
-    const indexPath = getKnowledgeIndexPath(memoryDir);
+    const knowledgeDir = path.join(memoryDir, 'knowledge');
+    const indexPath = path.join(memoryDir, 'knowledge-index.md');
     writeEntry(memoryDir, { id: 'stale-one', confidence: 0.1 });
     appendToKnowledgeIndex(indexPath, 'stale-one', '使用 uv 代替 pip');
 
@@ -140,7 +138,7 @@ describe('applyReviewAction', () => {
 
   it('dry-run 不修改文件', () => {
     const memoryDir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(memoryDir);
+    const knowledgeDir = path.join(memoryDir, 'knowledge');
     writeEntry(memoryDir, { id: 'stale-one', confidence: 0.5 });
 
     const candidates = collectStaleEntries([memoryDir]);
@@ -157,7 +155,7 @@ describe('applyReviewAction', () => {
 describe('removeIndexEntry', () => {
   it('仅移除指定 id 的行，保留其他', () => {
     const memoryDir = tmpDir();
-    const indexPath = getKnowledgeIndexPath(memoryDir);
+    const indexPath = path.join(memoryDir, 'knowledge-index.md');
     appendToKnowledgeIndex(indexPath, 'keep-one', '保留');
     appendToKnowledgeIndex(indexPath, 'drop-one', '删除');
 
@@ -174,7 +172,7 @@ describe('removeIndexEntry', () => {
 describe('readEntryBody', () => {
   it('提取 frontmatter 之后的正文', () => {
     const memoryDir = tmpDir();
-    const knowledgeDir = getKnowledgeDir(memoryDir);
+    const knowledgeDir = path.join(memoryDir, 'knowledge');
     writeEntry(memoryDir, { id: 'body-test', context: '正文内容' });
     const body = readEntryBody(path.join(knowledgeDir, 'body-test.md'));
     expect(body).toContain('正文内容');

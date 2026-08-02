@@ -20,12 +20,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { intro, log, confirm, isCancel, cancel, note, select } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
-import { getMemoryDir } from '../core/memory.js';
+import {
+  getMemoryDir,
+  getPersonalKnowledgeRoot,
+  getProjectKnowledgeRoot,
+  getKnowledgeRootParts,
+} from '../core/memory.js';
 import {
   parseLearnedRulesForMigration,
   convertRuleToMigrated,
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   getArchiveV0Dir,
   writeKnowledgeEntry,
   appendToKnowledgeIndex,
@@ -118,23 +121,25 @@ export function parseAndConvertRules(
 
 /**
  * 执行迁移：写入知识条目 + 归档旧文件 + 更新索引。
+ * 目标写入 v1.0 规范知识根（knowledgeRoot），旧 v0 文件归档到源 memory 目录的 archive/v0/。
  */
 export function executeMigration(
   acceptedRules: MigratedRule[],
   detection: MigrationDetection,
-  memoryDir: string,
+  knowledgeRoot: string,
+  sourceMemoryDir: string,
   dryRun: boolean,
 ): { entriesWritten: number; filesArchived: number } {
-  const knowledgeDir = getKnowledgeDir(memoryDir);
-  const indexPath = getKnowledgeIndexPath(memoryDir);
-  const archiveDir = getArchiveV0Dir(memoryDir);
+  const { entries, index } = getKnowledgeRootParts(knowledgeRoot);
+  const indexPath = index;
+  const archiveDir = getArchiveV0Dir(sourceMemoryDir);
 
   let entriesWritten = 0;
   let filesArchived = 0;
 
   // 写入知识条目
   for (const rule of acceptedRules) {
-    const filePath = path.join(knowledgeDir, `${rule.entry.id}.md`);
+    const filePath = path.join(entries, `${rule.entry.id}.md`);
     const body =
       rule.originalDescription !== rule.entry.context
         ? `## 内容\n\n${rule.originalDescription}`
@@ -208,6 +213,9 @@ export const migrateCommand = new Command('migrate')
     }
 
     const memoryDir = getMemoryDir(homeDir, adapterId);
+    // 迁移目标：v1.0 规范个人知识根（共享 ~/.evokit/knowledge/）
+    const knowledgeRoot = getPersonalKnowledgeRoot(homeDir);
+    const { entries: targetEntriesDir } = getKnowledgeRootParts(knowledgeRoot);
 
     // ── 检测旧数据 ──────────────────────────────────
     const detection = detectLegacyData(memoryDir);
@@ -246,8 +254,7 @@ export const migrateCommand = new Command('migrate')
     const warnings: string[] = [];
 
     if (detection.learnedRules) {
-      const knowledgeDir = getKnowledgeDir(memoryDir);
-      const result = parseAndConvertRules(detection.paths['learned-rules.md'], scope, knowledgeDir);
+      const result = parseAndConvertRules(detection.paths['learned-rules.md'], scope, targetEntriesDir);
       rules = result.rules;
       warnings.push(...result.warnings);
     }
@@ -335,7 +342,7 @@ export const migrateCommand = new Command('migrate')
     }
 
     // ── 执行迁移 ────────────────────────────────────
-    const result = executeMigration(acceptedRules, detection, memoryDir, dryRun);
+    const result = executeMigration(acceptedRules, detection, knowledgeRoot, memoryDir, dryRun);
 
     // ── 摘要 ────────────────────────────────────────
     const summaryLines: string[] = [];

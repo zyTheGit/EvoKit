@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { intro, log, note, outro, select, isCancel, cancel } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
-import { getMemoryDir } from '../core/memory.js';
+import { getPersonalKnowledgeRoot, getProjectKnowledgeRoot } from '../core/memory.js';
 import {
   KnowledgeRepository,
   ensureArchitectureAnnotation,
@@ -31,7 +31,7 @@ import { generateSlug, KnowledgeConfidence } from '../core/knowledge.js';
 /** 待确认候选（含来源 repo，便于确认/拒绝后写回） */
 export interface PendingCandidate {
   repo: KnowledgeRepository;
-  memoryDir: string;
+  knowledgeRoot: string;
   id: string;
   type: KnowledgeType;
   context?: string;
@@ -39,19 +39,19 @@ export interface PendingCandidate {
 }
 
 /**
- * 收集指定 memory 目录的全部待确认草稿（#25 确认路径）。
+ * 收集指定知识根的全部待确认草稿（#25 确认路径）。
  * 统一走 KnowledgeRepository 单一数据访问层。
  */
-export function listPendingCandidates(memoryDirs: string[]): PendingCandidate[] {
+export function listPendingCandidates(knowledgeRoots: string[]): PendingCandidate[] {
   const out: PendingCandidate[] = [];
-  for (const memoryDir of memoryDirs) {
-    const repo = new KnowledgeRepository({ memoryDir });
+  for (const knowledgeRoot of knowledgeRoots) {
+    const repo = new KnowledgeRepository({ knowledgeRoot });
     for (const id of repo.listPending()) {
       const pending = repo.getPending(id);
       if (!pending) continue;
       out.push({
         repo,
-        memoryDir,
+        knowledgeRoot,
         id,
         type: pending.type,
         context: pending.context,
@@ -68,17 +68,17 @@ export function listPendingCandidates(memoryDirs: string[]): PendingCandidate[] 
  * @returns 生成的已入库 KnowledgeEntry；草稿不存在返回 null。
  */
 export function confirmPendingCandidate(
-  memoryDir: string,
+  knowledgeRoot: string,
   id: string,
   scope: KnowledgeScope,
 ) {
-  const repo = new KnowledgeRepository({ memoryDir });
+  const repo = new KnowledgeRepository({ knowledgeRoot });
   return repo.confirmDraft(id, scope);
 }
 
 /** 拒绝一条待确认草稿（从 .pending/ 删除）。返回是否确实删除。 */
-export function rejectPendingCandidate(memoryDir: string, id: string): boolean {
-  const repo = new KnowledgeRepository({ memoryDir });
+export function rejectPendingCandidate(knowledgeRoot: string, id: string): boolean {
+  const repo = new KnowledgeRepository({ knowledgeRoot });
   return repo.rejectDraft(id);
 }
 
@@ -90,7 +90,7 @@ export function rejectPendingCandidate(memoryDir: string, id: string): boolean {
  * @returns 生成的已入库 KnowledgeEntry。
  */
 export function declareExplicit(
-  memoryDir: string,
+  knowledgeRoot: string,
   opts: {
     type: KnowledgeType;
     content: string;
@@ -100,7 +100,7 @@ export function declareExplicit(
     impact?: string;
   },
 ) {
-  const repo = new KnowledgeRepository({ memoryDir });
+  const repo = new KnowledgeRepository({ knowledgeRoot });
   const slug = uniqueActiveId(repo, opts.type, opts.content);
   const entry = {
     id: slug,
@@ -204,8 +204,8 @@ export const learnCommand = new Command('learn')
       process.exit(1);
     }
 
-    const adapterId = (options.adapter as string) || 'claude';
-    const memoryDirs: string[] = [getMemoryDir(homeDir, adapterId)];
+    // 个人知识根：agent 无关（共享 ~/.evokit/knowledge/），不再按 adapter 分叉
+    const knowledgeRoots: string[] = [getPersonalKnowledgeRoot(homeDir)];
     const projectDir = options.projectDir as string | undefined;
 
     intro(pc.bgGreen(pc.black(' EvoKit Learn — 知识提取与确认 ')));
@@ -215,10 +215,10 @@ export const learnCommand = new Command('learn')
       const scope = (options.scope as KnowledgeScope) ?? 'project';
       const type = (options.type as KnowledgeType) ?? 'convention';
       const impact = options.impact as string | undefined;
-      const memoryDir = projectDir
-        ? getMemoryDir(path.join(projectDir), adapterId)
-        : memoryDirs[0];
-      const entry = declareExplicit(memoryDir, { type, content, scope, impact });
+      const knowledgeRoot = projectDir
+        ? getProjectKnowledgeRoot(path.join(projectDir))
+        : knowledgeRoots[0];
+      const entry = declareExplicit(knowledgeRoot, { type, content, scope, impact });
       log.success(`已声明知识 [${entry.type}] ${entry.id}（scope=${entry.scope}，当场背书）`);
       if (type === 'architecture' && !impact) {
         log.warn('架构型条目已补最小影响范围占位——建议补充具体影响（--impact），并加 ## 相关决策。');
@@ -229,9 +229,9 @@ export const learnCommand = new Command('learn')
 
     // ── 确认背书路径（无 content）────────────────────────
     if (projectDir) {
-      memoryDirs.push(getMemoryDir(path.join(projectDir), adapterId));
+      knowledgeRoots.push(getProjectKnowledgeRoot(path.join(projectDir)));
     }
-    const candidates = listPendingCandidates(memoryDirs);
+    const candidates = listPendingCandidates(knowledgeRoots);
 
     if (candidates.length === 0) {
       log.info('没有待确认的知识条目。运行 /evokit-learn 或对话中识别后静默写入 .pending/。');
@@ -265,7 +265,7 @@ export const learnCommand = new Command('learn')
       if (action === 'skip') continue;
 
       if (action === 'reject') {
-        rejectPendingCandidate(c.memoryDir, c.id);
+        rejectPendingCandidate(c.knowledgeRoot, c.id);
         rejected++;
         continue;
       }
@@ -276,7 +276,7 @@ export const learnCommand = new Command('learn')
         cancel('确认已取消');
         process.exit(0);
       }
-      const entry = confirmPendingCandidate(c.memoryDir, c.id, scope);
+      const entry = confirmPendingCandidate(c.knowledgeRoot, c.id, scope);
       if (entry) confirmed++;
     }
 
