@@ -21,12 +21,11 @@ import path from 'node:path';
 import { intro, log, note, outro, select, isCancel, cancel } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
 import { getPersonalKnowledgeRoot, getProjectKnowledgeRoot } from '../core/memory.js';
-import {
-  KnowledgeRepository,
-  ensureArchitectureAnnotation,
-} from '../core/repository.js';
+import { KnowledgeRepository, ensureArchitectureAnnotation } from '../core/repository.js';
 import type { KnowledgeScope, KnowledgeType } from '../core/types.js';
 import { generateSlug, KnowledgeConfidence } from '../core/knowledge.js';
+import { extractGitHistoryCandidates } from '../core/git-history.js';
+import { findSimilarActive, overwriteActiveBody, hasContentAnywhere } from '../core/dedup.js';
 
 /** 待确认候选（含来源 repo，便于确认/拒绝后写回） */
 export interface PendingCandidate {
@@ -67,11 +66,7 @@ export function listPendingCandidates(knowledgeRoots: string[]): PendingCandidat
  * 补齐 scope（人工裁定）+ confidence FRESH + updated，写 knowledge/，删草稿，更新索引。
  * @returns 生成的已入库 KnowledgeEntry；草稿不存在返回 null。
  */
-export function confirmPendingCandidate(
-  knowledgeRoot: string,
-  id: string,
-  scope: KnowledgeScope,
-) {
+export function confirmPendingCandidate(knowledgeRoot: string, id: string, scope: KnowledgeScope) {
   const repo = new KnowledgeRepository({ knowledgeRoot });
   return repo.confirmDraft(id, scope);
 }
@@ -128,11 +123,7 @@ export function declareExplicit(
 }
 
 /** 生成跨 knowledge/+pending 去重的唯一 active id（与 #31 D2 一致）。 */
-function uniqueActiveId(
-  repo: KnowledgeRepository,
-  type: KnowledgeType,
-  content: string,
-): string {
+function uniqueActiveId(repo: KnowledgeRepository, type: KnowledgeType, content: string): string {
   const slug = generateSlug(content);
   const base = `${type}-${slug}`;
   const used = new Set(repo.listAll());
@@ -180,13 +171,18 @@ export const learnCommand = new Command('learn')
   .option('--project-dir <path>', '项目知识目录（追加扫描项目级待确认，默认仅个人级）')
   .option('--scope <scope>', '作用域（personal | project），确认时缺省按当前项目')
   .option('--type <type>', '显式声明的知识类型（默认 convention）', 'convention')
-  .option('--impact <text>', '架构型显式声明的推理标注（## 影响范围，type=architecture 时建议提供）')
+  .option(
+    '--impact <text>',
+    '架构型显式声明的推理标注（## 影响范围，type=architecture 时建议提供）',
+  )
+  .option('--git-history', '从当前项目 Git 历史提取 commit 约定候选到 .pending/ 待确认（ADR 0004）')
   .addHelpText(
     'after',
     `
 两种用法：
   evokit learn                   确认背书：列出 .pending/ 待确认草稿，逐条确认/拒绝 + 裁定 scope
   evokit learn "使用 uv 代替 pip"   显式声明：用户发起即当场背书，直接写入 knowledge/
+  evokit learn --git-history     从当前项目 Git 历史提取 commit 约定候选（生成到 .pending/ 待确认）
 
 示例：
   evokit learn                       确认个人级待确认知识
@@ -210,6 +206,55 @@ export const learnCommand = new Command('learn')
 
     intro(pc.bgGreen(pc.black(' EvoKit Learn — 知识提取与确认 ')));
 
+    // ── Git 历史提取候选路径（ADR 0004，生成到 .pending/ 待确认，不进入确认流程）──
+    if (options.gitHistory) {
+      const projectDir = (options.projectDir as string) ?? process.cwd();
+      const root = getProjectKnowledgeRoot(path.resolve(projectDir));
+      const repo = new KnowledgeRepository({ knowledgeRoot: root });
+      const candidates = extractGitHistoryCandidates(path.resolve(projectDir));
+
+      if (candidates.length === 0) {
+        log.info(
+          '未从 Git 历史提取到稳定 commit 约定（样本 <20 或结构匹配率 <0.7，漏提优于误提）。',
+        );
+        outro('Git 历史提取完成');
+        return;
+      }
+
+      let created = 0;
+      let skipped = 0;
+      for (const c of candidates) {
+        // 重复去重（research §3.5.4）：归一化内容已在案则跳过
+        if (hasContentAnywhere(repo, c.pattern)) {
+          skipped++;
+          continue;
+        }
+        repo.createDraft({
+          type: c.type,
+          content: c.pattern,
+          source: 'git-history',
+          context: `Git 历史提取（匹配率 ${Math.round(c.matchRate * 100)}%，样本 ${c.sampleCount}）`,
+          tags: ['git-history'],
+        });
+        created++;
+      }
+
+      const sampleLines = candidates.flatMap((c) => c.samples.map((s, i) => `  ${i + 1}. ${s}`));
+      note(
+        [
+          `生成候选：${created} 条（跳过已存在：${skipped} 条）`,
+          `目标：${root}/.pending/`,
+          '',
+          '支撑样本：',
+          ...sampleLines,
+        ].join('\n'),
+        'Git 历史提取结果',
+      );
+      log.info('运行 /evokit-learn（无参数）确认背书入库。');
+      outro('Git 历史提取完成');
+      return;
+    }
+
     // ── 显式声明路径（有 content）────────────────────────
     if (content) {
       const scope = (options.scope as KnowledgeScope) ?? 'project';
@@ -218,10 +263,49 @@ export const learnCommand = new Command('learn')
       const knowledgeRoot = projectDir
         ? getProjectKnowledgeRoot(path.join(projectDir))
         : knowledgeRoots[0];
+
+      // ── 确认闸门去重（ADR 0003）：同 type 归一化相近条目提示三选 ──
+      const repo = new KnowledgeRepository({ knowledgeRoot });
+      const similar = findSimilarActive(repo, type, content);
+      if (similar.length > 0) {
+        const first = similar[0];
+        const action = await select({
+          message: `已有 ${similar.length} 条同类型相近知识（如 ${pc.dim(first.entry.id)}），如何处理本次声明？`,
+          options: [
+            {
+              value: 'overwrite',
+              label: `覆盖已有 → 更新 ${first.entry.id}（保留原 id/来源/置信度）`,
+            },
+            { value: 'new', label: '仍新建独立条目' },
+            { value: 'abort', label: '放弃声明' },
+          ],
+        });
+        if (isCancel(action)) {
+          cancel('声明已取消');
+          process.exit(0);
+        }
+        if (action === 'abort') {
+          log.info('已放弃声明（存在相近知识）。');
+          outro('Learn 完成');
+          return;
+        }
+        if (action === 'overwrite') {
+          const updated = overwriteActiveBody(repo, first.entry.id, content, impact);
+          if (updated) {
+            log.success(`已覆盖更新知识 [${updated.type}] ${updated.id}`);
+            outro('Learn 完成');
+            return;
+          }
+        }
+        // 'new' → 落入下方 declareExplicit 新建独立条目
+      }
+
       const entry = declareExplicit(knowledgeRoot, { type, content, scope, impact });
       log.success(`已声明知识 [${entry.type}] ${entry.id}（scope=${entry.scope}，当场背书）`);
       if (type === 'architecture' && !impact) {
-        log.warn('架构型条目已补最小影响范围占位——建议补充具体影响（--impact），并加 ## 相关决策。');
+        log.warn(
+          '架构型条目已补最小影响范围占位——建议补充具体影响（--impact），并加 ## 相关决策。',
+        );
       }
       outro('Learn 完成');
       return;
@@ -239,10 +323,7 @@ export const learnCommand = new Command('learn')
       return;
     }
 
-    note(
-      `共 ${candidates.length} 条待确认草稿`,
-      '待确认知识（运行 /evokit-learn 确认背书）',
-    );
+    note(`共 ${candidates.length} 条待确认草稿`, '待确认知识（运行 /evokit-learn 确认背书）');
 
     let confirmed = 0;
     let rejected = 0;
@@ -280,10 +361,7 @@ export const learnCommand = new Command('learn')
       if (entry) confirmed++;
     }
 
-    note(
-      [`确认入库：${confirmed} 条`, `拒绝删除：${rejected} 条`].join('\n'),
-      '确认结果',
-    );
+    note([`确认入库：${confirmed} 条`, `拒绝删除：${rejected} 条`].join('\n'), '确认结果');
     outro('Learn 完成');
   });
 
