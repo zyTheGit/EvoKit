@@ -53,7 +53,11 @@ function writeEntry(memoryDir: string, overrides: Partial<KnowledgeEntry> = {}):
     ...overrides,
   };
   const knowledgeDir = path.join(memoryDir, 'knowledge');
-  writeKnowledgeEntry(path.join(knowledgeDir, `${entry.id}.md`), entry, `## 内容\n\n${entry.context}`);
+  writeKnowledgeEntry(
+    path.join(knowledgeDir, `${entry.id}.md`),
+    entry,
+    `## 内容\n\n${entry.context}`,
+  );
   return entry;
 }
 
@@ -68,6 +72,17 @@ describe('collectStaleEntries', () => {
 
     const stale = collectStaleEntries([memoryDir]);
     expect(stale.map((c) => c.entry.id)).toEqual(['retired-one', 'stale-one']);
+  });
+
+  it('同 confidence 档内按 updated 升序（最久未复审优先，ADR 0003）', () => {
+    const memoryDir = tmpDir();
+    writeEntry(memoryDir, { id: 'old-stale', confidence: 0.5, updated: '2026-01-01' });
+    writeEntry(memoryDir, { id: 'new-stale', confidence: 0.5, updated: '2026-06-01' });
+    writeEntry(memoryDir, { id: 'no-updated', confidence: 0.5, created: '2026-03-01' });
+
+    const stale = collectStaleEntries([memoryDir]);
+    // 同档 STALE：old-stale(2026-01) → no-updated(created 2026-03) → new-stale(2026-06)
+    expect(stale.map((c) => c.entry.id)).toEqual(['old-stale', 'no-updated', 'new-stale']);
   });
 
   it('跨越多个 memory 目录收集', () => {

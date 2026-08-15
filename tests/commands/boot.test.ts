@@ -9,10 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { runBootChecks, summarizeChecks } from '../../src/commands/boot.js';
-import {
-  writeKnowledgeEntry,
-  appendToKnowledgeIndex,
-} from '../../src/core/knowledge.js';
+import { writeKnowledgeEntry, appendToKnowledgeIndex } from '../../src/core/knowledge.js';
 
 // ─── 测试辅助 ───────────────────────────────────────────────
 
@@ -87,6 +84,31 @@ describe('runBootChecks', () => {
     expect(check.detail).toContain('ghost-entry');
   });
 
+  it('知识库孤儿条目（未索引引用）时报错（ADR 0003 反向漂移）', () => {
+    const knowledgeRoot = tmpDir();
+    setupHealthy(knowledgeRoot);
+    // 直接写一条知识文件但不同步索引 → 孤儿
+    const knowledgeDir = path.join(knowledgeRoot, 'knowledge');
+    writeKnowledgeEntry(
+      path.join(knowledgeDir, 'convention-orphan.md'),
+      {
+        id: 'convention-orphan',
+        scope: 'personal',
+        type: 'convention',
+        source: 'explicit',
+        confidence: 0.9,
+        created: '2026-07-30',
+        context: '孤儿条目',
+      },
+      '## 内容\n\n孤儿条目',
+    );
+
+    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot] });
+    const check = checks.find((c) => c.name.includes('无孤儿条目'))!;
+    expect(check.pass).toBe(false);
+    expect(check.detail).toContain('convention-orphan');
+  });
+
   it('frontmatter 缺失/confidence 非法时报错', () => {
     const knowledgeRoot = tmpDir();
     // 先建合法索引使目录结构检查通过
@@ -118,7 +140,11 @@ describe('runBootChecks', () => {
     const corePath = path.join(tmpDir(), 'CLAUDE.md');
     fs.writeFileSync(corePath, Array(160).fill('# line').join('\n'), 'utf-8');
 
-    const checks = runBootChecks({ knowledgeRoots: [knowledgeRoot], coreFilePath: corePath, coreMaxLines: 150 });
+    const checks = runBootChecks({
+      knowledgeRoots: [knowledgeRoot],
+      coreFilePath: corePath,
+      coreMaxLines: 150,
+    });
     const check = checks.find((c) => c.name.includes('认知核心文件行数'))!;
     expect(check.pass).toBe(false);
     expect(check.detail).toContain('160');

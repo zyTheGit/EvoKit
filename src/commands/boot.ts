@@ -7,7 +7,8 @@
  * 检查项：
  *   1. 目录结构 — evokit/、knowledge/index、.pending/
  *   2. 索引文件 — knowledge-index.md 存在且格式合法（## 个人知识 / ## 项目知识）
- *   3. 条目完整性 — 索引引用的每个条目是否存在于 knowledge/ 下
+ *   3. 条目完整性 — 索引引用的每个条目是否存在于 knowledge/ 下（悬空）
+ *   3b. 反向漂移 — knowledge/ 有条目但索引未引用（孤儿，ADR 0003）
  *   4. Frontmatter 合法性 — 每个条目含必填字段（id/scope/type/source/confidence/created），
  *      confidence 还须落在三档合法取值（#30 / ADR 0002）
  *   5. 待确认条目 — .pending/ 有未确认知识则警告
@@ -97,6 +98,17 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
           : `索引引用 ${indexedIds.length} 条，全部存在`,
     });
 
+    // 3b. 反向漂移：knowledge/ 有条目但索引未引用（孤儿，ADR 0003 双向索引漂移检测）
+    const orphans = ids.filter((id) => !indexedIds.includes(id));
+    checks.push({
+      name: `[${scopeLabel}] 知识库无孤儿条目`,
+      pass: orphans.length === 0,
+      detail:
+        orphans.length > 0
+          ? `knowledge/ 有但索引未引用: ${orphans.join(', ')}`
+          : '无孤儿条目（索引与条目一致）',
+    });
+
     // 4. Frontmatter 合法性（含 confidence 三档校验，见 #30）
     let bad = 0;
     const badIds: string[] = [];
@@ -170,7 +182,8 @@ export const bootCommand = new Command('boot')
 检查项（对齐 /evokit-boot skill）：
   1. 目录结构     — evokit/、knowledge/、knowledge-index.md 存在
   2. 索引格式     — knowledge-index.md 含 ## 个人知识 / ## 项目知识 section
-  3. 条目完整性   — 索引引用条目均存在于 knowledge/
+  3. 条目完整性   — 索引引用条目均存在于 knowledge/（悬空检测）
+  3b. 无孤儿条目  — knowledge/ 条目均被索引引用（反向漂移检测，ADR 0003）
   4. Frontmatter — 每个条目含 id/scope/type/source/confidence/created，且 confidence 三档合法
   5. 待确认条目   — .pending/ 未确认知识提示
   6. 认知核心行数 — CLAUDE.md ≤ 150 行

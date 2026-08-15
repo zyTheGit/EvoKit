@@ -42,9 +42,7 @@ export interface ReviewCandidate {
  * 供 `evokit review` 全量复审名单。
  * 统一走 KnowledgeRepository.collectStale（单一数据访问层，范畴 B）。
  */
-export function collectStaleEntries(
-  knowledgeRoots: string[],
-): ReviewCandidate[] {
+export function collectStaleEntries(knowledgeRoots: string[]): ReviewCandidate[] {
   const candidates: ReviewCandidate[] = [];
 
   for (const knowledgeRoot of knowledgeRoots) {
@@ -55,8 +53,15 @@ export function collectStaleEntries(
     }
   }
 
-  // 按 confidence 升序（最可疑的 RETIRED 在前）排列
-  return candidates.sort((a, b) => a.entry.confidence - b.entry.confidence);
+  // 排序：confidence 升序（最可疑的 RETIRED 在前）→ 同档内按 updated 升序
+  // （先看最久未复审的；无 updated 时回退 created，ADR 0003 复审调度）
+  return candidates.sort((a, b) => {
+    const byConfidence = a.entry.confidence - b.entry.confidence;
+    if (byConfidence !== 0) return byConfidence;
+    const aDate = a.entry.updated ?? a.entry.created;
+    const bDate = b.entry.updated ?? b.entry.created;
+    return aDate.localeCompare(bDate);
+  });
 }
 
 /**
@@ -215,7 +220,10 @@ export const reviewCommand = new Command('review')
         message: `如何复审：${label}`,
         options: [
           { value: 'confirm', label: '确认回升 → FRESH (0.9)' },
-          { value: 'retire', label: `降分 → RETIRED (0.1)${entry.confidence <= 0.1 ? '（已是 RETIRED）' : ''}` },
+          {
+            value: 'retire',
+            label: `降分 → RETIRED (0.1)${entry.confidence <= 0.1 ? '（已是 RETIRED）' : ''}`,
+          },
           { value: 'delete', label: '删除条目' },
           { value: 'skip', label: '跳过' },
         ],

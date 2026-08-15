@@ -7,13 +7,22 @@
  * 适配器特有检查（如 Claude 的 CLAUDE.md 行数限制、记忆文件检查）
  * 通过 status().extraChecks 暴露，doctor 不硬编码任何适配器特有逻辑。
  *
+ * 自 v1.1（ADR 0003）起增加**知识库健康诊断**：对个人/项目规范知识根输出
+ * 双向索引漂移、frontmatter 合法性、pending/stale 积压、条目分布；
+ * `--fix` 在索引漂移时重建索引。
+ *
  * @packageDocumentation
  */
 
 import { Command } from 'commander';
 import pc from 'picocolors';
+import path from 'node:path';
 import { listAdapters } from '../adapters/registry.js';
 import { resolveHomeDir } from './shared.js';
+import { getPersonalKnowledgeRoot, getProjectKnowledgeRoot } from '../core/memory.js';
+import { KnowledgeRepository } from '../core/repository.js';
+import { inspectKnowledgeHealth } from '../core/health.js';
+import type { KnowledgeHealthReport } from '../core/health.js';
 
 export const doctorCommand = new Command('doctor')
   .description('验证 EvoKit 系统完整性')
@@ -85,12 +94,83 @@ export const doctorCommand = new Command('doctor')
       }
     }
 
-    // 汇总 — allPass 仅基于实际检查的适配器结果
+    // ── 知识库健康诊断（ADR 0003，v1.1）────────────────────
+    const fix = options.fix === true;
+    const knowledgeRoots: string[] = [getPersonalKnowledgeRoot(homeDir)];
+    if (projectDir) {
+      knowledgeRoots.push(getProjectKnowledgeRoot(path.join(projectDir)));
+    }
+
+    let kbAllPass = true;
+    console.log(pc.cyan('\n📚 知识库健康'));
+    for (const root of knowledgeRoots) {
+      const scopeLabel = root === knowledgeRoots[0] ? '个人级' : '项目级';
+      const report = inspectKnowledgeHealth(root);
+      const drift = report.orphanEntries.length + report.danglingEntries.length;
+
+      console.log(pc.cyan(`\n  ${scopeLabel}（${root}）`));
+      const pendingIcon = report.pendingCount > 0 ? pc.yellow('⚠') : pc.green('✓');
+      console.log(
+        `  ${pendingIcon} 条目 ${report.activeCount} 条 · 待确认 ${report.pendingCount} 条`,
+      );
+      const staleIcon =
+        report.staleCount + report.retiredCount > 0 ? pc.yellow('⚠') : pc.green('✓');
+      console.log(
+        `  ${staleIcon} 待复审 STALE ${report.staleCount} 条 · RETIRED ${report.retiredCount} 条`,
+      );
+      console.log(
+        `  ${pc.dim('分布 — scope ')}${formatDist(report.distribution.scope)}${pc.dim(' | type ')}${formatDist(report.distribution.type)}${pc.dim(' | confidence ')}${formatDist(report.distribution.confidence)}`,
+      );
+
+      let rootOk = true;
+      if (report.orphanEntries.length > 0) {
+        console.log(`  ${pc.red('✗')} 索引未引用（孤儿）: ${report.orphanEntries.join(', ')}`);
+        rootOk = false;
+      }
+      if (report.danglingEntries.length > 0) {
+        console.log(
+          `  ${pc.red('✗')} 索引引用但缺失（悬空）: ${report.danglingEntries.join(', ')}`,
+        );
+        rootOk = false;
+      }
+      if (report.invalidEntries.length > 0) {
+        console.log(`  ${pc.red('✗')} frontmatter 不合法: ${report.invalidEntries.join(', ')}`);
+        rootOk = false;
+      }
+      if (rootOk && drift === 0) {
+        console.log(`  ${pc.green('✓')} 索引与条目一致，无漂移`);
+      }
+
+      if (fix && drift > 0) {
+        const repo = new KnowledgeRepository({ knowledgeRoot: root });
+        const n = repo.regenerateIndex();
+        console.log(`  ${pc.green('✓')} 已重建索引（${n} 行，--fix）`);
+      }
+
+      // kbAllPass 由修复后的状态决定（--fix 只解决索引漂移，非法 frontmatter 仍需人工处理）
+      const after = fix ? inspectKnowledgeHealth(root) : report;
+      if (
+        after.orphanEntries.length > 0 ||
+        after.danglingEntries.length > 0 ||
+        after.invalidEntries.length > 0
+      ) {
+        kbAllPass = false;
+      }
+    }
+
+    // 汇总 — allPass 仅基于实际检查的适配器结果，kbAllPass 基于知识库健康
     console.log('');
-    if (allPass) {
+    if (allPass && kbAllPass) {
       console.log(pc.green('✅ 所有检查通过！系统健康。'));
     } else {
       console.log(pc.yellow('⚠️  部分检查未通过。使用 --fix 尝试修复。'));
     }
     console.log('');
   });
+
+/** 格式化分布统计为 "key: n · key: n" 紧凑文本；空统计返回占位符。 */
+function formatDist(dist: Record<string, number>): string {
+  const entries = Object.entries(dist);
+  if (entries.length === 0) return '—';
+  return entries.map(([k, n]) => `${k}: ${n}`).join(' · ');
+}
