@@ -5,6 +5,7 @@ import os from 'node:os';
 import fse from 'fs-extra';
 import {
   ClaudeAdapter,
+  buildClaudeExtraChecks,
   getLayout as getClaudeLayout,
   verifyClaudeInstallation,
 } from '../../src/adapters/claude/adapter.js';
@@ -246,6 +247,32 @@ describe('claude-adapter', () => {
       });
 
       expect(status.projectDir).toBeUndefined();
+    });
+  });
+
+  describe('buildClaudeExtraChecks', () => {
+    it('检查 v1.0 共享知识根 ~/.evokit/knowledge/，不再引用 .claude/memory/evokit', () => {
+      const checks = buildClaudeExtraChecks(tmpHome);
+      const dirCheck = checks.find((c) => c.name.includes('.evokit/knowledge'));
+      expect(dirCheck).toBeDefined();
+      expect(dirCheck!.pass).toBe(false);
+      expect(checks.some((c) => c.name.includes('.claude/memory/evokit'))).toBe(false);
+    });
+
+    it('共享根已初始化（含索引）时目录与索引检查通过', () => {
+      const root = path.join(tmpHome, '.evokit', 'knowledge');
+      fs.mkdirSync(path.join(root, 'knowledge'), { recursive: true });
+      fs.mkdirSync(path.join(root, '.pending'), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, 'knowledge-index.md'),
+        '## 个人知识\n\n## 项目知识\n',
+        'utf-8',
+      );
+      const checks = buildClaudeExtraChecks(tmpHome);
+      const dirCheck = checks.find((c) => c.name.includes('.evokit/knowledge'));
+      expect(dirCheck!.pass).toBe(true);
+      const indexCheck = checks.find((c) => c.name === 'knowledge-index.md');
+      expect(indexCheck!.pass).toBe(true);
     });
   });
 });

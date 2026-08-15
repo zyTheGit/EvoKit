@@ -27,7 +27,7 @@ import type {
 import type { AdapterLayout } from '../../core/layout-types.js';
 import type { HeuristicConfig } from '../base-adapter.js';
 import { BaseAdapter } from '../base-adapter.js';
-import { getFileLineCount } from '../../core/memory.js';
+import { getFileLineCount, getPersonalKnowledgeRoot } from '../../core/memory.js';
 
 export const CLAUDE_ADAPTER_VERSION = '0.2.1';
 
@@ -357,14 +357,14 @@ export function buildClaudeExtraChecks(homeDir: string): AdapterVerifyCheck[] {
     });
   }
 
-  // ── v1.0 知识库健康检查 ──
-  const memoryDir = path.join(homeDir, '.claude', 'memory');
-  const evokitDir = path.join(memoryDir, 'evokit');
+  // ── v1.0 知识库健康检查（共享知识根，agent 无关，spec #36）──
+  // 不再是 .claude/memory/evokit（v0 私有布局）；个人知识根统一为 ~/.evokit/knowledge/
+  const evokitDir = getPersonalKnowledgeRoot(homeDir);
 
-  // 1. evokit/ 目录存在性
+  // 1. 共享知识根目录存在性
   const evokitDirExists = fse.existsSync(evokitDir);
   checks.push({
-    name: '.claude/memory/evokit/',
+    name: '~/.evokit/knowledge/',
     pass: evokitDirExists,
     detail: evokitDirExists ? undefined : '知识库目录不存在',
   });
@@ -374,7 +374,7 @@ export function buildClaudeExtraChecks(homeDir: string): AdapterVerifyCheck[] {
     const indexPath = path.join(evokitDir, 'knowledge-index.md');
     const indexExists = fse.existsSync(indexPath);
     checks.push({
-      name: 'evokit/knowledge-index.md',
+      name: 'knowledge-index.md',
       pass: indexExists,
       detail: indexExists ? undefined : '知识索引文件缺失',
     });
@@ -403,13 +403,13 @@ export function buildClaudeExtraChecks(homeDir: string): AdapterVerifyCheck[] {
     if (fse.existsSync(knowledgeDir)) {
       const entryFiles = fs.readdirSync(knowledgeDir).filter((f) => f.endsWith('.md'));
       checks.push({
-        name: `evokit/knowledge/（${entryFiles.length} 个条目）`,
+        name: `knowledge/（${entryFiles.length} 个条目）`,
         pass: true,
         detail: entryFiles.length === 0 ? '暂无知识条目' : undefined,
       });
     } else {
       checks.push({
-        name: 'evokit/knowledge/',
+        name: 'knowledge/',
         pass: true,
         detail: '目录尚未创建（首次添加知识时自动创建）',
       });
@@ -420,7 +420,7 @@ export function buildClaudeExtraChecks(homeDir: string): AdapterVerifyCheck[] {
     if (fse.existsSync(pendingDir)) {
       const pendingFiles = fs.readdirSync(pendingDir).filter((f) => f.endsWith('.md'));
       checks.push({
-        name: 'evokit/.pending/',
+        name: '.pending/',
         pass: pendingFiles.length === 0,
         detail: pendingFiles.length > 0 ? `${pendingFiles.length} 个待确认条目` : undefined,
       });
