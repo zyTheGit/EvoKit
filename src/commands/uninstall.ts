@@ -30,7 +30,10 @@ export const uninstallCommand = new Command('uninstall')
   )
   .option('--home <path>', '目标主目录（默认：$HOME）')
   .option('--force', '跳过确认提示')
-  .option('--purge', '同时删除 EvoKit 生成的用户数据文件（memory 种子、MEMORY.md 等），但不删除用户配置（settings.json）')
+  .option(
+    '--purge',
+    '同时删除 EvoKit 生成的用户数据文件（memory 种子、MEMORY.md 等），但不删除用户配置（settings.json）',
+  )
   .option('--dry-run', '预览卸载，不修改文件')
   .option('--no-backup', '跳过备份创建')
   .option('--backup-dir <path>', '自定义备份目录')

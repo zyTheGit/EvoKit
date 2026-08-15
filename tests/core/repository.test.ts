@@ -41,10 +41,7 @@ function repo(memoryDir?: string): KnowledgeRepository {
 }
 
 /** 直接写一条 active 条目（绕过 repository，模拟已有数据）。 */
-function writeActive(
-  memoryDir: string,
-  overrides: Partial<KnowledgeEntry> = {},
-): KnowledgeEntry {
+function writeActive(memoryDir: string, overrides: Partial<KnowledgeEntry> = {}): KnowledgeEntry {
   const entry: KnowledgeEntry = {
     id: 'convention-test',
     scope: 'personal',
@@ -73,9 +70,7 @@ function writeEntryFile(fp: string, entry: KnowledgeEntry, body: string): void {
 
 describe('路径定位', () => {
   it('getPendingDir 返回 evokit/.pending/', () => {
-    expect(getPendingDir('/home/u/.claude/memory')).toBe(
-      '/home/u/.claude/memory/evokit/.pending',
-    );
+    expect(getPendingDir('/home/u/.claude/memory')).toBe('/home/u/.claude/memory/evokit/.pending');
   });
 });
 
@@ -241,7 +236,16 @@ describe('regenerateIndex（索引作为派生物，范畴 B）', () => {
     fs.mkdirSync(path.dirname(path.join(memoryDir, 'knowledge-index.md')), { recursive: true });
     fs.writeFileSync(
       path.join(memoryDir, 'knowledge-index.md'),
-      ['## 个人知识', '', '- [convention-a] 过期摘要', '', '## 项目知识', '', '- [claude-native] Claude 原生', ''].join('\n'),
+      [
+        '## 个人知识',
+        '',
+        '- [convention-a] 过期摘要',
+        '',
+        '## 项目知识',
+        '',
+        '- [claude-native] Claude 原生',
+        '',
+      ].join('\n'),
       'utf-8',
     );
 
@@ -261,7 +265,10 @@ describe('regenerateIndex（索引作为派生物，范畴 B）', () => {
 describe('架构型条目推理标注（#33 写路径强制）', () => {
   it('createDraft 时 architecture 自动补 ## 影响范围 占位', () => {
     const r = repo();
-    const d = r.createDraft({ type: 'architecture', content: 'packages/api 是 packages/web 的上游' });
+    const d = r.createDraft({
+      type: 'architecture',
+      content: 'packages/api 是 packages/web 的上游',
+    });
     const raw = fs.readFileSync(path.join(r.pendingDir, `${d.id}.md`), 'utf-8');
     expect(raw).toContain('## 影响范围');
     expect(raw).not.toContain('## 相关决策'); // 相关决策为建议非必填
@@ -288,12 +295,18 @@ describe('架构型条目推理标注（#33 写路径强制）', () => {
 
   it('regenerateIndex 时 architecture 条目带 🏛 追索标记', () => {
     const memoryDir = tmpDir();
-    writeActive(memoryDir, { id: 'architecture-gateway', type: 'architecture', context: '网关上流' });
+    writeActive(memoryDir, {
+      id: 'architecture-gateway',
+      type: 'architecture',
+      context: '网关上流',
+    });
     writeActive(memoryDir, { id: 'convention-x', context: '普通约定' });
     const r = repo(memoryDir);
     r.regenerateIndex();
     const idx = readKnowledgeIndex(path.join(memoryDir, 'knowledge-index.md'));
-    expect(idx.evokit.some((l) => l.includes('🏛') && l.includes('architecture-gateway'))).toBe(true);
+    expect(idx.evokit.some((l) => l.includes('🏛') && l.includes('architecture-gateway'))).toBe(
+      true,
+    );
     expect(idx.evokit.some((l) => l === '- [convention-x] 普通约定')).toBe(true);
   });
 });

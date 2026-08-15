@@ -200,12 +200,7 @@ export class KnowledgeRepository {
   }): PendingKnowledgeEntry {
     this.ensureDirs();
     const source = input.source ?? 'conversation';
-    const id = uniqueDraftId(
-      this.pendingDir,
-      this.knowledgeDir,
-      input.type,
-      input.content,
-    );
+    const id = uniqueDraftId(this.pendingDir, this.knowledgeDir, input.type, input.content);
     const entry: PendingKnowledgeEntry = {
       id,
       type: input.type,
@@ -360,11 +355,7 @@ export class KnowledgeRepository {
 
 // ─── 文件辅助（草稿读写）────────────────────────────────
 
-function writePendingFile(
-  filePath: string,
-  entry: PendingKnowledgeEntry,
-  body: string,
-): void {
+function writePendingFile(filePath: string, entry: PendingKnowledgeEntry, body: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const parts = [serializePendingFrontmatter(entry)];
   if (body && body.trim()) parts.push('', body.trim());
@@ -373,10 +364,7 @@ function writePendingFile(
 
 function parsePendingFile(filePath: string): PendingKnowledgeEntry | null {
   const raw = fs.readFileSync(filePath, 'utf-8');
-  const front = raw.slice(
-    0,
-    raw.indexOf(FRONTMATTER_DELIMITER, FRONTMATTER_DELIMITER.length),
-  );
+  const front = raw.slice(0, raw.indexOf(FRONTMATTER_DELIMITER, FRONTMATTER_DELIMITER.length));
   const entry: Record<string, unknown> = {};
   for (const line of front.split('\n')) {
     const colon = line.indexOf(':');

@@ -131,7 +131,8 @@ export function formatInstallResult(options: FormatInstallResultOptions): string
   if (result.hooksInstalled > 0) lines.push(`  钩子 — 会话启动/结束时自动检查知识库`);
   if (result.rulesInstalled > 0) lines.push(`  规则 — 编码、安全与完整性约束`);
   if (result.agentsInstalled > 0) lines.push(`  代理 — 内置 sub-agent（architect 等）`);
-  if (result.commandsInstalled > 0) lines.push(`  命令 — 斜杠命令（/evokit-boot、/evokit-learn、/evokit-review）`);
+  if (result.commandsInstalled > 0)
+    lines.push(`  命令 — 斜杠命令（/evokit-boot、/evokit-learn、/evokit-review）`);
   if (result.skillsInstalled > 0) lines.push(`  技能 — 能力扩展（learning-recorder 等）`);
 
   // 跳过提示

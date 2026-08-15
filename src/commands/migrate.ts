@@ -254,7 +254,11 @@ export const migrateCommand = new Command('migrate')
     const warnings: string[] = [];
 
     if (detection.learnedRules) {
-      const result = parseAndConvertRules(detection.paths['learned-rules.md'], scope, targetEntriesDir);
+      const result = parseAndConvertRules(
+        detection.paths['learned-rules.md'],
+        scope,
+        targetEntriesDir,
+      );
       rules = result.rules;
       warnings.push(...result.warnings);
     }

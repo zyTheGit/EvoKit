@@ -31,11 +31,7 @@ export const PI_ADAPTER_VERSION = '0.6.0';
 // ─── 常量 ─────────────────────────────────────────────────
 
 const GLOBAL_DIRS = ['extensions', 'memory', 'skills', 'agent', 'prompts'] as const;
-const EXTENSION_FILES = [
-  'evokit-lifecycle.ts',
-  'evokit-boot.ts',
-  'evokit-learn.ts',
-] as const;
+const EXTENSION_FILES = ['evokit-lifecycle.ts', 'evokit-boot.ts', 'evokit-learn.ts'] as const;
 const AGENT_FILES = ['architect.md', 'reviewer.md'] as const;
 const MEMORY_SEED_FILES = ['README.md', 'evokit/knowledge-index.md'] as const;
 

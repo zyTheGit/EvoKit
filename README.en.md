@@ -23,7 +23,7 @@ _Make AI instantly understand your project, persist knowledge AI can't know from
 
 | Core Concept                   | Description                                                             |
 | ------------------------------ | ----------------------------------------------------------------------- |
-| 💬 **Conversation Extraction** | Extract corrections and observations from conversations automatically  |
+| 💬 **Conversation Extraction** | Extract corrections and observations from conversations automatically   |
 | 📚 **Knowledge Index**         | Build a persistent, searchable knowledge base across sessions           |
 | 🔄 **Staleness Detection**     | Automatically detect and prune outdated rules and patterns              |
 | 🚚 **One-click Migration**     | Seamless transfer of learning data between machines                     |

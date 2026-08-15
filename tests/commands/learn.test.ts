@@ -72,8 +72,16 @@ describe('declareExplicit（显式声明，当场背书，#25）', () => {
   it('生成唯一 id（跨 active+pending 去重）', () => {
     const home = tmpHome();
     const r = repoFor(home);
-    declareExplicit(r.knowledgeRoot, { type: 'convention', content: 'Use uv instead of pip', scope: 'project' });
-    const second = declareExplicit(r.knowledgeRoot, { type: 'convention', content: 'Use uv instead of pip', scope: 'project' });
+    declareExplicit(r.knowledgeRoot, {
+      type: 'convention',
+      content: 'Use uv instead of pip',
+      scope: 'project',
+    });
+    const second = declareExplicit(r.knowledgeRoot, {
+      type: 'convention',
+      content: 'Use uv instead of pip',
+      scope: 'project',
+    });
     // generateSlug('Use uv instead of pip') → 'use-uv-instead-of'
     expect(second.id).toBe('convention-use-uv-instead-of-2');
   });

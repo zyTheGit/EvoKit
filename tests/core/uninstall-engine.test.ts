@@ -197,7 +197,13 @@ describe('uninstall-engine', () => {
       setupFullInstallation();
       // 模拟共享知识根已存在（规范根 ~/.evokit/knowledge/，与卸载管理隔离）
       const sharedIndex = path.join(tmpHome, '.evokit', 'knowledge', 'knowledge-index.md');
-      const sharedEntry = path.join(tmpHome, '.evokit', 'knowledge', 'knowledge', 'convention-shared.md');
+      const sharedEntry = path.join(
+        tmpHome,
+        '.evokit',
+        'knowledge',
+        'knowledge',
+        'convention-shared.md',
+      );
       fse.ensureDirSync(path.dirname(sharedEntry));
       fse.writeFileSync(sharedIndex, '## 个人知识\n\n- [convention-shared] 共享知识\n', 'utf-8');
       fse.writeFileSync(sharedEntry, '---\nid: convention-shared\n---\n## 内容', 'utf-8');
