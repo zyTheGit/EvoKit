@@ -1,5 +1,7 @@
 # 🗺️ EvoKit v1.0 — 从自进化纠错系统到项目上下文引擎
 
+> ⚠️ **已归档（2026-08-15）**：v1.0 已发布，本 map 的决策与「Not yet specified」清单已全部落地/作答（过期检测 → ADR 0003、Git 历史实现 → ADR 0004、doctor 指标与索引重建 → ADR 0003、v1.0 发布 → ROADMAP）。现行事实源以 `CONTEXT.md` 与 `docs/adr/` 为准；本文件保留仅作历史规划工件，不再维护。
+
 > **wayfinder:map**
 
 ## Destination
