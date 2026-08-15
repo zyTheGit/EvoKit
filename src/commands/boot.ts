@@ -22,11 +22,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { intro, log, note, outro } from '@clack/prompts';
 import { resolveHomeDir } from './shared.js';
-import { getFileLineCount, getPersonalKnowledgeRoot, getProjectKnowledgeRoot } from '../core/memory.js';
 import {
-  readKnowledgeEntry,
-  readKnowledgeIndex,
-} from '../core/knowledge.js';
+  getFileLineCount,
+  getPersonalKnowledgeRoot,
+  getProjectKnowledgeRoot,
+} from '../core/memory.js';
+import { readKnowledgeEntry, readKnowledgeIndex } from '../core/knowledge.js';
 import { KnowledgeRepository } from '../core/repository.js';
 
 /** 单个检查结果 */
@@ -61,15 +62,11 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
 
     // 1. 目录结构
     const dirsOk =
-      fs.existsSync(evokitDir) &&
-      fs.existsSync(repo.knowledgeDir) &&
-      fs.existsSync(indexPath);
+      fs.existsSync(evokitDir) && fs.existsSync(repo.knowledgeDir) && fs.existsSync(indexPath);
     checks.push({
       name: `[${scopeLabel}] 目录结构 (evokit/knowledge/index)`,
       pass: dirsOk,
-      detail: dirsOk
-        ? undefined
-        : `缺失: ${evokitDir} 或 knowledge/ 或 knowledge-index.md`,
+      detail: dirsOk ? undefined : `缺失: ${evokitDir} 或 knowledge/ 或 knowledge-index.md`,
     });
     if (!dirsOk) continue;
 
@@ -81,9 +78,7 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
     checks.push({
       name: `[${scopeLabel}] knowledge-index.md 格式`,
       pass: basicIndex,
-      detail: basicIndex
-        ? undefined
-        : '缺少 ## 个人知识 或 ## 项目知识 section 头',
+      detail: basicIndex ? undefined : '缺少 ## 个人知识 或 ## 项目知识 section 头',
     });
 
     // 3. 索引引用的条目是否存在（经 KnowledgeRepository 单一数据访问层）
@@ -164,7 +159,7 @@ export const bootCommand = new Command('boot')
   .option('--home <path>', '目标主目录（默认：$HOME）')
   .option(
     '--adapter <name>',
-    '适配器名称（claude | codex | opencode | pi）用于解析 personal memory 目录',
+    '适配器名称（claude | codex | opencode | pi）用于选择认知核心文件检查（个人知识根已 agent 无关）',
     'claude',
   )
   .option('--project-dir <path>', '额外检查指定项目级知识目录')
