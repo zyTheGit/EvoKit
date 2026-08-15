@@ -328,20 +328,6 @@ export function getEvokitDir(memoryDir: string): string {
 }
 
 /**
- * 获取 knowledge/ 目录路径。
- */
-export function getKnowledgeDir(memoryDir: string): string {
-  return path.join(getEvokitDir(memoryDir), 'knowledge');
-}
-
-/**
- * 获取 knowledge-index.md 路径。
- */
-export function getKnowledgeIndexPath(memoryDir: string): string {
-  return path.join(getEvokitDir(memoryDir), 'knowledge-index.md');
-}
-
-/**
  * 获取 archive/v0/ 目录路径。
  */
 export function getArchiveV0Dir(memoryDir: string): string {

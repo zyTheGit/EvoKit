@@ -18,8 +18,6 @@ import {
   generateUniqueKnowledgeId,
   archiveFileToV0,
   getEvokitDir,
-  getKnowledgeDir,
-  getKnowledgeIndexPath,
   getArchiveV0Dir,
   isEmptyLearnedRules,
   parseLearnedRulesForMigration,
@@ -564,18 +562,6 @@ describe('archiveFileToV0', () => {
 describe('路径辅助函数', () => {
   it('getEvokitDir 返回 evokit/ 子目录', () => {
     expect(getEvokitDir('/home/user/.claude/memory')).toBe('/home/user/.claude/memory/evokit');
-  });
-
-  it('getKnowledgeDir 返回 evokit/knowledge/ 子目录', () => {
-    expect(getKnowledgeDir('/home/user/.claude/memory')).toBe(
-      '/home/user/.claude/memory/evokit/knowledge',
-    );
-  });
-
-  it('getKnowledgeIndexPath 返回 evokit/knowledge-index.md', () => {
-    expect(getKnowledgeIndexPath('/home/user/.claude/memory')).toBe(
-      '/home/user/.claude/memory/evokit/knowledge-index.md',
-    );
   });
 
   it('getArchiveV0Dir 返回 evokit/archive/v0/', () => {
