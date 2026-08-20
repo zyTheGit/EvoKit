@@ -240,6 +240,26 @@ export function appendToKnowledgeIndex(indexPath: string, entryId: string, summa
   writeKnowledgeIndex(indexPath, evokit, claude);
 }
 
+/**
+ * 从索引中移除指定 id 的行（ADR 0005 合并/择一保留后同步索引，防孤儿）。
+ * target: 'evokit' | 'claude'。EvoKit 知识条目默认在 evokit 段。
+ */
+export function removeIndexEntry(
+  indexPath: string,
+  id: string,
+  target: 'evokit' | 'claude' = 'evokit',
+): void {
+  const { evokit, claude } = readKnowledgeIndex(indexPath);
+  const source = target === 'evokit' ? evokit : claude;
+  const filtered = source.filter((line) => {
+    const match = line.match(/^- \[([^\]]+)\]/);
+    return !(match && match[1] === id);
+  });
+  const next = target === 'evokit' ? filtered : evokit;
+  const nextClaude = target === 'claude' ? filtered : claude;
+  writeKnowledgeIndex(indexPath, next, nextClaude);
+}
+
 // ─── slug 生成 ───────────────────────────────────────────────
 
 /**

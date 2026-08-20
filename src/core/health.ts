@@ -15,6 +15,8 @@
 import path from 'node:path';
 import { KnowledgeRepository } from './repository.js';
 import { readKnowledgeEntry, readKnowledgeIndex, KnowledgeConfidence } from './knowledge.js';
+import { findExactDuplicates } from './dedup.js';
+import type { DuplicateGroup } from './dedup.js';
 import type { KnowledgeEntry } from './types.js';
 
 /** 单个规范知识根的健康报告。 */
@@ -35,6 +37,11 @@ export interface KnowledgeHealthReport {
   danglingEntries: string[];
   /** frontmatter 校验失败（必填字段缺失 / confidence 非三档）的条目 */
   invalidEntries: string[];
+  /**
+   * 归一化全等重复簇（ADR 0005，v1.2）：同 type、同签名（context→body→id 首非空归一化）
+   * 的条目对/簇，**作用域内**扫描。doctor/boot 表面化、--fix 逐条人工三选。
+   */
+  duplicateGroups: DuplicateGroup[];
   /** 按 scope / type / confidence 的条目分布（仅统计合法条目） */
   distribution: {
     scope: Record<string, number>;
@@ -86,6 +93,9 @@ export function inspectKnowledgeHealth(root: string): KnowledgeHealthReport {
     return !readKnowledgeEntry(filePath);
   });
 
+  // 归一化全等重复簇（ADR 0005）：作用域内 active+pending 扫描
+  const duplicateGroups = findExactDuplicates(repo);
+
   return {
     root,
     activeCount: valid.length,
@@ -95,6 +105,7 @@ export function inspectKnowledgeHealth(root: string): KnowledgeHealthReport {
     orphanEntries,
     danglingEntries,
     invalidEntries,
+    duplicateGroups,
     distribution: {
       scope: countBy(valid, (e) => e.scope),
       type: countBy(valid, (e) => e.type),

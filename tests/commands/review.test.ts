@@ -12,7 +12,6 @@ import os from 'node:os';
 import {
   collectStaleEntries,
   applyReviewAction,
-  removeIndexEntry,
   readEntryBody,
 } from '../../src/commands/review.js';
 import type { KnowledgeEntry } from '../../src/core/types.js';
@@ -22,6 +21,7 @@ import {
   readKnowledgeEntry,
   readKnowledgeIndex,
   listKnowledgeEntries,
+  removeIndexEntry,
 } from '../../src/core/knowledge.js';
 
 // ─── 测试辅助 ───────────────────────────────────────────────

@@ -29,6 +29,7 @@ import {
   getProjectKnowledgeRoot,
 } from '../core/memory.js';
 import { readKnowledgeEntry, readKnowledgeIndex } from '../core/knowledge.js';
+import { findExactDuplicates } from '../core/dedup.js';
 import { KnowledgeRepository } from '../core/repository.js';
 
 /** 单个检查结果 */
@@ -133,6 +134,18 @@ export function runBootChecks(config: BootConfig): BootCheck[] {
         pass: false,
         warnOnly: true,
         detail: `.pending/ 有 ${pendingCount} 条，运行 /evokit-learn 确认`,
+      });
+    }
+
+    // 5b. 归一化全等重复簇（ADR 0005，v1.2）— warnOnly，不阻断启动，指向 doctor --fix
+    const dupGroups = findExactDuplicates(repo);
+    if (dupGroups.length > 0) {
+      const dupMembers = dupGroups.reduce((s, g) => s + g.members.length, 0);
+      checks.push({
+        name: `[${scopeLabel}] 无归一化全等重复`,
+        pass: false,
+        warnOnly: true,
+        detail: `${dupGroups.length} 簇（${dupMembers} 条），运行 evokit doctor --fix 合并`,
       });
     }
   }
