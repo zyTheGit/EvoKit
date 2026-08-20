@@ -89,7 +89,18 @@
 
 ## 规划中 🔜
 
-> **仍搁置（v1.2+）**：助手间同条目实时协商/冲突合并、团队级知识共享（CONTEXT.md 明示留到 v1.x）。
+> **设计已定（ADR 0005），待实现**：助手间冲突合并 = 事后健康诊断（近重复检测 + `doctor`/`boot` 表面化 + `--fix` 人工三选合并 + 索引写入原子化），非实时协商。
+> **仍搁置（v1.3+）**：团队级知识共享（多用户、新存储拓扑 + 权限模型，独立 ADR，待 grilling）。
+
+### v1.2.0 — 助手间冲突合并（事后诊断）
+
+- ☐ 前置：审计四个复用件契约 — `normalizeKnowledgeText` 规则、`findSimilarActive`（是否全等/扫 active/比较字段）、`overwriteActiveBody`（是否更新索引）、`atomicWriteFile`（ADR 0005 §C7）
+- ☐ 归一化全等重复检测 — 扩展 `src/core/health.ts`：归一化全等扫描 `knowledge/` 与 `.pending/`，**作用域内分扫**（个人/项目不跨层），复用或新增 `findExactDuplicates`（ADR 0005）
+- ☐ `doctor`/`boot` 表面化重复对 — 报告同 type 归一化全等条目对，与索引漂移检测同构
+- ☐ `doctor --fix` 逐条人工三选合并（冲突子模式，与"重建索引"子模式区分）— 合并为主条（刷正文+删从条+删索引行）/ 保留两条 / 择一保留，复用 `overwriteActiveBody`+`removeIndexEntry`，**绝不自动择主**，守"人工背书唯一闸门"
+- ☐ 索引写入原子化（**独立 hotfix PR**，与冲突合并解耦）— `appendIndex`/`writeKnowledgeIndex` 改用 `atomicWriteFile`（防单写者损坏，不消除 TOCTOU 丢行），`regenerateIndex` 全量重建兜底
+- ☐ `doctor` 索引结构完整性校验 — frontmatter 合法 + 条目存在性交叉验证（覆盖 AI-direct 写损坏盲区）
+- ☐ 测试 — 全等命中/不命中、三选每支文件+索引突变、跨作用域不判冲突、`--fix` 无自动选主防回退、在现有 `knowledge/` 跑误报率基线
 
 ### v0.7.0 — 进化引擎独立化
 
