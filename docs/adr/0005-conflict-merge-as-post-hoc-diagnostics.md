@@ -85,6 +85,8 @@ CONTEXT.md（v1.0）把"助手间同条目**实时**协商/冲突合并"留到 v
 | `overwriteActiveBody` | 刷正文 + `updated`，不动 id/索引行 | 是否更新索引元数据？是否删从条？ | 合并合同要求补 `removeIndexEntry` 调用 |
 | `atomicWriteFile` | tmp→validate→backup→rename | 语义匹配 | — |
 
+> **审计结论（v1.2 实现前已完成）**：`normalizeKnowledgeText` 规则如述✓；`findSimilarActive` 只扫 active、给定内容查找形态（非成对扫描）-> 已按预判**新增 `findExactDuplicates`**（成对、扫 active+pending、同 type、作用域内）；`overwriteActiveBody` 不动索引不删从条 -> 合并动作已补**删从条文件 + `removeIndexEntry`**；`atomicWriteFile` 语义匹配✓。
+
 **验收条件**：
 1. 近重复检测单元测试：同 type 归一化全等命中；不同 type 不命中；id 不同内容全等命中；id 相同内容不同**另案不混入**。
 2. 三选合并测试：每支的文件 + 索引行突变正确，无孤儿。
