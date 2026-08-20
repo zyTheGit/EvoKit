@@ -12,7 +12,9 @@
 
 - `evokit-boot` — 知识库完整性深度检查
 - `evokit learn` — 回顾对话提取知识 / 显式声明知识
+- `evokit learn --git-history` — 从 commit 历史提取约定候选到 `.pending/` 待确认（ADR 0004；与显式声明互斥）
 - `evokit review` — 复审过期知识（confidence ≤ 0.5）
+- `evokit doctor` — 知识库健康诊断（索引漂移 / frontmatter / 积压 / 分布）；`--fix` 重建漂移索引
 
 ## 思维框架
 

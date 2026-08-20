@@ -31,6 +31,10 @@ export default tool({
       .string()
       .optional()
       .describe("架构型显式声明的 ## 影响范围 推理标注"),
+    git_history: tool.schema
+      .boolean()
+      .optional()
+      .describe("从当前项目 Git 历史提取 commit 约定候选到 .pending/ 待确认（ADR 0004；与 content 互斥）"),
   },
   async execute(args, _context) {
     const parts = ["evokit", "learn"];
@@ -39,6 +43,7 @@ export default tool({
     if (args.scope) parts.push("--scope", args.scope);
     if (args.type) parts.push("--type", args.type);
     if (args.impact) parts.push("--impact", JSON.stringify(args.impact));
+    if (args.git_history) parts.push("--git-history");
     try {
       return execSync(parts.join(" "), { encoding: "utf-8" });
     } catch (err: unknown) {

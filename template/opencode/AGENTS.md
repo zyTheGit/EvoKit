@@ -12,7 +12,9 @@
 
 - `evokit-boot` — 知识库完整性深度检查（只读）
 - `evokit learn` — 回顾对话提取知识 / 显式声明知识（确认背书 / 显式声明双路径）
+- `evokit learn --git-history` — 从 commit 历史提取约定候选到 `.pending/` 待确认（ADR 0004；经 `evokit-learn` 工具传 `git_history=true` 或 bash 触发，与显式声明互斥）
 - `evokit review` — 复审过期知识（confidence ≤ 0.5）
+- `evokit doctor` — 知识库健康诊断（索引漂移 / frontmatter / 积压 / 分布）；`--fix` 重建漂移索引
 - `evokit-session --action flush_pending` — 会话末把在途草稿 `.pending/` 落盘并提示确认（无 Stop 钩子的等价触发点）
 
 ## 思维框架
@@ -91,7 +93,7 @@ OpenCode 无自动 Stop 钩子。**会话结束前必须显式调用 `evokit-ses
 | Tool            | When to Use                                   | What It Does                  |
 | --------------- | --------------------------------------------- | ------------------------------ |
 | **evokit-boot** | 会话开始，或知识库变更后                        | 知识库完整性深度检查（只读）    |
-| **evokit-learn**| 识别到知识待确认 / 用户显式声明知识             | 确认背书 / 显式声明（同一人工背书闸门） |
+| **evokit-learn**| 识别到知识待确认 / 用户显式声明 / 从 Git 历史提取候选 | 确认背书 / 显式声明 / `git_history=true` 提取 commit 约定候选（同一人工背书闸门） |
 | **evokit-session** | 会话结束前**必须调用**                        | `flush_pending` 落盘在途草稿 + 提示确认 |
 
 会话中若 `.pending/` 非空，运行 `evokit learn` 确认背书（唯一写入闸门 = 人工背书）。

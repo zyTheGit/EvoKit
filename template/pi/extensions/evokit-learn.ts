@@ -17,6 +17,7 @@ export default function (pi: ExtensionAPI) {
       scope?: string;
       type?: string;
       project_dir?: string;
+      git_history?: boolean;
     }) {
       const parts = ['evokit', 'learn'];
       if (args.content) parts.push(JSON.stringify(args.content));
@@ -24,6 +25,7 @@ export default function (pi: ExtensionAPI) {
       if (args.scope) parts.push('--scope', args.scope);
       if (args.type) parts.push('--type', args.type);
       if (args.impact) parts.push('--impact', JSON.stringify(args.impact));
+      if (args.git_history) parts.push('--git-history');
       try {
         return execSync(parts.join(' '), { encoding: 'utf-8' });
       } catch (err: unknown) {

@@ -10,10 +10,13 @@ description: 知识库完整性深度检查
 
 1. **目录结构** — `evokit/`、`knowledge/`、`.pending/` 目录是否存在
 2. **索引文件** — `knowledge-index.md` 是否存在且格式合法（`## 个人知识` / `## 项目知识` section）
-3. **条目完整性** — 索引中引用的每个条目文件是否都存在于 `knowledge/` 下
-4. **Frontmatter 合法性** — 每个条目文件的 YAML frontmatter 是否包含必填字段（id、scope、type、source、confidence、created）
-5. **待确认条目** — `.pending/` 中是否有待确认知识（提示运行 `/evokit-learn`）
-6. **CLAUDE.md 行数** — 是否 ≤ 150 行
+3. **条目完整性** — 索引中引用的每个条目文件是否都存在于 `knowledge/` 下（悬空检测）
+4. **无孤儿条目** — `knowledge/` 中的条目是否均被索引引用（反向漂移检测，ADR 0003）
+5. **Frontmatter 合法性** — 每个条目含必填字段（id、scope、type、source、confidence、created），且 confidence 落在三档合法取值
+6. **待确认条目** — `.pending/` 中是否有待确认知识（提示运行 `/evokit-learn`）
+7. **CLAUDE.md 行数** — 是否 ≤ 150 行
+
+> 索引漂移（孤儿/悬空）可由 `evokit doctor --fix` 从实际条目重建索引修复；完整健康诊断（frontmatter / 积压 / 分布）用 `evokit doctor`。
 
 ## 用法
 
