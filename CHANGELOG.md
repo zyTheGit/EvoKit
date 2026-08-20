@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.0
+
+### Features
+
+- 🆕 **Git 历史约定提取（ADR 0004）** — `evokit learn --git-history` 用确定性启发式从 commit 历史提取 Conventional Commits 约定候选：结构匹配率门控（≥0.7 且样本≥20）、merge/revert/release/敏感信息排除清单，候选线索写 `.pending/` 复用人工确认闸门，不新增写入通道
+- 🩺 **知识库健康诊断（ADR 0003）** — `src/core/health.ts` 对规范知识根输出量化报告：双向索引漂移（孤儿/悬空）、frontmatter 合法性、`.pending/` 与 STALE/RETIRED 积压、按 scope/type/confidence 分布；doctor/boot 表面化该被复审的条目，降档仍由人工二分判断驱动
+- 🔧 **`evokit doctor --fix` 索引重建** — 索引漂移时按派生物语义从实际条目再生成 `knowledge-index.md`，消除手维护漂移
+- ♻️ **确认闸门去重** — 显式声明（`evokit learn "内容"`）时若同 type 已存在归一化内容相近的 active 条目，提示"已有相似条目"，用户三选（覆盖/新建/放弃），只做归一化匹配不引入 embedding
+- 🧪 新增 `git-history` / `health` / `dedup` 模块测试，全量测试达 468/468 通过
+
+> **范围说明**：v1.1 收口 v1.0 转向后声明的核心闭环（健康诊断 + Git 历史来源 + 索引漂移修复 + 确认去重）。助手间同条目实时协商/冲突合并、团队级知识共享仍搁置（v1.2+，见 CONTEXT.md）。
+
 ## v1.0.3
 
 ### Bug Fixes

@@ -80,14 +80,14 @@
 - ✅ init 提示/选择描述/安装说明修正
 - ✅ settings hook 合并与启发式误删修复
 
+### v1.1.0 — 核心闭环补齐（ADR 0003 / ADR 0004）
+
+- ✅ Git 历史提取落地 — 确定性启发式提取器 `src/core/git-history.ts` + `evokit learn --git-history`，候选线索写 `.pending/` 复用确认闸门（ADR 0004）
+- ✅ 知识库健康诊断 — `src/core/health.ts` + doctor/boot 双向索引漂移、frontmatter 合法性、积压、分布指标（ADR 0003）
+- ✅ 索引漂移检测 + `--fix` 重建 — `evokit doctor --fix` 在索引漂移时重建派生索引
+- ✅ 确认闸门去重 — 显式声明时同 type 归一化内容相近提示三选（不引入 embedding）
+
 ## 规划中 🔜
-
-### v1.1 — 核心闭环补齐（已决策，见 ADR 0003 / ADR 0004）
-
-- ☐ Git 历史提取落地 — `src/core/git-history.ts` 确定性启发式 + `evokit learn --git-history`（ADR 0004）
-- ☐ 知识库健康诊断 — doctor/boot 增加双向索引漂移、积压、分布指标（ADR 0003）
-- ☐ 索引漂移检测 + `--fix` 重建（ADR 0003）
-- ☐ 确认闸门去重 — 同 type 归一化内容去重提示（不引入 embedding）
 
 > **仍搁置（v1.2+）**：助手间同条目实时协商/冲突合并、团队级知识共享（CONTEXT.md 明示留到 v1.x）。
 

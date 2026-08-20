@@ -84,7 +84,9 @@ Update overwrites framework files (hooks, rules, commands, agents, skills) while
 evokit init         Initialize installation
 evokit update       Upgrade template files
 evokit migrate      Migrate learning data between machines
-evokit doctor       System health check
+evokit learn        Confirm/declare knowledge (--git-history extracts convention candidates from commit history)
+evokit doctor       System health check (--fix rebuilds drifted index)
+evokit review       Review low-confidence knowledge entries
 ```
 
 ### Verify
