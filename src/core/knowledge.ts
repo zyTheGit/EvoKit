@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteFile } from './atomic-write.js';
 import type { KnowledgeEntry, KnowledgeType, KnowledgeScope } from './types.js';
 
 // ─── YAML frontmatter 解析/写入 ─────────────────────────────
@@ -193,6 +194,10 @@ export function readKnowledgeIndex(indexPath: string): {
 /**
  * 写入 knowledge-index.md。
  * 自动创建目录。
+ *
+ * 经 `atomicWriteFile`（tmp->rename）原子写：防单写者损坏/半截写。
+ * 注意：原子写不消除多助手 last-writer-wins 丢行，并发丢更新靠
+ * `regenerateIndex` 全量重建事后收敛（ADR 0005 索引写入硬化，独立 hotfix）。
  */
 export function writeKnowledgeIndex(
   indexPath: string,
@@ -218,7 +223,10 @@ export function writeKnowledgeIndex(
   }
   lines.push('');
 
-  fs.writeFileSync(indexPath, lines.join('\n'), 'utf-8');
+  const result = atomicWriteFile(indexPath, lines.join('\n'));
+  if (!result.ok) {
+    throw new Error(`写入索引失败: ${result.error ?? '未知错误'}`);
+  }
 }
 
 /**
