@@ -107,4 +107,18 @@ describe('模板 v1.0 知识引擎一致性（T6 验收 seam）', () => {
       });
     }
   });
+
+  describe('opencode/pi learn 入口透传 --git-history（ADR 0004）', () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ['opencode', 'tools/evokit-learn.ts'],
+      ['pi', 'extensions/evokit-learn.ts'],
+    ];
+    for (const [adapter, rel] of cases) {
+      it(`${adapter} evokit-learn 源码透传 --git-history（git_history 参数）`, () => {
+        const src = fs.readFileSync(path.join(TEMPLATE_DIR, adapter, rel), 'utf-8');
+        expect(src).toMatch(/git_history/);
+        expect(src).toMatch(/--git-history/);
+      });
+    }
+  });
 });

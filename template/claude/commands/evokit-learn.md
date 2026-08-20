@@ -10,6 +10,7 @@ description: 回顾对话提取知识 / 显式声明知识
 
 - `/evokit-learn` — 展示 `.pending/` 中的待确认条目 + 回顾对话中识别到的新知识
 - `/evokit-learn "内容"` — 显式声明知识，直接写入 `knowledge/`
+- `evokit learn --git-history` — 从当前项目 commit 历史提取约定候选到 `.pending/` 待确认（ADR 0004；与显式声明互斥，确认仍走无参 `/evokit-learn`）
 
 ## 待确认条目确认流程
 
