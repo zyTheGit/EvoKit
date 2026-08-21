@@ -85,7 +85,7 @@ evokit init         初始化安装
 evokit update       升级模板文件
 evokit migrate      从 v0 迁移到 v1.0
 evokit learn        确认/声明知识（--git-history 从提交历史提取约定候选）
-evokit doctor       系统健康检查（--fix 重建漂移索引）
+evokit doctor       系统健康检查（--fix 重建漂移索引 / 合并全等重复）
 evokit review       复审低置信度知识条目
 ```
 

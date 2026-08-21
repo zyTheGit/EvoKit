@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.0
+
+### Features
+
+- 🔀 **助手间冲突合并 - 归一化全等重复检测（ADR 0005）** - `src/core/dedup.ts` 新增 `findExactDuplicates`：作用域内分扫（个人/项目不跨层）active+pending 归一化全等扫描，覆盖 pending↔pending / pending↔active / active↔active 三种组合；只做归一化全等、非语义近重复，不引入 embedding
+- 🩺 **doctor/boot 表面化重复簇** - `inspectKnowledgeHealth` 新增 `duplicateGroups` 指标，doctor 报告同 type 归一化全等条目簇（与索引漂移检测同构），boot 增 warnOnly 重复检查
+- 🔀 **`doctor --fix` 逐簇人工三选合并** - 冲突子模式与"重建索引"子模式区分：合并为主条（active 删文件+索引行 / pending 走 rejectDraft）/ 保留两条 / 择一保留，复用 `overwriteActiveBody`+`removeIndexEntry`；`keepId` 必由人工传入，**绝不自动择主**，守"人工背书唯一闸门"；非 TTY 环境跳过交互
+- 🧱 **索引写入原子化** - `appendIndex`/`writeKnowledgeIndex` 改用 `atomicWriteFile`（防单写者损坏，不消除 TOCTOU 丢行），`regenerateIndex` 全量重建兜底
+- 📡 **四助手 doctor 入口透传** - codex/opencode/pi AGENTS.md doctor 描述与 claude `evokit-boot.md` 检查项补"归一化全等重复"检测与三选合并指引；`template-recheck` 新增防回退断言（四助手均须透传，防 CLI 落地产品层脱节）
+- 🧪 新增 conflict-merge/health 模块测试，全量测试 470 -> 484 通过
+
+> **范围说明**：v1.2 按 ADR 0005 将助手间冲突合并定位为事后健康诊断（检测+表面化+人工三选），非实时协商。团队级知识共享仍搁置（v1.3+，独立 ADR 待 grilling）。
+
 ## v1.1.0
 
 ### Features
