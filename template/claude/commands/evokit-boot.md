@@ -14,9 +14,10 @@ description: 知识库完整性深度检查
 4. **无孤儿条目** — `knowledge/` 中的条目是否均被索引引用（反向漂移检测，ADR 0003）
 5. **Frontmatter 合法性** — 每个条目含必填字段（id、scope、type、source、confidence、created），且 confidence 落在三档合法取值
 6. **待确认条目** — `.pending/` 中是否有待确认知识（提示运行 `/evokit-learn`）
-7. **CLAUDE.md 行数** — 是否 ≤ 150 行
+7. **归一化全等重复** - 同作用域内 active+pending 是否有归一化全等的重复簇（ADR 0005）
+8. **CLAUDE.md 行数** — 是否 ≤ 150 行
 
-> 索引漂移（孤儿/悬空）可由 `evokit doctor --fix` 从实际条目重建索引修复；完整健康诊断（frontmatter / 积压 / 分布）用 `evokit doctor`。
+> 索引漂移（孤儿/悬空）可由 `evokit doctor --fix` 从实际条目重建索引修复；归一化全等重复由 `evokit doctor --fix` 逐簇人工三选合并（绝不自动择主，ADR 0005）；完整健康诊断（frontmatter / 积压 / 分布 / 重复）用 `evokit doctor`。
 
 ## 用法
 

@@ -21,6 +21,7 @@ import {
   writeKnowledgeEntry,
   readKnowledgeIndex,
   writeKnowledgeIndex,
+  removeIndexEntry,
   transitionConfidence,
 } from '../core/knowledge.js';
 import { KnowledgeRepository } from '../core/repository.js';
@@ -84,24 +85,8 @@ export function readEntryBody(filePath: string): string {
 }
 
 /**
- * 从索引中移除指定 id 的行。
- * target: 'evokit' | 'claude'。EvoKit 知识条目默认在 evokit 段。
+ * 从索引中移除指定 id 的行（已移至 core/knowledge.ts，此处保留导入）。
  */
-export function removeIndexEntry(
-  indexPath: string,
-  id: string,
-  target: 'evokit' | 'claude' = 'evokit',
-): void {
-  const { evokit, claude } = readKnowledgeIndex(indexPath);
-  const source = target === 'evokit' ? evokit : claude;
-  const filtered = source.filter((line) => {
-    const match = line.match(/^- \[([^\]]+)\]/);
-    return !(match && match[1] === id);
-  });
-  const next = target === 'evokit' ? filtered : evokit;
-  const nextClaude = target === 'claude' ? filtered : claude;
-  writeKnowledgeIndex(indexPath, next, nextClaude);
-}
 
 /**
  * 对单条执行复审动作，写回条目文件并同步索引（如有改动）。

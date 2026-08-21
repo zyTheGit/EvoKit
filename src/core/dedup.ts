@@ -8,7 +8,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { writeKnowledgeEntry } from './knowledge.js';
+import { writeKnowledgeEntry, removeIndexEntry } from './knowledge.js';
 import { ensureArchitectureAnnotation } from './repository.js';
 import type { KnowledgeRepository } from './repository.js';
 import type { KnowledgeEntry, KnowledgeType } from './types.js';
@@ -153,4 +153,134 @@ export function overwriteActiveBody(
   };
   writeKnowledgeEntry(path.join(repo.knowledgeDir, `${id}.md`), updated, body);
   return updated;
+}
+
+// ─── 助手间冲突合并（ADR 0005，v1.2）─────────────────────────
+//
+// 事后健康诊断：归一化全等（**非语义近重复**）扫描同作用域内的 active+pending，
+// 把"疑似重复对/簇"交给 doctor/boot 表面化、--fix 逐条人工三选（绝不自动择主）。
+// 不实时、不引入 daemon/IPC/锁；守"人工背书唯一闸门"。
+
+/** 重复簇中的一个成员（active 已入库或 pending 待确认）。 */
+export interface DuplicateMember {
+  id: string;
+  status: 'active' | 'pending';
+  type: KnowledgeType;
+  context?: string;
+}
+
+/** 一组归一化全等重复条目（同 type、同签名）。members 中 active 在前、pending 在后。 */
+export interface DuplicateGroup {
+  type: KnowledgeType;
+  /** 归一化签名（context→body→id 首非空者）；同 type 同签名即判重复 */
+  signature: string;
+  members: DuplicateMember[];
+}
+
+/**
+ * 计算单条条目的归一化签名（ADR 0005 §C2）。
+ * 优先级与 `findSimilarActive` 一致：context（摘要）→ body（正文，剥标题）→ id（文件名）。
+ * 三者皆空返回空串（不入簇，避免误聚）。
+ */
+function signatureOf(content: string | undefined, bodyRaw: string | undefined, id: string): string {
+  if (content) {
+    const n = normalizeKnowledgeText(content);
+    if (n) return n;
+  }
+  if (bodyRaw) {
+    const n = normOfBody(bodyRaw);
+    if (n) return n;
+  }
+  const n = normalizeKnowledgeText(id);
+  return n; // id 兜底（空 id 极罕见）
+}
+
+/**
+ * 扫描**单个作用域**（一个 repo = 一个根）内 active+pending 的归一化全等重复簇。
+ *
+ * - 检测宇宙：`pending↔pending` / `pending↔active` / `active↔active` 全覆盖。
+ * - **不跨作用域**：个人级与项目级是独立 repo，天然隔离（ADR 0005 §作用域）。
+ * - **非语义近重复**：只捕归一化全等；措辞异义漏报（"漏提优于误提"，ADR 0004 §3.5）。
+ * - 成员排序：active 在前（便于"保留主条"默认指向已入库条目），pending 在后。
+ *
+ * @returns 重复簇数组（size ≥ 2）；无重复返回空数组。
+ */
+export function findExactDuplicates(repo: KnowledgeRepository): DuplicateGroup[] {
+  const members: Array<{
+    id: string;
+    status: 'active' | 'pending';
+    type: KnowledgeType;
+    context?: string;
+    body?: string;
+  }> = [];
+
+  for (const id of repo.listActive()) {
+    const entry = repo.getActive(id);
+    if (!entry) continue;
+    const body = readBodyText(path.join(repo.knowledgeDir, `${id}.md`)) || undefined;
+    members.push({ id, status: 'active', type: entry.type, context: entry.context, body });
+  }
+  for (const id of repo.listPending()) {
+    const entry = repo.getPending(id);
+    if (!entry) continue;
+    const body = readBodyText(path.join(repo.pendingDir, `${id}.md`)) || undefined;
+    members.push({ id, status: 'pending', type: entry.type, context: entry.context, body });
+  }
+
+  // 按 (type, signature) 分组
+  const buckets = new Map<string, DuplicateMember[]>();
+  for (const m of members) {
+    const sig = signatureOf(m.context, m.body, m.id);
+    if (!sig) continue; // 空签名不入簇
+    const key = `${m.type} ${sig}`;
+    const bucket = buckets.get(key);
+    const member: DuplicateMember = {
+      id: m.id,
+      status: m.status,
+      type: m.type,
+      context: m.context,
+    };
+    if (bucket) bucket.push(member);
+    else buckets.set(key, [member]);
+  }
+
+  const groups: DuplicateGroup[] = [];
+  for (const [key, list] of buckets) {
+    if (list.length < 2) continue;
+    const type = key.split(' ')[0] as KnowledgeType;
+    const signature = key.slice(key.indexOf(' ') + 1);
+    // active 在前、pending 在后（稳定排序）
+    list.sort((a, b) => (a.status === b.status ? 0 : a.status === 'active' ? -1 : 1));
+    groups.push({ type, signature, members: list });
+  }
+  return groups;
+}
+
+/**
+ * 人工三选中的"保留主条，删其余"（ADR 0005 合并执行契约）。
+ *
+ * - 保留 `keepId`；其余成员删除：pending → `rejectDraft`；active → 删文件 + `removeIndexEntry`。
+ * - **绝不自动择主**：`keepId` 必由调用方（人工/--fix 交互）传入，本函数不做任何自动选择。
+ * - 删除 active 同步移除索引行，避免孤儿（防回退不变量）。
+ *
+ * @returns 被删除的 id 列表；`keepId` 不在簇中则全删（调用方 bug，仍安全执行）。
+ */
+export function resolveDuplicateGroup(
+  repo: KnowledgeRepository,
+  group: DuplicateGroup,
+  keepId: string,
+): { removed: string[] } {
+  const removed: string[] = [];
+  for (const m of group.members) {
+    if (m.id === keepId) continue;
+    if (m.status === 'pending') {
+      repo.rejectDraft(m.id);
+    } else {
+      const fp = path.join(repo.knowledgeDir, `${m.id}.md`);
+      fs.rmSync(fp, { force: true });
+      removeIndexEntry(repo.indexPath, m.id, 'evokit');
+    }
+    removed.push(m.id);
+  }
+  return { removed };
 }

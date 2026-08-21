@@ -85,7 +85,7 @@ evokit init         Initialize installation
 evokit update       Upgrade template files
 evokit migrate      Migrate learning data between machines
 evokit learn        Confirm/declare knowledge (--git-history extracts convention candidates from commit history)
-evokit doctor       System health check (--fix rebuilds drifted index)
+evokit doctor       System health check (--fix rebuilds drifted index / merges exact duplicates)
 evokit review       Review low-confidence knowledge entries
 ```
 

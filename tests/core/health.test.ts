@@ -110,5 +110,20 @@ describe('inspectKnowledgeHealth', () => {
     expect(h.pendingCount).toBe(0);
     expect(h.orphanEntries).toEqual([]);
     expect(h.danglingEntries).toEqual([]);
+    expect(h.duplicateGroups).toEqual([]);
+  });
+
+  it('归一化全等重复簇表面化（ADR 0005）', () => {
+    const root = tmpRoot();
+    const r = new KnowledgeRepository({ knowledgeRoot: root });
+    r.createDraft({ type: 'convention', content: '使用 uv 代替 pip' });
+    r.confirmDraft(r.listPending()[0], 'personal');
+    r.createDraft({ type: 'convention', content: '使用 uv 代替 pip' });
+    r.confirmDraft(r.listPending()[0], 'personal');
+
+    const h = inspectKnowledgeHealth(root);
+    expect(h.duplicateGroups).toHaveLength(1);
+    expect(h.duplicateGroups[0].members).toHaveLength(2);
+    expect(h.duplicateGroups[0].type).toBe('convention');
   });
 });

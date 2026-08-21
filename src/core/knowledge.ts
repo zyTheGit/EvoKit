@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteFile } from './atomic-write.js';
 import type { KnowledgeEntry, KnowledgeType, KnowledgeScope } from './types.js';
 
 // ─── YAML frontmatter 解析/写入 ─────────────────────────────
@@ -193,6 +194,10 @@ export function readKnowledgeIndex(indexPath: string): {
 /**
  * 写入 knowledge-index.md。
  * 自动创建目录。
+ *
+ * 经 `atomicWriteFile`（tmp->rename）原子写：防单写者损坏/半截写。
+ * 注意：原子写不消除多助手 last-writer-wins 丢行，并发丢更新靠
+ * `regenerateIndex` 全量重建事后收敛（ADR 0005 索引写入硬化，独立 hotfix）。
  */
 export function writeKnowledgeIndex(
   indexPath: string,
@@ -218,7 +223,10 @@ export function writeKnowledgeIndex(
   }
   lines.push('');
 
-  fs.writeFileSync(indexPath, lines.join('\n'), 'utf-8');
+  const result = atomicWriteFile(indexPath, lines.join('\n'));
+  if (!result.ok) {
+    throw new Error(`写入索引失败: ${result.error ?? '未知错误'}`);
+  }
 }
 
 /**
@@ -238,6 +246,26 @@ export function appendToKnowledgeIndex(indexPath: string, entryId: string, summa
 
   evokit.push(`- [${entryId}] ${summary}`);
   writeKnowledgeIndex(indexPath, evokit, claude);
+}
+
+/**
+ * 从索引中移除指定 id 的行（ADR 0005 合并/择一保留后同步索引，防孤儿）。
+ * target: 'evokit' | 'claude'。EvoKit 知识条目默认在 evokit 段。
+ */
+export function removeIndexEntry(
+  indexPath: string,
+  id: string,
+  target: 'evokit' | 'claude' = 'evokit',
+): void {
+  const { evokit, claude } = readKnowledgeIndex(indexPath);
+  const source = target === 'evokit' ? evokit : claude;
+  const filtered = source.filter((line) => {
+    const match = line.match(/^- \[([^\]]+)\]/);
+    return !(match && match[1] === id);
+  });
+  const next = target === 'evokit' ? filtered : evokit;
+  const nextClaude = target === 'claude' ? filtered : claude;
+  writeKnowledgeIndex(indexPath, next, nextClaude);
 }
 
 // ─── slug 生成 ───────────────────────────────────────────────

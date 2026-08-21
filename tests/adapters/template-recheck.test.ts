@@ -121,4 +121,23 @@ describe('模板 v1.0 知识引擎一致性（T6 验收 seam）', () => {
       });
     }
   });
+
+  describe('四助手 doctor 入口透传冲突合并（ADR 0005）', () => {
+    it('codex/opencode/pi AGENTS.md doctor 描述含重复检测与 --fix 三选合并', () => {
+      for (const adapter of ['codex', 'opencode', 'pi']) {
+        const src = fs.readFileSync(path.join(TEMPLATE_DIR, adapter, 'AGENTS.md'), 'utf-8');
+        expect(src).toMatch(/归一化全等重复/);
+        expect(src).toMatch(/三选合并/);
+      }
+    });
+
+    it('claude evokit-boot.md 检查项含归一化全等重复与合并指引', () => {
+      const src = fs.readFileSync(
+        path.join(TEMPLATE_DIR, 'claude', 'commands', 'evokit-boot.md'),
+        'utf-8',
+      );
+      expect(src).toMatch(/归一化全等重复/);
+      expect(src).toMatch(/三选合并/);
+    });
+  });
 });
