@@ -7,7 +7,8 @@
     "evokit": "evokit.mjs"
   },
   "files": [
-    "evokit.mjs"
+    "evokit.mjs",
+    "src"
   ],
   "license": "MIT",
   "keywords": [
@@ -23,6 +24,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node evokit.mjs --help"
+    "test": "node test-local.mjs"
   }
 }

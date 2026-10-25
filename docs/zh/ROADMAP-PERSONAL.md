@@ -36,7 +36,7 @@
 - [x] 建立 `~/.evokit/context.md` 作为唯一源
 - [x] 同步到 Claude Code（CLAUDE.md）、Pi（APPEND_SYSTEM.md）、Codex（AGENTS.md）
 - [x] 同步脚本 `~/.evokit/evokit.mjs`（sync / check 两个命令）
-- [x] 备份原文件到 `~/.evokit/backup/`
+- [x] 备份原文件到 `~/.evokit/backup/`（**注：后续改为「只动托管块、不整文件覆盖」后，备份已废弃**，见 cli/README.md）
 
 ### 阶段 1 — 接入剩余入口（⏭️ 跳过，用户决定不做）
 
@@ -69,7 +69,7 @@
 | CLI 包配置 | `cli/package.json` | 包名 `@evokit/cli`，bin 为 `evokit` |
 | CLI 文档 | `cli/README.md` | 安装与用法 |
 | 单一事实源 | `~/.evokit/context.md` | 唯一源，改这里 |
-| 备份 | `~/.evokit/backup/` | 迁移前的原文件备份 |
+| 备份 | ~~`~/.evokit/backup/`~~（已废弃，见 cli/README.md） | 迁移前的原文件备份 |
 
 ---
 
