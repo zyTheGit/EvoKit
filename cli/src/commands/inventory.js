@@ -231,11 +231,11 @@ export function inventory(filter = null, promptOnly = false) {
     console.log(`（正在调用 \`${cli.bin}\` 分析，最长等待 120 秒…）\n`);
     const prompt = buildPrompt(cli.name, invText);
     const result = runAgentCli(cli, prompt);
-    if (result) {
-      console.log(result);
+    if (result.ok) {
+      console.log(result.output);
       called++;
     } else {
-      console.log('（调用失败或无输出，已跳过）');
+      console.log(`（调用失败：${result.error}）`);
     }
   }
 

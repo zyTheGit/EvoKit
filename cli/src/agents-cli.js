@@ -89,11 +89,15 @@ export function detectAgentClis() {
 }
 
 /**
- * 调用某个 agent CLI，非交互地把 prompt 喂进去，返回 stdout 字符串。
- * 若不可用或失败，返回 null（由调用方提示跳过）。
+ * 调用某个 agent CLI，非交互地把 prompt 喂进去。
+ * 返回 { ok, output, error }：
+ *   ok=true   → output 是 agent 返回的报告文本
+ *   ok=false  → error 是可读的失败原因（超时/非零退出/无输出/进程被终止等）
  */
 export function runAgentCli(cliDef, prompt, { timeout = 120000 } = {}) {
-  if (!cliDef.available) return null;
+  if (!cliDef.available) {
+    return { ok: false, output: '', error: `未检测到 ${cliDef.bin} CLI` };
+  }
   const args = cliDef.build(prompt);
   const { command, args: spawnArgs } = toSpawn(cliDef.binPath, args);
   try {
@@ -102,10 +106,24 @@ export function runAgentCli(cliDef, prompt, { timeout = 120000 } = {}) {
       timeout,
       maxBuffer: 10 * 1024 * 1024,
     });
-    if (result.error) return null;
+    if (result.error) {
+      const code = result.error.code;
+      if (code === 'ETIMEDOUT') {
+        return { ok: false, output: '', error: `调用超时（超过 ${Math.round(timeout / 1000)} 秒）` };
+      }
+      return { ok: false, output: '', error: `进程启动失败：${result.error.message || code}` };
+    }
+    if (result.signal) {
+      return { ok: false, output: '', error: `进程被终止（signal ${result.signal}），可能是环境限制或鉴权问题` };
+    }
     const out = (result.stdout || '').trim();
-    return out || null;
-  } catch {
-    return null;
+    if (!out) {
+      const stderr = (result.stderr || '').trim();
+      const hint = stderr ? `（stderr: ${stderr.slice(0, 120)}）` : '';
+      return { ok: false, output: '', error: `无输出${hint}` };
+    }
+    return { ok: true, output: out, error: '' };
+  } catch (e) {
+    return { ok: false, output: '', error: `调用异常：${e.message}` };
   }
 }
