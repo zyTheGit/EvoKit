@@ -10,7 +10,7 @@
  *   node cli/test-local.mjs
  */
 
-import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, mkdtempSync, lstatSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, mkdtempSync, lstatSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execSync, exec } from 'node:child_process';
@@ -465,6 +465,32 @@ assert(readFileSync(proxyTarget, 'utf-8').includes('代理生效'), '代理拉�
 
 proxyServer.close();
 targetServer.close();
+
+// ── 7e. inventory 盘点 + 通用 prompt 生成 ─────────────────
+console.log('\n【7e. inventory 盘点 + 通用 prompt】');
+// 造一个假的 skill 软链接 + rules 文件，验证 inventory 能扫到
+const fakeClaudeSkills = join(fakeHome, '.claude', 'skills');
+mkdirSync(fakeClaudeSkills, { recursive: true });
+mkdirSync(join(fakeHome, '.agents', 'skills', 'demo-skill'), { recursive: true });
+writeFileSync(join(fakeHome, '.agents', 'skills', 'demo-skill', 'SKILL.md'), '# demo\n', 'utf-8');
+try {
+  // Windows 上 'dir' 会静默创建无效链接，必须用 junction（与 fs-utils.makeSymlink 一致）
+  symlinkSync(join(fakeHome, '.agents', 'skills', 'demo-skill'), join(fakeClaudeSkills, 'demo-skill'), process.platform === 'win32' ? 'junction' : 'dir');
+} catch {
+  symlinkSync(join(fakeHome, '.agents', 'skills', 'demo-skill'), join(fakeClaudeSkills, 'demo-skill'), 'junction');
+}
+const fakeCodexRules = join(fakeHome, '.codex', 'rules');
+mkdirSync(fakeCodexRules, { recursive: true });
+writeFileSync(join(fakeCodexRules, 'default.rules'), '# 规则\n', 'utf-8');
+
+// inventory --prompt 应生成通用 prompt，包含扫描到的 skill 和 rules
+const invOut = run('inventory --prompt');
+assert(invOut.includes('知识库清单'), 'inventory --prompt 生成通用 prompt（含清单）');
+assert(invOut.includes('demo-skill'), 'inventory 扫到 skill（含软链接指向源）');
+assert(invOut.includes('default.rules'), 'inventory 扫到 rules');
+assert(invOut.includes('【重复项】'), 'prompt 含「重复项」分析要求');
+assert(invOut.includes('【冲突项】'), 'prompt 含「冲突项」分析要求');
+assert(invOut.includes('【整理建议】'), 'prompt 含「整理建议」区块');
 
 // ── 8. 清理 ──────────────────────────────────────────────
 console.log('\n【清理测试目录】');

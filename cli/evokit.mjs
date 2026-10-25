@@ -18,6 +18,9 @@
  * 用法：
  *   evokit agents             查看支持的 agent 列表
  *   evokit resources          查看管理的资源列表
+ *   evokit inventory          盘点知识库 + 委托 agent 找冗余（调 claude/pi/codex CLI）
+ *   evokit inventory --agent <id>  只让指定 agent 整理
+ *   evokit inventory --prompt 只生成通用整理 prompt，不调 CLI
  *   evokit init               初始化全局源 + agents.json + resources.json
  *   evokit init --project     初始化当前项目 .evokit/（context.md + agents.json + resources.json）
  *   evokit sync               同步所有资源到所有 agent
@@ -42,7 +45,8 @@
  *   fs-utils.js  文件工具（托管块、软链接）
  *   syncers.js   同步器分派（text/symlink/remote）
  *   remote.js    远程源拉取 + 代理
- *   commands/    各命令实现（init/sync/check/status/uninstall/list/help）
+ *   agents-cli.js agents CLI 探测与调用（inventory 委托 agent 整理用）
+ *   commands/    各命令实现（init/sync/check/status/uninstall/inventory/list/help）
  */
 
 import { parseAgentFilter, parseResourceFilter } from './src/config.js';
@@ -50,7 +54,7 @@ import {
   initGlobal, initProject,
   syncGlobal, syncProject, syncResources,
   check, status, uninstallGlobal, uninstallProject,
-  listAgents, listResources, help,
+  listAgents, listResources, inventory, help,
 } from './src/commands/index.js';
 
 const args = process.argv.slice(2);
@@ -60,7 +64,7 @@ let filter = parseAgentFilter(args);
 const resourceFilter = parseResourceFilter(args);
 
 // 已知命令清单（用于未知命令时猜测用户意图）
-const KNOWN_COMMANDS = ['agents', 'resources', 'init', 'sync', 'check', 'status', 'uninstall', 'help'];
+const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'help'];
 
 /** 计算两个字符串的编辑距离（Levenshtein），用于"是否打错命令"猜测 */
 function levenshtein(a, b) {
@@ -112,6 +116,11 @@ async function main() {
     case 'resources':
       listResources();
       break;
+    case 'inventory': {
+      const promptOnly = args.includes('--prompt');
+      inventory(filter, promptOnly);
+      break;
+    }
     case 'init':
       isProject ? initProject() : initGlobal();
       break;

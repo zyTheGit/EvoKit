@@ -20,6 +20,9 @@ evokit init                 # 初始化全局源 + agents.json + resources.json
 evokit init --project       # 初始化当前项目 .evokit/（context.md + agents.json + resources.json）
 evokit agents               # 列出支持的所有 agent
 evokit resources            # 列出管理的所有资源（文本 / 软链接）
+evokit inventory            # 盘点知识库 + 委托 agent 找出冗余（调 claude/pi/codex CLI）
+evokit inventory --agent claude  # 只让指定 agent 整理（逗号分隔多选）
+evokit inventory --prompt   # 只生成通用整理 prompt，不调 CLI（调试用）
 evokit sync                 # 同步所有资源到所有 agent
 evokit sync --resource <id> # 只同步指定资源（逗号分隔：--resource context,my-skill）
 evokit sync --agent claude  # 只同步指定 agent（逗号分隔多选：--agent claude,pi）
@@ -159,6 +162,27 @@ agent 列表由 `~/.evokit/agents.json` 驱动，**新增工具无需改 CLI 代
 
 这样 `evokit sync -p` 只会把 claude 的项目入口改成 `CLAUDE.local.md`，pi、codex 等其他 agent 仍沿用全局配置。
 
+### 知识库冗余体检（inventory）
+
+`evokit inventory` 是一个**只读的提示词知识库体检工具**，帮你发现散落在各 agent 里的冗余提示词（skill、规则、MCP 配置、全局/项目提示词、缓存等）。
+
+设计思路：EvoKit **不做冗余判定**（那需要语义理解，正是 agent 擅长的），而是：
+
+1. **扫描**：通用扫出各 agent 的知识库清单（路径 + 大小 + 修改时间 + 软链接指向）
+2. **生成通用 prompt**：把清单填进一份整理任务 prompt
+3. **调用 agents cli**：直接调 `claude` / `pi` / `codex` 的 CLI，让 agent 自己找出重复/冲突/过期/断链
+4. **回显**：把 agent 返回的结构化报告展示给你
+
+```bash
+evokit inventory                  # 调所有可用 agent 整理并回显
+evokit inventory --agent claude   # 只让 claude 整理
+evokit inventory --prompt         # 只生成 prompt，不调 CLI（调试/手动喂）
+```
+
+> **依赖**：会调用本机的 `claude` / `pi` / `codex` CLI。Pi 和 Codex 依赖 Node 24（经 `fnm` 安装），EvoKit 会自动探测 `fnm` 的 installation 目录。未安装的 agent 会提示「未检测到 CLI，跳过」，不影响其他 agent。
+>
+> **只读安全**：inventory 只扫描和调用 agent 分析，不修改任何文件。agent 返回的是「建议」，具体整理动作仍需你确认后手动执行。
+
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
 
 配置文件里所有路径都经过 `expandPath` 展开，支持以下写法：
@@ -238,6 +262,7 @@ cli/
     ├── fs-utils.js     # 文件工具（托管块、软链接、ensureSource）
     ├── syncers.js      # 同步器分派（text / symlink / remote）
     ├── remote.js       # 远程源拉取（内置 fetch + HTTP CONNECT 代理，本地缓存）
+    ├── agents-cli.js   # agents CLI 探测与调用（inventory 委托 agent 整理用）
     └── commands/       # 各命令实现（按命令族拆分）
         ├── index.js    # 汇总导出（统一入口）
         ├── init.js     # initGlobal / initProject
@@ -245,6 +270,7 @@ cli/
         ├── check.js    # check + ctxlint 内容健康检查
         ├── status.js   # status（全局 / 项目级）
         ├── uninstall.js# uninstallGlobal / uninstallProject
+        ├── inventory.js# inventory 盘点 + 委托 agent 找冗余
         ├── list.js     # listAgents / listResources
         └── help.js     # help
 ```
@@ -257,16 +283,18 @@ cli/
 | `fs-utils.js` | `readSource`、`applyBlock`、`applyManagedBlock`、`ensureSource`、`makeSymlink` |
 | `syncers.js` | `SYNCERS` 分派、`syncText`、`syncSymlink`、`syncRemote`、`resolveSyncer` |
 | `remote.js` | `fetchRemote`、`isRemote`、`resolveProxy`（远程源拉取 + 代理 + 本地缓存） |
+| `agents-cli.js` | `detectAgentClis`、`runAgentCli`（agents CLI 探测 + fnm 路径解析 + 非交互调用） |
 | `commands/index.js` | 汇总导出所有命令 |
 | `commands/init.js` | `initGlobal`、`initProject` |
 | `commands/sync.js` | `syncGlobal`、`syncProject`、`syncResources` |
 | `commands/check.js` | `check` + ctxlint 内容健康检查 |
 | `commands/status.js` | `status`（全局 / 项目级） |
 | `commands/uninstall.js` | `uninstallGlobal`、`uninstallProject` |
+| `commands/inventory.js` | `inventory`（扫描 + 通用 prompt + 委托 agent 找冗余） |
 | `commands/list.js` | `listAgents`、`listResources` |
 | `commands/help.js` | `help` |
 
-依赖方向单一（paths/defaults → config/fs-utils/remote → syncers → commands → 入口），无循环依赖。
+依赖方向单一（paths/defaults → config/fs-utils/remote/agents-cli → syncers → commands → 入口），无循环依赖。
 
 ## 测试
 
@@ -274,4 +302,4 @@ cli/
 node test-local.mjs        # 隔离测试（EVOKIT_HOME 重定向到临时目录）
 ```
 
-覆盖 init / sync / check / status / uninstall（含项目级 check/status/uninstall）/ agents / resources、`--agent`/`--resource` 过滤、位置参数回退、错误提示意图猜测、新增 agent/资源零代码改动、软链接、跨平台路径展开、远程源、代理、数据保护（sync 保留块外用户内容）等 62 项断言。
+覆盖 init / sync / check / status / uninstall（含项目级 check/status/uninstall）/ agents / resources / inventory、`--agent`/`--resource` 过滤、位置参数回退、错误提示意图猜测、新增 agent/资源零代码改动、软链接、跨平台路径展开、远程源、代理、数据保护（sync 保留块外用户内容）、配置分层等 78 项断言。

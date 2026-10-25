@@ -7,4 +7,5 @@ export { check } from './check.js';
 export { status } from './status.js';
 export { uninstallGlobal, uninstallProject } from './uninstall.js';
 export { listAgents, listResources } from './list.js';
+export { inventory } from './inventory.js';
 export { help } from './help.js';

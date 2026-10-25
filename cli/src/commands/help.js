@@ -6,6 +6,9 @@ export function help() {
 用法:
   evokit agents             查看支持的 agent 列表
   evokit resources          查看管理的资源列表（文本/软链接）
+  evokit inventory          盘点知识库 + 委托 agent 找出冗余（调 claude/pi/codex CLI）
+  evokit inventory --agent claude  只让指定 agent 整理（逗号分隔多选）
+  evokit inventory --prompt 只生成通用整理 prompt，不调 CLI（调试用）
   evokit init               初始化全局源 + agents.json + resources.json
   evokit init --project     初始化当前项目 .evokit/（context.md + agents.json + resources.json）
   evokit sync               同步所有资源到所有 agent
