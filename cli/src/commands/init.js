@@ -2,15 +2,14 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { GLOBAL_SOURCE } from '../paths.js';
-import { DEFAULT_CONTEXT, DEFAULT_AGENTS, DEFAULT_RESOURCES } from '../defaults.js';
-import { loadAgents, loadResources } from '../config.js';
+import { GLOBAL_SOURCE, CONFIG_FILE } from '../paths.js';
+import { DEFAULT_CONTEXT, DEFAULT_CONFIG } from '../defaults.js';
+import { loadConfig } from '../config.js';
 import { ensureSource } from '../fs-utils.js';
 
 export function initGlobal() {
   ensureSource(GLOBAL_SOURCE, DEFAULT_CONTEXT);
-  loadAgents(); // 确保 agents.json 首次生成
-  loadResources(); // 确保 resources.json 首次生成
+  loadConfig(); // 确保 settings.json 首次生成
 }
 
 export function initProject() {
@@ -27,20 +26,13 @@ export function initProject() {
 `;
   ensureSource(projSource, projContent);
 
-  // 生成项目级配置（按 id 覆盖全局；这里默认等于全局，可自行增删覆盖项）
+  // 生成项目级配置（按 id/key 覆盖全局；这里默认等于全局，可自行增删覆盖项）
   if (!existsSync(projDir)) mkdirSync(projDir, { recursive: true });
-  const projAgents = join(projDir, 'agents.json');
-  const projResources = join(projDir, 'resources.json');
-  if (!existsSync(projAgents)) {
-    writeFileSync(projAgents, JSON.stringify(DEFAULT_AGENTS, null, 2) + '\n', 'utf-8');
-    console.log(`✓ 已创建 ${projAgents}`);
+  const projConfig = join(projDir, 'settings.json');
+  if (!existsSync(projConfig)) {
+    writeFileSync(projConfig, JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n', 'utf-8');
+    console.log(`✓ 已创建 ${projConfig}`);
   } else {
-    console.log(`ℹ ${projAgents} 已存在，跳过`);
-  }
-  if (!existsSync(projResources)) {
-    writeFileSync(projResources, JSON.stringify(DEFAULT_RESOURCES, null, 2) + '\n', 'utf-8');
-    console.log(`✓ 已创建 ${projResources}`);
-  } else {
-    console.log(`ℹ ${projResources} 已存在，跳过`);
+    console.log(`ℹ ${projConfig} 已存在，跳过`);
   }
 }

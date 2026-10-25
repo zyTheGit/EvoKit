@@ -7,8 +7,8 @@ import { join, resolve } from 'node:path';
 export const HOME = process.env.EVOKIT_HOME || homedir();
 export const EVOKIT_DIR = join(HOME, '.evokit');
 export const GLOBAL_SOURCE = join(EVOKIT_DIR, 'context.md');
-export const AGENTS_FILE = join(EVOKIT_DIR, 'agents.json');
-export const RESOURCES_FILE = join(EVOKIT_DIR, 'resources.json');
+// 统一配置文件：agents + resources + prompts 三块合流（settings.json）
+export const CONFIG_FILE = join(EVOKIT_DIR, 'settings.json');
 
 // 托管块边界标记
 export const BEGIN = '<!-- evokit-managed:start -->';

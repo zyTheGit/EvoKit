@@ -9,8 +9,8 @@ export function help() {
   evokit inventory          盘点知识库 + 委托 agent 找出冗余（调 claude/pi/codex CLI）
   evokit inventory --agent claude  只让指定 agent 整理（逗号分隔多选）
   evokit inventory --prompt 只生成通用整理 prompt，不调 CLI（调试用）
-  evokit init               初始化全局源 + agents.json + resources.json
-  evokit init --project     初始化当前项目 .evokit/（context.md + agents.json + resources.json）
+  evokit init               初始化全局源 + settings.json
+  evokit init --project     初始化当前项目 .evokit/（context.md + settings.json）
   evokit sync               同步所有资源到所有 agent
   evokit sync --resource <id>  只同步指定资源（逗号分隔，如 context,my-skill）
   evokit sync --agent <id>  只同步指定 agent（逗号分隔多个，如 claude,codex）
@@ -38,14 +38,11 @@ export function help() {
 单一事实源:
   个人全局  ~/.evokit/context.md
   项目级    <project>/.evokit/context.md
-Agent 配置:
-  ~/.evokit/agents.json     新增 agent 改这里，无需改代码
-  <project>/.evokit/agents.json  项目级覆盖（按 id 逐项覆盖全局，其余沿用）
-资源配置:
-  ~/.evokit/resources.json  新增资源改这里（type=text/symlink），无需改代码
-  <project>/.evokit/resources.json  项目级覆盖（按 id 逐项覆盖全局，其余沿用）
+统一配置:
+  ~/.evokit/settings.json   agents（同步目标 + CLI 调用）+ resources（资源）+ prompts（提示词模板）
+  <project>/.evokit/settings.json  项目级覆盖（agents/resources 按 id、prompts 按 key 逐项覆盖全局）
 
 配置分层:
-  项目级 agents.json / resources.json 按 id 逐项覆盖全局同名条目；全局有而项目级没写的条目仍生效
+  项目级 settings.json 按 id/key 逐项覆盖全局同名条目；全局有而项目级没写的条目仍生效
 `);
 }

@@ -60,7 +60,7 @@ console.log(`隔离测试 home: ${fakeHome}\n`);
 console.log('【1. init 初始化 + agents 列表】');
 run('init');
 assert(existsSync(join(fakeHome, '.evokit', 'context.md')), '全局源 context.md 已创建');
-assert(existsSync(join(fakeHome, '.evokit', 'agents.json')), 'agents.json 已生成');
+assert(existsSync(join(fakeHome, '.evokit', 'settings.json')), 'settings.json 已生成');
 
 const agentsOut = run('agents');
 ['claude', 'pi', 'codex'].forEach((id) =>
@@ -95,19 +95,20 @@ writeFileSync(claudePath0, readFileSync(claudePath0, 'utf-8').replace('\n\n# 用
 // 场景2：目标文件完全不含托管块（如用户自己写的文件），sync 应追加而非覆盖
 const foreignFile = join(fakeHome, '.claude', 'FOREIGN.md');
 writeFileSync(foreignFile, '# 用户自己的文件\n这里没有任何托管块\n', 'utf-8');
-// 把这个文件临时注册为 agent 目标来测追加行为（改 agents.json）
-const agentsJsonPath = join(fakeHome, '.evokit', 'agents.json');
-const agentsForAppend = JSON.parse(readFileSync(agentsJsonPath, 'utf-8'));
-agentsForAppend.push({ id: 'foreign', name: 'Foreign', global: '~/.claude/FOREIGN.md' });
-writeFileSync(agentsJsonPath, JSON.stringify(agentsForAppend, null, 2) + '\n', 'utf-8');
+// 把这个文件临时注册为 agent 目标来测追加行为（改 settings.json 的 agents）
+const settingsPath = join(fakeHome, '.evokit', 'settings.json');
+const cfgForAppend = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+cfgForAppend.agents.push({ id: 'foreign', name: 'Foreign', global: '~/.claude/FOREIGN.md' });
+writeFileSync(settingsPath, JSON.stringify(cfgForAppend, null, 2) + '\n', 'utf-8');
 run('sync --agent foreign');
 const foreignAfter = readFileSync(foreignFile, 'utf-8');
 assert(foreignAfter.includes('# 用户自己的文件'), '无托管块的文件：sync 追加，原有内容保留');
 assert(foreignAfter.includes('这里没有任何托管块'), '无托管块的文件：原有细节保留');
 assert(foreignAfter.includes('<!-- evokit-managed:start -->'), '无托管块的文件：追加了托管块');
 // 清理：移除测试用的 foreign agent，避免影响后续断言
-const agentsCleaned = JSON.parse(readFileSync(agentsJsonPath, 'utf-8')).filter((x) => x.id !== 'foreign');
-writeFileSync(agentsJsonPath, JSON.stringify(agentsCleaned, null, 2) + '\n', 'utf-8');
+const cfgCleaned = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+cfgCleaned.agents = cfgCleaned.agents.filter((x) => x.id !== 'foreign');
+writeFileSync(settingsPath, JSON.stringify(cfgCleaned, null, 2) + '\n', 'utf-8');
 
 
 // ── 3. --agent 指定单个 ───────────────────────────────────
@@ -159,11 +160,11 @@ const statusBare = run('status pi');
 assert(statusBare.includes('pi') && !statusBare.includes('claude'), 'status pi 位置参数等价 --agent pi');
 
 // ── 5. 新增 agent（不改代码） ──────────────────────────────
-console.log('\n【5. 新增 agent：改 agents.json 不加代码】');
-const agentsPath = join(fakeHome, '.evokit', 'agents.json');
-const agents = JSON.parse(readFileSync(agentsPath, 'utf-8'));
-agents.push({ id: 'cursor', name: 'Cursor', global: '~/.cursor/rules/global.mdc', project: '.cursor/rules/project.mdc' });
-writeFileSync(agentsPath, JSON.stringify(agents, null, 2) + '\n', 'utf-8');
+console.log('\n【5. 新增 agent：改 settings.json 不加代码】');
+const agentsPath = join(fakeHome, '.evokit', 'settings.json');
+const cfg = JSON.parse(readFileSync(agentsPath, 'utf-8'));
+cfg.agents.push({ id: 'cursor', name: 'Cursor', global: '~/.cursor/rules/global.mdc', project: '.cursor/rules/project.mdc' });
+writeFileSync(agentsPath, JSON.stringify(cfg, null, 2) + '\n', 'utf-8');
 
 const agentsOut2 = run('agents');
 assert(agentsOut2.includes('cursor'), 'agents 列表出现新 agent cursor');
@@ -251,27 +252,27 @@ const checkProjDrift = (() => {
 assert(checkProjDrift.code !== 0, 'check --project 检测到漂移（退出码非 0）');
 
 // ── 6c2. 配置分层：项目级 agents/resources 覆盖全局 ──────
-console.log('\n【6c2. 配置分层：项目级 agents/resources 覆盖全局】');
-// 新建项目目录，init -p 应生成项目级 context.md + agents.json + resources.json
+console.log('\n【6c2. 配置分层：项目级 settings.json 覆盖全局】');
+// 新建项目目录，init -p 应生成项目级 context.md + settings.json
 const layerDir = join(fakeHome, 'layered-proj');
 mkdirSync(layerDir, { recursive: true });
 runIn(layerDir, 'init -p');
 assert(existsSync(join(layerDir, '.evokit', 'context.md')), 'init -p 生成项目级 context.md');
-assert(existsSync(join(layerDir, '.evokit', 'agents.json')), 'init -p 生成项目级 agents.json');
-assert(existsSync(join(layerDir, '.evokit', 'resources.json')), 'init -p 生成项目级 resources.json');
+assert(existsSync(join(layerDir, '.evokit', 'settings.json')), 'init -p 生成项目级 settings.json');
 
-// 项目级覆盖：把项目级 agents.json 里 claude 的 project 入口改成自定义路径，验证 sync -p 按项目级配置走
-const layerAgents = JSON.parse(readFileSync(join(layerDir, '.evokit', 'agents.json'), 'utf-8'));
-const claudeEntry = layerAgents.find((a) => a.id === 'claude');
+// 项目级覆盖：把项目级 settings.json 里 claude 的 project 入口改成自定义路径，验证 sync -p 按项目级配置走
+const layerCfgPath = join(layerDir, '.evokit', 'settings.json');
+const layerCfg = JSON.parse(readFileSync(layerCfgPath, 'utf-8'));
+const claudeEntry = layerCfg.agents.find((a) => a.id === 'claude');
 claudeEntry.project = 'CUSTOM_CLAUDE.md'; // 覆盖全局默认的 CLAUDE.md
-writeFileSync(join(layerDir, '.evokit', 'agents.json'), JSON.stringify(layerAgents, null, 2) + '\n', 'utf-8');
+writeFileSync(layerCfgPath, JSON.stringify(layerCfg, null, 2) + '\n', 'utf-8');
 runIn(layerDir, 'sync -p');
 assert(existsSync(join(layerDir, 'CUSTOM_CLAUDE.md')), '项目级覆盖：sync -p 用项目级 claude.project（CUSTOM_CLAUDE.md）');
 assert(!existsSync(join(layerDir, 'CLAUDE.md')), '项目级覆盖：不再用全局默认的 CLAUDE.md');
 
 // 项目级新增 agent（全局没有的），sync -p 应合并进来自动生效
-layerAgents.push({ id: 'proj-only', name: 'ProjOnly', global: '~/.proj-only/global.md', project: 'PROJ_ONLY.md' });
-writeFileSync(join(layerDir, '.evokit', 'agents.json'), JSON.stringify(layerAgents, null, 2) + '\n', 'utf-8');
+layerCfg.agents.push({ id: 'proj-only', name: 'ProjOnly', global: '~/.proj-only/global.md', project: 'PROJ_ONLY.md' });
+writeFileSync(layerCfgPath, JSON.stringify(layerCfg, null, 2) + '\n', 'utf-8');
 runIn(layerDir, 'sync -p');
 assert(existsSync(join(layerDir, 'PROJ_ONLY.md')), '项目级新增 agent（全局无）在 sync -p 时生效');
 
@@ -286,9 +287,9 @@ const unknownAgent = runErr('status --agent claud');
 assert(unknownAgent.out.includes('claude'), '未知 agent 猜测提示 claude');
 
 // ── 7. 资源（resource）扩展 ──────────────────────────────
-console.log('\n【7. 资源模型：resources.json + 软链接】');
-// init 应已生成 resources.json
-assert(existsSync(join(fakeHome, '.evokit', 'resources.json')), 'resources.json 已生成');
+console.log('\n【7. 资源模型：settings.json 的 resources + 软链接】');
+// init 应已生成 settings.json（含 resources）
+assert(existsSync(join(fakeHome, '.evokit', 'settings.json')), 'settings.json 已生成');
 
 const resourcesOut = run('resources');
 assert(resourcesOut.includes('context'), 'resources 列表含默认 context 资源');
@@ -298,15 +299,15 @@ const skillDir = join(fakeHome, '.evokit', 'skills', 'my-skill');
 mkdirSync(skillDir, { recursive: true });
 writeFileSync(join(skillDir, 'SKILL.md'), '# 我的技能\n\n一处改动多处更新\n', 'utf-8');
 
-const resourcesPath = join(fakeHome, '.evokit', 'resources.json');
-const resources = JSON.parse(readFileSync(resourcesPath, 'utf-8'));
-resources.push({
+const resourcesPath = join(fakeHome, '.evokit', 'settings.json');
+const cfgRes = JSON.parse(readFileSync(resourcesPath, 'utf-8'));
+cfgRes.resources.push({
   id: 'my-skill',
   type: 'symlink',
   source: '~/.evokit/skills/my-skill',
   targets: ['~/.claude/skills/my-skill', '~/.codex/skills/my-skill'],
 });
-writeFileSync(resourcesPath, JSON.stringify(resources, null, 2) + '\n', 'utf-8');
+writeFileSync(resourcesPath, JSON.stringify(cfgRes, null, 2) + '\n', 'utf-8');
 
 const resourcesOut2 = run('resources');
 assert(resourcesOut2.includes('my-skill'), 'resources 列表出现新资源 my-skill');
@@ -338,7 +339,7 @@ const guardTarget = join(fakeHome, '.guard', 'skills', 'my-skill');
 mkdirSync(guardTarget, { recursive: true });
 writeFileSync(join(guardTarget, 'user-data.txt'), '重要数据\n', 'utf-8');
 const guardResources = JSON.parse(readFileSync(resourcesPath, 'utf-8'));
-guardResources.push({
+guardResources.resources.push({
   id: 'guard-skill',
   type: 'symlink',
   source: '~/.evokit/skills/my-skill',
@@ -357,7 +358,7 @@ mkdirSync(envHome, { recursive: true });
 
 const envResources = JSON.parse(readFileSync(resourcesPath, 'utf-8'));
 // 用 %VAR% 和 ${VAR} 写法声明一个新的 text 资源目标
-envResources.push({
+envResources.resources.push({
   id: 'env-test',
   type: 'text',
   source: '~/.evokit/context.md',
@@ -372,11 +373,11 @@ const envRun = execSync(`node "${CLI}" sync --resource env-test`, {
 assert(existsSync(join(envHome, 'claude.md')), '%VAR% 环境变量展开生效（Windows 写法）');
 assert(existsSync(join(envHome, 'codex.md')), '${VAR} 环境变量展开生效（三平台写法）');
 
-// 反斜杠写法：Windows 风格路径也应被归一化（在 agents.json 中写反斜杠）
-const agentsPath2 = join(fakeHome, '.evokit', 'agents.json');
-const agents2 = JSON.parse(readFileSync(agentsPath2, 'utf-8'));
-agents2.push({ id: 'backslash', name: 'Backslash', global: '~\\.backslash\\AGENTS.md', project: null });
-writeFileSync(agentsPath2, JSON.stringify(agents2, null, 2) + '\n', 'utf-8');
+// 反斜杠写法：Windows 风格路径也应被归一化（在 settings.json 的 agents 中写反斜杠）
+const agentsPath2 = join(fakeHome, '.evokit', 'settings.json');
+const cfg2 = JSON.parse(readFileSync(agentsPath2, 'utf-8'));
+cfg2.agents.push({ id: 'backslash', name: 'Backslash', global: '~\\.backslash\\AGENTS.md', project: null });
+writeFileSync(agentsPath2, JSON.stringify(cfg2, null, 2) + '\n', 'utf-8');
 run('sync --agent backslash');
 assert(
   existsSync(join(fakeHome, '.backslash', 'AGENTS.md')),
@@ -397,7 +398,7 @@ const remoteUrl = `http://127.0.0.1:${port}/rules.md`;
 
 // 新增一个 remote 资源（source 为 URL）
 const remoteResources = JSON.parse(readFileSync(resourcesPath, 'utf-8'));
-remoteResources.push({
+remoteResources.resources.push({
   id: 'team-rules',
   type: 'remote',
   source: remoteUrl,
@@ -422,7 +423,7 @@ assert(existsSync(cacheDir), '远程源缓存目录已创建');
 server.close();
 
 // ── 7d. 代理（HTTP 代理转发） ─────────────────────────────
-console.log('\n【7d. 代理：resources.json 的 proxy 字段】');
+console.log('\n【7d. 代理：settings.json resources 的 proxy 字段】');
 // 起一个本地 HTTP 代理 server：接收绝对 URI 请求并转发到目标
 const proxyContent = '# 通过代理拉取\n\n- 代理生效\n';
 const targetServer = createServer((req, res) => {
@@ -446,7 +447,7 @@ const proxyPort = proxyServer.address().port;
 
 // 新增一个带 proxy 字段的 remote 资源
 const proxyResources = JSON.parse(readFileSync(resourcesPath, 'utf-8'));
-proxyResources.push({
+proxyResources.resources.push({
   id: 'proxied-rules',
   type: 'remote',
   source: `http://127.0.0.1:${targetPort}/proxied.md`,
@@ -491,6 +492,36 @@ assert(invOut.includes('default.rules'), 'inventory 扫到 rules');
 assert(invOut.includes('【重复项】'), 'prompt 含「重复项」分析要求');
 assert(invOut.includes('【冲突项】'), 'prompt 含「冲突项」分析要求');
 assert(invOut.includes('【整理建议】'), 'prompt 含「整理建议」区块');
+
+// ── 7f. 统一配置 settings.json：三块结构 + prompts 覆盖 + cli 字段 ──
+console.log('\n【7f. 统一配置 settings.json：结构 + prompts 覆盖 + cli 字段】');
+const settingsFinal = JSON.parse(readFileSync(join(fakeHome, '.evokit', 'settings.json'), 'utf-8'));
+// 三块结构齐全
+assert(Array.isArray(settingsFinal.agents), 'settings.json 含 agents 数组');
+assert(Array.isArray(settingsFinal.resources), 'settings.json 含 resources 数组');
+assert(typeof settingsFinal.prompts === 'object' && settingsFinal.prompts.inventory, 'settings.json 含 prompts.inventory 模板');
+// 内置 agent 带 cli 字段（含 bin/args/outputFormat）
+const claudeCfg = settingsFinal.agents.find((a) => a.id === 'claude');
+assert(claudeCfg && claudeCfg.cli && claudeCfg.cli.bin === 'claude', '内置 claude 带 cli.bin');
+assert(claudeCfg.cli.args.includes('{prompt}'), 'claude cli.args 含 {prompt} 占位符');
+assert(claudeCfg.cli.outputFormat === 'text', 'claude cli.outputFormat 默认 text');
+
+// prompts 覆盖：改 settings.json 的 prompts.inventory 为自定义模板，inventory --prompt 应用新模板
+const customPromptTpl = '自定义模板：你是 {agent}，清单如下 {inventory}，请找冗余';
+const cfgPrompt = JSON.parse(readFileSync(join(fakeHome, '.evokit', 'settings.json'), 'utf-8'));
+cfgPrompt.prompts.inventory = customPromptTpl;
+writeFileSync(join(fakeHome, '.evokit', 'settings.json'), JSON.stringify(cfgPrompt, null, 2) + '\n', 'utf-8');
+const invOutCustom = run('inventory --prompt');
+assert(invOutCustom.includes('自定义模板'), 'prompts.inventory 覆盖生效（用自定义模板）');
+assert(invOutCustom.includes('demo-skill'), '自定义模板中 {inventory} 占位符被清单替换');
+assert(!invOutCustom.includes('【重复项】'), '自定义模板替换了默认的 5 区块要求');
+// {agent} 占位符在 --prompt 模式下替换为「（任意 agent）」提示词占位
+assert(invOutCustom.includes('（任意 agent）') || invOutCustom.includes('{agent}'), 'prompt 模板 {agent} 占位符处理正确');
+
+// 恢复默认 prompts，避免影响后续（无后续，但保持测试幂等）
+cfgPrompt.prompts.inventory = undefined;
+delete cfgPrompt.prompts.inventory;
+writeFileSync(join(fakeHome, '.evokit', 'settings.json'), JSON.stringify(cfgPrompt, null, 2) + '\n', 'utf-8');
 
 // ── 8. 清理 ──────────────────────────────────────────────
 console.log('\n【清理测试目录】');

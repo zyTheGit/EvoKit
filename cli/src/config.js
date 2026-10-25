@@ -1,9 +1,9 @@
-// 配置读写（agents.json / resources.json）与过滤器解析
+// 配置读写（settings.json：agents + resources + prompts 合流）与过滤器解析
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { AGENTS_FILE, RESOURCES_FILE, EVOKIT_DIR } from './paths.js';
-import { DEFAULT_AGENTS, DEFAULT_RESOURCES } from './defaults.js';
+import { CONFIG_FILE, EVOKIT_DIR } from './paths.js';
+import { DEFAULT_CONFIG } from './defaults.js';
 
 /** 读取 JSON 配置文件；不存在则用默认值生成一份（仅对全局配置自动生成） */
 function loadJson(file, defaults, label) {
@@ -32,30 +32,54 @@ function mergeById(base, override) {
   return [...map.values()];
 }
 
-/**
- * 读取 agents.json（支持项目级覆盖全局）。
- * @param {string} projectDir 项目目录；传入则读 <projectDir>/.evokit/agents.json 覆盖全局同名 id
- */
-export function loadAgents(projectDir) {
-  const global = loadJson(AGENTS_FILE, DEFAULT_AGENTS, 'agents.json');
-  if (!projectDir) return global;
-  const projFile = join(projectDir, '.evokit', 'agents.json');
-  if (!existsSync(projFile)) return global;
-  const proj = JSON.parse(readFileSync(projFile, 'utf-8'));
-  return mergeById(global, proj);
+/** 对象浅合并：override 里的同名 key 覆盖 base，base 有而 override 无的保留 */
+function mergeByKey(base, override) {
+  if (!override || typeof override !== 'object') return base;
+  return { ...base, ...override };
 }
 
 /**
- * 读取 resources.json（支持项目级覆盖全局）。
- * @param {string} projectDir 项目目录；传入则读 <projectDir>/.evokit/resources.json 覆盖全局同名 id
+ * 读取统一配置 settings.json（含 agents/resources/prompts），支持项目级覆盖全局。
+ * 返回 { agents, resources, prompts }。
+ *   - agents/resources：按 id 逐项合并（项目级覆盖全局同名 id）
+ *   - prompts：按 key 浅合并（项目级覆盖全局同名模板）
+ * @param {string} projectDir 项目目录；传入则读 <projectDir>/.evokit/settings.json 覆盖全局
  */
-export function loadResources(projectDir) {
-  const global = loadJson(RESOURCES_FILE, DEFAULT_RESOURCES, 'resources.json');
+export function loadConfig(projectDir) {
+  const global = loadJson(CONFIG_FILE, DEFAULT_CONFIG, 'settings.json');
   if (!projectDir) return global;
-  const projFile = join(projectDir, '.evokit', 'resources.json');
+  const projFile = join(projectDir, '.evokit', 'settings.json');
   if (!existsSync(projFile)) return global;
   const proj = JSON.parse(readFileSync(projFile, 'utf-8'));
-  return mergeById(global, proj);
+  return {
+    agents: mergeById(global.agents || [], proj.agents),
+    resources: mergeById(global.resources || [], proj.resources),
+    prompts: mergeByKey(global.prompts || {}, proj.prompts),
+  };
+}
+
+/**
+ * 读取 agents 列表（薄封装，兼容旧调用）。
+ * @param {string} projectDir 项目目录；传入则项目级覆盖全局
+ */
+export function loadAgents(projectDir) {
+  return loadConfig(projectDir).agents;
+}
+
+/**
+ * 读取 resources 列表（薄封装，兼容旧调用）。
+ * @param {string} projectDir 项目目录；传入则项目级覆盖全局
+ */
+export function loadResources(projectDir) {
+  return loadConfig(projectDir).resources;
+}
+
+/**
+ * 读取 prompts 模板（薄封装）。
+ * @param {string} projectDir 项目目录；传入则项目级覆盖全局
+ */
+export function loadPrompts(projectDir) {
+  return loadConfig(projectDir).prompts;
 }
 
 /** 解析 --<flag> 参数（含短别名），返回逗号分隔的 id 集合；未指定返回 null（=全部） */

@@ -2,7 +2,7 @@
 
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
-import { GLOBAL_SOURCE, RESOURCES_FILE, expandPath } from '../paths.js';
+import { GLOBAL_SOURCE, CONFIG_FILE, expandPath } from '../paths.js';
 import { loadAgents, loadResources, filterAgents, filterResources } from '../config.js';
 import { readSource, applyManagedBlock } from '../fs-utils.js';
 import { SYNCERS, resolveSyncer } from '../syncers.js';
@@ -67,5 +67,5 @@ export async function syncResources(filter) {
       }
     }
   }
-  console.log(`\n完成。资源定义：${RESOURCES_FILE}`);
+  console.log(`\n完成。资源定义：${CONFIG_FILE}`);
 }

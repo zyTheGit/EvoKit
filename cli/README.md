@@ -16,8 +16,8 @@ evokit sync
 ## 用法
 
 ```bash
-evokit init                 # 初始化全局源 + agents.json + resources.json
-evokit init --project       # 初始化当前项目 .evokit/（context.md + agents.json + resources.json）
+evokit init                 # 初始化全局源 + settings.json
+evokit init --project       # 初始化当前项目 .evokit/（context.md + settings.json）
 evokit agents               # 列出支持的所有 agent
 evokit resources            # 列出管理的所有资源（文本 / 软链接）
 evokit inventory            # 盘点知识库 + 委托 agent 找出冗余（调 claude/pi/codex CLI）
@@ -51,45 +51,67 @@ evokit uninstall --project  # 卸载当前项目入口（移除项目级托管�
 
 ### 新增 / 自定义 agent（零代码改动）
 
-agent 列表由 `~/.evokit/agents.json` 驱动，**新增工具无需改 CLI 代码**：
+agent 列表由 `~/.evokit/settings.json` 的 `agents` 驱动，**新增工具无需改 CLI 代码**：
 
-```json
-[
-  { "id": "cursor", "name": "Cursor", "global": "~/.cursor/rules/global.mdc", "project": ".cursor/rules/project.mdc" }
-]
+```jsonc
+{
+  "agents": [
+    { "id": "cursor", "name": "Cursor", "global": "~/.cursor/rules/global.mdc", "project": ".cursor/rules/project.mdc",
+      "cli": { "bin": "cursor-agent", "args": ["-p", "{prompt}"], "timeout": 120 } }
+  ]
+}
 ```
 
 - `id`：`--agent` 引用的短名
 - `global`：该 agent 的全局入口文件路径（`~` 会自动展开）
 - `project`：该 agent 的项目级入口相对路径
+- `cli`（可选）：CLI 调用配置，供 `inventory` 委托 agent 分析用（见「CLI 调用配置」）
 
 编辑后直接 `evokit agents` 查看、`evokit sync --agent cursor` 同步，无需改代码。
 
+### CLI 调用配置（`agents[].cli`）
+
+`inventory` 需要调用各 agent 的 CLI 让它们自己找冗余。`cli` 字段让调用方式可配置（零代码改动）：
+
+| 字段 | 说明 |
+| --- | --- |
+| `bin` | 命令名（如 `claude`/`pi`/`codex`） |
+| `binPath` | CLI 绝对路径（可选，解决 fnm 安装目录不在 PATH 的问题） |
+| `args` | 参数数组，`{prompt}` 占位符表示 prompt 位置 |
+| `model` | 指定模型（自动映射为 `--model`） |
+| `provider` | 指定供应商（codex 映射 `--model-provider`，claude/pi 忽略并告警） |
+| `timeout` | 超时秒数（默认 120） |
+| `outputFormat` | `text`（默认，原样回显）/ `json`（结构化解析，claude 已支持） |
+
+> `model`/`provider`/`outputFormat` 都是**统一字段**，EvoKit 内部映射到各家的实际参数，你无需记三家差异。
+
 ### 同步「规则 / skill」等更多资源（零代码改动）
 
-不止 `context.md`。要同步**规则文件**或**用软链接同步整个 skill 目录**，改 `~/.evokit/resources.json` 即可，无需改 CLI 代码：
+不止 `context.md`。要同步**规则文件**或**用软链接同步整个 skill 目录**，改 `~/.evokit/settings.json` 的 `resources` 即可，无需改 CLI 代码：
 
 ```jsonc
-[
-  { "id": "context", "type": "text", "source": "~/.evokit/context.md",
-    "targets": ["~/.claude/CLAUDE.md", "~/.pi/agent/APPEND_SYSTEM.md"] },
+{
+  "resources": [
+    { "id": "context", "type": "text", "source": "~/.evokit/context.md",
+      "targets": ["~/.claude/CLAUDE.md", "~/.pi/agent/APPEND_SYSTEM.md"] },
 
-  { "id": "commit-rule", "type": "text", "source": "~/.evokit/rules/commit.md",
-    "targets": ["~/.claude/rules/commit.md", "~/.codex/rules/commit.md"] },
+    { "id": "commit-rule", "type": "text", "source": "~/.evokit/rules/commit.md",
+      "targets": ["~/.claude/rules/commit.md", "~/.codex/rules/commit.md"] },
 
-  { "id": "my-skill", "type": "symlink", "source": "~/.evokit/skills/my-skill",
-    "targets": ["~/.claude/skills/my-skill", "~/.codex/skills/my-skill"] },
+    { "id": "my-skill", "type": "symlink", "source": "~/.evokit/skills/my-skill",
+      "targets": ["~/.claude/skills/my-skill", "~/.codex/skills/my-skill"] },
 
-  { "id": "team-rules", "type": "remote", "source": "https://example.com/team-rules.md",
-    "targets": ["~/.claude/team-rules.md"] }
-]
+    { "id": "team-rules", "type": "remote", "source": "https://example.com/team-rules.md",
+      "targets": ["~/.claude/team-rules.md"] }
+  ]
+}
 ```
 
 - `type: "text"`：把 `source` 内容写入各 `target` 的托管块（现有行为）
 - `type: "symlink"`：把 `source` 目录**软链接**到各 `target`（Windows 用 junction）—— **一处改动，多个工具实时生效，无需重新 sync**
 - `type: "remote"`：`source` 是 `http(s)://` URL，同步时**拉取远程内容**写入目标（零依赖，用 Node 内置 `fetch`）
 
-编辑后 `evokit resources` 查看、`evokit sync --resource my-skill` 同步。新增一种资源类型，只需给 `resources.json` 加一条，代码零改动。
+编辑后 `evokit resources` 查看、`evokit sync --resource my-skill` 同步。新增一种资源类型，只需给 `settings.json` 的 `resources` 加一条，代码零改动。
 
 > **软链接数据保护**：同步软链接时，若目标位置已是一个**真实目录**（含用户数据），会**拒绝覆盖并报错**，绝不误删。只有目标是旧软链接/junction 时才会替换。
 
@@ -130,37 +152,61 @@ agent 列表由 `~/.evokit/agents.json` 驱动，**新增工具无需改 CLI 代
 
 | 作用域 | 源文件 | 同步目标 |
 | --- | --- | --- |
-| 个人全局 | `~/.evokit/context.md` | 由 `~/.evokit/agents.json` 决定（默认 `~/.claude/CLAUDE.md`、`~/.pi/agent/APPEND_SYSTEM.md`、`~/.codex/AGENTS.md`） |
-| 项目级 | `<project>/.evokit/context.md` | 由 `<project>/.evokit/agents.json` 决定（`project` 字段，默认 `CLAUDE.md`、`APPEND_SYSTEM.md`、`AGENTS.md`） |
+| 个人全局 | `~/.evokit/context.md` | 由 `~/.evokit/settings.json` 的 `agents` 决定（默认 `~/.claude/CLAUDE.md`、`~/.pi/agent/APPEND_SYSTEM.md`、`~/.codex/AGENTS.md`） |
+| 项目级 | `<project>/.evokit/context.md` | 由 `<project>/.evokit/settings.json` 的 `agents` 决定（`project` 字段，默认 `CLAUDE.md`、`APPEND_SYSTEM.md`、`AGENTS.md`） |
 
 ## 配置文件
+
+统一配置 `~/.evokit/settings.json`，三个顶层块：
+
+| 块 | 作用 |
+| --- | --- |
+| `agents` | agent 目标清单（`id/name/global/project/cli`），新增工具改这里 |
+| `resources` | 资源清单（`type=text/symlink/remote`），同步规则/skill 改这里 |
+| `prompts` | 内置提示词模板（`inventory` 等），用户只覆盖同名 key，未覆盖仍用默认 |
 
 | 文件 | 作用 |
 | --- | --- |
 | `~/.evokit/context.md` | 全局单一事实源（canonical） |
-| `~/.evokit/agents.json` | agent 目标清单，新增工具改这里即可 |
-| `~/.evokit/resources.json` | 资源清单（type=text/symlink），同步规则/skill 改这里即可 |
-| `<project>/.evokit/agents.json` | **项目级 agent 覆盖**（可选，按 id 覆盖全局） |
-| `<project>/.evokit/resources.json` | **项目级资源覆盖**（可选，按 id 覆盖全局） |
+| `~/.evokit/settings.json` | 统一配置（agents + resources + prompts） |
+| `<project>/.evokit/settings.json` | **项目级覆盖**（可选，按 id/key 覆盖全局） |
 
 ### 配置分层（项目级覆盖全局）
 
-`agents.json` / `resources.json` 支持**项目级覆盖全局**，采用**按 id 逐项合并**：
+`settings.json` 支持**项目级覆盖全局**，采用**按 id/key 逐项合并**：
 
-- `evokit init --project` 会生成项目级 `<project>/.evokit/context.md` **以及** `agents.json`、`resources.json`（默认等于全局，可自行增删）
-- 项目级配置文件里的条目，**按 id 覆盖**全局同名条目（如把 `claude` 的 `project` 入口改成自定义路径）
+- `evokit init --project` 会生成项目级 `<project>/.evokit/context.md` **以及** `settings.json`（默认等于全局，可自行增删）
+- 项目级配置里的条目，**按 id 覆盖**全局同名条目（如把 `claude` 的 `project` 入口改成自定义路径）；`prompts` 按 key 覆盖
 - 全局有、项目级没写的条目**仍然生效**；项目级新增的条目（全局没有的）**自动并入**
 - 项目级命令（`sync -p` / `check -p` / `status -p` / `uninstall -p`）读取的是**合并后**的配置
 
-**示例**：某项目想把 Claude Code 的入口改成 `CLAUDE.local.md`（其余沿用全局），只需在 `<project>/.evokit/agents.json` 里写：
+**示例**：某项目想把 Claude Code 的入口改成 `CLAUDE.local.md`（其余沿用全局），只需在 `<project>/.evokit/settings.json` 里写：
 
 ```json
-[
-  { "id": "claude", "name": "Claude Code", "global": "~/.claude/CLAUDE.md", "project": "CLAUDE.local.md" }
-]
+{
+  "agents": [
+    { "id": "claude", "name": "Claude Code", "global": "~/.claude/CLAUDE.md", "project": "CLAUDE.local.md" }
+  ]
+}
 ```
 
 这样 `evokit sync -p` 只会把 claude 的项目入口改成 `CLAUDE.local.md`，pi、codex 等其他 agent 仍沿用全局配置。
+
+### 自定义提示词（`prompts`）
+
+`inventory` 的内置整理 prompt 可自定义。系统内置一套**完整默认**，你的配置只**覆盖**想改的 key：
+
+```jsonc
+{
+  "prompts": {
+    "inventory": "你是 {agent}，做冗余体检。清单：\n{inventory}\n请找重复/冲突/断链，输出报告。"
+  }
+}
+```
+
+- 占位符 `{agent}`（agent 名）、`{inventory}`（扫描清单）在运行时替换
+- 不写 `prompts` 时用内置默认，行为与默认完全一致
+- 未来新 prompt（如裁剪、漂移）也进 `prompts`，同样「默认 + 覆盖」
 
 ### 知识库冗余体检（inventory）
 
@@ -198,7 +244,7 @@ evokit inventory --prompt         # 只生成 prompt，不调 CLI（调试/手�
 
 > **最佳实践**：跨设备/跨平台共享同一份配置时，优先用 `~` 和正斜杠（如 `~/.claude/CLAUDE.md`），避免硬编码 `C:\` 或 `/home/foo` 这类平台专属绝对路径。环境变量未定义时保留原文，方便排查。
 >
-> **相对路径提醒**：`agents.json` 的 `global` 和 `resources.json` 的 `source`/`targets` 建议用 `~` 开头或绝对路径，避免相对路径被解析到 cwd 造成歧义。项目级入口（`agents.json` 的 `project` 字段）是例外，它固定基于项目目录拼接，不经过 `expandPath`。
+> **相对路径提醒**：`settings.json` 的 `agents[].global` 和 `resources[].source/targets` 建议用 `~` 开头或绝对路径，避免相对路径被解析到 cwd 造成歧义。项目级入口（`agents[].project` 字段）是例外，它固定基于项目目录拼接，不经过 `expandPath`。
 >
 > **输出统一**：`expandPath` 在展开 `~`/环境变量/反斜杠后，最后统一 `path.resolve` 规范化，保证输出路径**始终是当前平台的标准形式**（Windows 反斜杠、macOS/Linux 正斜杠），不会出现正斜杠/反斜杠混用。
 
@@ -257,8 +303,8 @@ cli/
 ├── package.json
 └── src/
     ├── paths.js        # 路径常量 + expandPath 跨平台路径展开
-    ├── defaults.js     # 默认 agent / 资源 / 源内容
-    ├── config.js       # agents.json / resources.json 读写 + 过滤器
+    ├── defaults.js     # 默认配置（agents/resources/prompts）+ 源内容
+    ├── config.js       # settings.json 读写 + 过滤器
     ├── fs-utils.js     # 文件工具（托管块、软链接、ensureSource）
     ├── syncers.js      # 同步器分派（text / symlink / remote）
     ├── remote.js       # 远程源拉取（内置 fetch + HTTP CONNECT 代理，本地缓存）
@@ -277,9 +323,9 @@ cli/
 
 | 模块 | 职责 |
 | --- | --- |
-| `paths.js` | `HOME`、`EVOKIT_DIR`、各文件路径常量、`BEGIN`/`END` 标记、`expandPath` |
-| `defaults.js` | `DEFAULT_AGENTS`、`DEFAULT_RESOURCES`、`DEFAULT_CONTEXT` |
-| `config.js` | `loadAgents`、`loadResources`、`parseAgentFilter`、`parseResourceFilter`、过滤器 |
+| `paths.js` | `HOME`、`EVOKIT_DIR`、`CONFIG_FILE`、`BEGIN`/`END` 标记、`expandPath` |
+| `defaults.js` | `DEFAULT_CONFIG`（`DEFAULT_AGENTS`、`DEFAULT_RESOURCES`、`DEFAULT_PROMPTS`）、`DEFAULT_CONTEXT` |
+| `config.js` | `loadConfig`、`loadAgents`、`loadResources`、`loadPrompts`、过滤器 |
 | `fs-utils.js` | `readSource`、`applyBlock`、`applyManagedBlock`、`ensureSource`、`makeSymlink` |
 | `syncers.js` | `SYNCERS` 分派、`syncText`、`syncSymlink`、`syncRemote`、`resolveSyncer` |
 | `remote.js` | `fetchRemote`、`isRemote`、`resolveProxy`（远程源拉取 + 代理 + 本地缓存） |
@@ -302,4 +348,4 @@ cli/
 node test-local.mjs        # 隔离测试（EVOKIT_HOME 重定向到临时目录）
 ```
 
-覆盖 init / sync / check / status / uninstall（含项目级 check/status/uninstall）/ agents / resources / inventory、`--agent`/`--resource` 过滤、位置参数回退、错误提示意图猜测、新增 agent/资源零代码改动、软链接、跨平台路径展开、远程源、代理、数据保护（sync 保留块外用户内容）、配置分层等 78 项断言。
+覆盖 init / sync / check / status / uninstall（含项目级 check/status/uninstall）/ agents / resources / inventory、`--agent`/`--resource` 过滤、位置参数回退、错误提示意图猜测、新增 agent/资源零代码改动、软链接、跨平台路径展开、远程源、代理、数据保护（sync 保留块外用户内容）、配置分层、统一配置（settings.json 三块结构 + prompts 覆盖 + cli 字段）等 87 项断言。

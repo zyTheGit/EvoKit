@@ -3,7 +3,8 @@
 import { existsSync, readdirSync, lstatSync, readlinkSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { HOME } from '../paths.js';
-import { loadAgents } from '../config.js';
+import { loadAgents, loadPrompts } from '../config.js';
+import { DEFAULT_PROMPTS } from '../defaults.js';
 import { detectAgentClis, runAgentCli } from '../agents-cli.js';
 
 /** 格式化文件大小 */
@@ -174,25 +175,19 @@ function serializeInventory(scan) {
   return lines.join('\n');
 }
 
-/** 生成通用整理 prompt（骨架对每个 agent 相同，只替换 agent 名 + 清单） */
+/**
+ * 生成通用整理 prompt。
+ * 优先读配置 settings.json 的 prompts.inventory 模板（可自定义/覆盖），
+ * 无配置则用内置默认模板；占位符 {agent}/{inventory} 替换为实际值。
+ */
 function buildPrompt(agentName, inventoryText) {
-  return `你是 ${agentName}，正在做一次自己留存知识库的冗余体检。
-
-下面是你当前留存的知识库清单（含路径、大小、修改时间、软链接指向）：
-
-${inventoryText}
-
-请帮我找出并整理以下冗余，输出一份结构化 Markdown 报告：
-1. 【重复项】同名或内容高度相似的 skill/规则，散在多处（列出位置与差异）
-2. 【冲突项】对同一件事给出不同/矛盾规则的提示词
-3. 【过期/断链】软链接指向不存在的源、长期未更新的项
-4. 【可清理缓存】体积大或明显冗余的历史/缓存/会话文件
-5. 【整理建议】按优先级给出具体的合并/删除/统一建议
-
-要求：
-- 只读分析，不要修改任何文件
-- 输出格式固定为上面 5 个区块
-- 每条冗余标注：涉及路径 + 问题说明 + 建议动作`;
+  const prompts = loadPrompts();
+  const tpl = prompts.inventory || DEFAULT_PROMPTS.inventory;
+  return tpl.replace(/\{(\w+)\}/g, (m, key) => {
+    if (key === 'agent') return agentName;
+    if (key === 'inventory') return inventoryText;
+    return m; // 未识别的占位符保留原文，便于排错
+  });
 }
 
 /**
@@ -231,6 +226,9 @@ export function inventory(filter = null, promptOnly = false) {
     console.log(`（正在调用 \`${cli.bin}\` 分析，最长等待 120 秒…）\n`);
     const prompt = buildPrompt(cli.name, invText);
     const result = runAgentCli(cli, prompt);
+    if (result.warnings && result.warnings.length) {
+      for (const w of result.warnings) console.log(`（提示：${w}）`);
+    }
     if (result.ok) {
       console.log(result.output);
       called++;

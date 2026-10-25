@@ -6,14 +6,12 @@
  *   - 个人全局：~/.evokit/context.md          → 全局入口（所有项目生效）
  *   - 项目级：  <project>/.evokit/context.md   → 该项目入口（仅该项目生效）
  *
- * Agent 目标（可配置，无需改代码）：
- *   - 配置文件：~/.evokit/agents.json
+ * Agent 目标 / 资源 / 提示词（统一配置，可自定义，无需改代码）：
+ *   - 配置文件：~/.evokit/settings.json
  *   - 内置默认：claude / pi / codex（首次运行自动生成）
- *   - 新增 agent：编辑 agents.json 加一条即可
- *
- * 资源（可配置，无需改代码）：
- *   - 配置文件：~/.evokit/resources.json
- *   - type: text（托管块）/ symlink（软链接）
+ *   - agents：同步目标 + CLI 调用（cli 字段：bin/binPath/args/model/provider/timeout/outputFormat）
+ *   - resources：type=text（托管块）/ symlink（软链接）/ remote（远程拉取）
+ *   - prompts：内置提示词模板（用户配置只覆盖同名 key，未覆盖仍用默认）
  *
  * 用法：
  *   evokit agents             查看支持的 agent 列表
@@ -21,8 +19,8 @@
  *   evokit inventory          盘点知识库 + 委托 agent 找冗余（调 claude/pi/codex CLI）
  *   evokit inventory --agent <id>  只让指定 agent 整理
  *   evokit inventory --prompt 只生成通用整理 prompt，不调 CLI
- *   evokit init               初始化全局源 + agents.json + resources.json
- *   evokit init --project     初始化当前项目 .evokit/（context.md + agents.json + resources.json）
+ *   evokit init               初始化全局源 + settings.json
+ *   evokit init --project     初始化当前项目 .evokit/（context.md + settings.json）
  *   evokit sync               同步所有资源到所有 agent
  *   evokit sync --resource <id>  只同步指定资源
  *   evokit sync --agent <id>  只同步指定 agent
@@ -40,8 +38,8 @@
  *
  * 模块结构（cli/src/）：
  *   paths.js     路径常量 + 跨平台路径展开
- *   defaults.js  默认 agent/资源/源内容
- *   config.js    agents.json / resources.json 读写与过滤器
+ *   defaults.js  默认配置（agents/resources/prompts）+ 源内容
+ *   config.js    settings.json 读写与过滤器
  *   fs-utils.js  文件工具（托管块、软链接）
  *   syncers.js   同步器分派（text/symlink/remote）
  *   remote.js    远程源拉取 + 代理
