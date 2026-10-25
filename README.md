@@ -1,152 +1,52 @@
-<div align="center">
+# EvoKit
 
-[**English**](README.en.md) · [**中文**](README.md)
+**个人多工具偏好同步工具（零依赖 CLI）。一份偏好，同步到多个 AI 工具，不用重复维护。**
 
-<br>
+> 本项目曾定位为"AI 编程助手的项目上下文引擎"（v1.x，四助手适配器 + 知识引擎）。经方向研究、四人评审、证据与竞品核查后，确认该方向已被更成熟的开源项目（rulesync、Ruler、ctxlint）覆盖。现收敛为个人自用的轻量 CLI。
 
-# 🧠⚡ EvoKit
-
-**项目上下文引擎 — 让 AI 秒懂项目**
-
-_持久化 AI 不可能知道的项目/个人专属知识_
-
-[![Version](https://img.shields.io/github/v/release/zyTheGit/EvoKit?include_prereleases&style=flat-square&label=版本)](CHANGELOG.md)
-[![License](https://img.shields.io/github/license/zyTheGit/EvoKit?style=flat-square)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/zyTheGit/EvoKit?style=flat-square)](https://github.com/zyTheGit/EvoKit/stargazers)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zyTheGit/EvoKit/ci.yml?branch=main&style=flat-square)](https://github.com/zyTheGit/EvoKit/actions)
-[![npm](https://img.shields.io/npm/v/%40zythegit%2Fevokit?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@zythegit/evokit)
-
----
-
-**EvoKit** 是一个开源的**项目上下文引擎**，专为 AI 编程助手设计。它从对话中提取项目知识、构建可检索索引、自动检测过期信息——让 Claude Code、Codex、OpenCode 等 AI 工具**秒懂你的项目**，无需每次从零开始。
-
-| 核心能力        | 说明                                                     |
-| --------------- | -------------------------------------------------------- |
-| 💬 **对话提取** | 从自然对话中自动提取项目知识，无需手动编写               |
-| 📇 **知识索引** | 构建结构化索引，AI 按需检索，精准命中上下文              |
-| 🕐 **过期检测** | 自动标记过时知识，避免 AI 使用失效信息                   |
-| 🚚 **一键迁移** | 跨机器无缝迁移学习数据                                   |
-| 🔒 **隐私优先** | 所有数据本地存储，无云端、无遥测                         |
-| 🤖 **多智能体** | 适配器架构，支持 Claude Code / Codex / OpenCode / Pi CLI |
-
-</div>
-
----
-
-## 快速开始
-
-### 前置条件
-
-- [Claude Code](https://claude.ai/code) ≥ 2.1.220（或其他支持钩子/工具的 AI 编程助手）
-- **bash 4.0+**（Linux / macOS / WSL / Git Bash）
-- **Node.js ≥ 20.12.0**
-
-### 安装
+## 安装
 
 ```bash
-# npm 安装（推荐）
-npm install -g @zythegit/evokit
-evokit init
+# 全局安装
+npm install -g @evokit/cli
 
-# Homebrew 安装
-brew tap zyTheGit/homebrew-evokit
-brew install evokit
-
-# 一行命令安装（交互式选择适配器）
-curl -fsSL https://raw.githubusercontent.com/zyTheGit/EvoKit/main/bin/install.sh | bash
+# 或 npx 直接跑（无需安装）
+npx @evokit/cli sync
 ```
 
-安装时可通过交互式菜单选择适配器：
-
-| 适配器           | 安装目录               |
-| ---------------- | ---------------------- |
-| **Claude Code**  | `~/.claude/`           |
-| **Codex CLI**    | `~/.codex/`            |
-| **OpenCode CLI** | `.opencode/`（项目级） |
-| **Pi CLI**       | `~/.pi/agent/`         |
-
-也支持 `--adapter claude,codex` 参数跳过菜单（适用于 CI 自动化）。
-
-### 升级
-
-已安装 EvoKit 的老用户，新版本发布后更新模板文件：
+## 用法
 
 ```bash
-evokit update        # 更新所有已安装适配器
+evokit init                 # 初始化全局源 ~/.evokit/context.md
+evokit init --project       # 初始化当前项目 .evokit/context.md
+evokit sync                 # 同步全局规则到所有入口
+evokit sync --project       # 同步项目规则到该项目入口
+evokit check                # 检查一致性 + ctxlint 内容健康检查
 ```
 
-update 会自动覆盖框架文件（hooks、rules、commands、agents、skills），保留用户数据（CLAUDE.md、MEMORY.md、memory/）。
+## 单一事实源
 
-### CLI 命令
+| 作用域 | 源文件 | 同步目标 |
+| --- | --- | --- |
+| 个人全局 | `~/.evokit/context.md` | `~/.claude/CLAUDE.md`、`~/.pi/agent/APPEND_SYSTEM.md`、`~/.codex/AGENTS.md` |
+| 项目级 | `<project>/.evokit/context.md` | `<project>/CLAUDE.md`、`<project>/AGENTS.md` |
 
-```bash
-evokit init         初始化安装
-evokit update       升级模板文件
-evokit migrate      从 v0 迁移到 v1.0
-evokit learn        确认/声明知识（--git-history 从提交历史提取约定候选）
-evokit doctor       系统健康检查（--fix 重建漂移索引 / 合并全等重复）
-evokit review       复审低置信度知识条目
-```
+## 设计原则
 
-### 验证
+- **零运行时依赖**，纯 Node.js（>=18）
+- **本地优先**，无云端、无遥测
+- **不重复造轮子**：内容健康检查复用开源的 `@ctxlint/ctxlint`（npx 按需拉取，不内置）
 
-启动 AI 助手，运行：
+## 目录结构
 
 ```
-/evokit-boot
+cli/
+  evokit.mjs     # CLI 源码（零依赖）
+  package.json   # 包配置（@evokit/cli）
+  README.md      # 使用说明
+docs/zh/         # 方向决策记录（研究→评审→终判→路线图）
 ```
-
----
-
-## 内置命令
-
-安装后在 AI 助手内可用以下斜杠命令：
-
-| 命令             | 运行时机     | 功能                         |
-| ---------------- | ------------ | ---------------------------- |
-| `/evokit-boot`   | 每次会话启动 | 验证系统完整性               |
-| `/evokit-learn`  | 对话结束后   | 提取知识、检测过期条目       |
-| `/evokit-review` | 提交代码前   | 通过审查员智能体进行代码审查 |
-
----
-
-## 适配器版本
-
-| 适配器           | 版本   | 助手版本兼容                  |
-| ---------------- | ------ | ----------------------------- |
-| **Claude Code**  | v1.0.0 | Claude Code ≥ 2.1.220（CLI）  |
-| **Codex CLI**    | v0.4.0 | Codex CLI ≥ 0.145.0（OpenAI） |
-| **OpenCode CLI** | v0.5.0 | OpenCode CLI ≥ 1.18.4         |
-| **Pi CLI**       | v0.6.0 | Pi CLI ≥ 0.82.0               |
-
----
-
-## 文档
-
-| 文档                                       | 说明                     |
-| ------------------------------------------ | ------------------------ |
-| [ARCHITECTURE.md](docs/zh/ARCHITECTURE.md) | 四层架构深度解析         |
-| [EVOLUTION.md](docs/zh/EVOLUTION.md)       | 进化流水线详解           |
-| [INSTALL.md](docs/zh/INSTALL.md)           | 跨平台安装指南           |
-| [MIGRATION.md](docs/zh/MIGRATION.md)       | 跨机迁移指南             |
-| [CUSTOMIZE.md](docs/zh/CUSTOMIZE.md)       | 自定义规则、智能体、命令 |
-| [MULTI_AGENT.md](docs/zh/MULTI_AGENT.md)   | 多智能体适配器架构       |
-| [FAQ.md](docs/zh/FAQ.md)                   | 常见问题                 |
-| [ROADMAP.md](ROADMAP.md)                   | 路线图与规划             |
-
----
-
-## 贡献
-
-欢迎贡献代码！请阅读[贡献指南](CONTRIBUTING.md)。
-
-[更新日志](CHANGELOG.md) · [路线图](ROADMAP.md) · [贡献指南](CONTRIBUTING.md)
-
----
 
 ## 许可证
 
-MIT © 2026 EvoKit Contributors
-
-_用 ❤️ 为开源 AI 生态构建。_
+MIT

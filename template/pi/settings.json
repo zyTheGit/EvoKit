@@ -1,9 +1,0 @@
-{
-  "$schema": "https://pi.dev/config.json",
-  "skills": ["__HOME__/.pi/agent/skills/evokit"],
-  "extensions": [
-    "__HOME__/.pi/agent/extensions/evokit-lifecycle.ts",
-    "__HOME__/.pi/agent/extensions/evokit-boot.ts",
-    "__HOME__/.pi/agent/extensions/evokit-learn.ts"
-  ]
-}

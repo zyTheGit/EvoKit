@@ -1,33 +1,15 @@
 # EvoKit — .gitignore
 
-# Personal learning data (DO NOT COMMIT)
-template/memory/corrections.jsonl
-template/memory/observations.jsonl
-template/memory/violations.jsonl
-template/memory/sessions.jsonl
+# 个人/本地数据（不提交）
+~/.evokit/
+.evokit/
 
-# User's own .claude directory (personal) — but track rules/
-.claude/*
-!.claude/rules/
-
-# Adapter test residuals (installed instances, not source)
-.codex/
-.pi/
-AGENTS.md
-settings.json
-
-# Temporary test reports
-docs/TEST_REPORT_*.md
-
-# System files
+# 系统文件
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 *~
-
-# Codegraph local index
-.codegraph/
 
 # IDE
 .idea/
@@ -36,27 +18,16 @@ Thumbs.db
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Desktop.ini
 
 # Logs
 *.log
 
-# Build output
-dist/
+# Node
 node_modules/
-
-# Test output
-coverage/
-
-# npm
 *.tgz
 
-# Environment files
+# 环境文件
 .env
 .env.local
 __pycache__/
