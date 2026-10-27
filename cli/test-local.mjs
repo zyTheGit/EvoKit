@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, mkdtempSync, lstatSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execSync, exec } from 'node:child_process';
+import { execSync, exec, spawnSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -46,6 +46,21 @@ const run = (args) =>
   execSync(`node "${CLI}" ${args}`, { env: { ...process.env, EVOKIT_HOME: fakeHome }, stdio: 'pipe' }).toString();
 const runIn = (cwd, args) =>
   execSync(`node "${CLI}" ${args}`, { env: { ...process.env, EVOKIT_HOME: fakeHome }, cwd, stdio: 'pipe' }).toString();
+const runCapture = (args, env = {}) => {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    env: { ...process.env, EVOKIT_HOME: fakeHome, EVOKIT_DEBUG: '', ...env },
+    encoding: 'utf-8',
+  });
+  return { stdout: result.stdout, stderr: result.stderr, code: result.status };
+};
+const runCaptureIn = (cwd, args, env = {}) => {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    env: { ...process.env, EVOKIT_HOME: fakeHome, EVOKIT_DEBUG: '', ...env },
+    cwd,
+    encoding: 'utf-8',
+  });
+  return { stdout: result.stdout, stderr: result.stderr, code: result.status };
+};
 const runErr = (args) => {
   try {
     return { out: run(args), code: 0 };
@@ -489,9 +504,9 @@ const invOut = run('inventory --prompt');
 assert(invOut.includes('知识库清单'), 'inventory --prompt 生成通用 prompt（含清单）');
 assert(invOut.includes('demo-skill'), 'inventory 扫到 skill（含软链接指向源）');
 assert(invOut.includes('default.rules'), 'inventory 扫到 rules');
-assert(invOut.includes('【重复项】'), 'prompt 含「重复项」分析要求');
-assert(invOut.includes('【冲突项】'), 'prompt 含「冲突项」分析要求');
-assert(invOut.includes('【整理建议】'), 'prompt 含「整理建议」区块');
+assert(invOut.includes('### 1. 重复项'), 'prompt 含「重复项」分析要求');
+assert(invOut.includes('### 2. 冲突项'), 'prompt 含「冲突项」分析要求');
+assert(invOut.includes('### 5. 整理建议'), 'prompt 含「整理建议」区块');
 
 // ── 7f. 统一配置 settings.json：三块结构 + prompts 覆盖 + cli 字段 ──
 console.log('\n【7f. 统一配置 settings.json：结构 + prompts 覆盖 + cli 字段】');
@@ -514,7 +529,7 @@ writeFileSync(join(fakeHome, '.evokit', 'settings.json'), JSON.stringify(cfgProm
 const invOutCustom = run('inventory --prompt');
 assert(invOutCustom.includes('自定义模板'), 'prompts.inventory 覆盖生效（用自定义模板）');
 assert(invOutCustom.includes('demo-skill'), '自定义模板中 {inventory} 占位符被清单替换');
-assert(!invOutCustom.includes('【重复项】'), '自定义模板替换了默认的 5 区块要求');
+assert(!invOutCustom.includes('### 1. 重复项'), '自定义模板替换了默认的 5 区块要求');
 // {agent} 占位符在 --prompt 模式下替换为「（任意 agent）」提示词占位
 assert(invOutCustom.includes('（任意 agent）') || invOutCustom.includes('{agent}'), 'prompt 模板 {agent} 占位符处理正确');
 
@@ -522,6 +537,163 @@ assert(invOutCustom.includes('（任意 agent）') || invOutCustom.includes('{ag
 cfgPrompt.prompts.inventory = undefined;
 delete cfgPrompt.prompts.inventory;
 writeFileSync(join(fakeHome, '.evokit', 'settings.json'), JSON.stringify(cfgPrompt, null, 2) + '\n', 'utf-8');
+
+// ── 7g. 统一 debug：优先级、stderr 隔离与安全摘要 ──────────
+console.log('\n【7g. 统一 debug 配置与日志】');
+const debugSettingsPath = join(fakeHome, '.evokit', 'settings.json');
+const debugOriginal = readFileSync(debugSettingsPath, 'utf-8');
+const debugDefault = runCapture(['agents']);
+assert(!debugDefault.stderr.includes('[evokit:debug]'), '默认无 debug 输出');
+assert(!debugDefault.stdout.includes('[evokit:debug]'), '默认 stdout 无 debug 前缀');
+
+const debugCli = runCapture(['--debug', 'agents']);
+assert(debugCli.stderr.includes('[evokit:debug]') && debugCli.stderr.includes('[cli] start'), '--debug 开启入口调试日志');
+assert(!debugCli.stdout.includes('[evokit:debug]') && debugCli.stdout.includes('claude'), 'debug 走 stderr，不污染正常 stdout');
+const debugEnv = runCapture(['agents'], { EVOKIT_DEBUG: 'true' });
+assert(debugEnv.stderr.includes('[evokit:debug]'), 'EVOKIT_DEBUG=true 开启 debug');
+const debugEnvOff = runCapture(['agents'], { EVOKIT_DEBUG: '0' });
+assert(!debugEnvOff.stderr.includes('[evokit:debug]'), 'EVOKIT_DEBUG=0 关闭 debug');
+
+const debugCfg = JSON.parse(debugOriginal);
+debugCfg.debug = true;
+writeFileSync(debugSettingsPath, JSON.stringify(debugCfg, null, 2) + '\n', 'utf-8');
+const debugSettings = runCapture(['agents']);
+assert(debugSettings.stderr.includes('[config] loaded global settings'), 'settings.json debug=true 开启配置加载日志');
+const debugPriority = runCapture(['--debug', 'agents'], { EVOKIT_DEBUG: '0' });
+assert(debugPriority.stderr.includes('"source":"cli"'), '--debug 优先于环境变量和配置');
+const debugEnvPriority = runCapture(['agents'], { EVOKIT_DEBUG: 'false' });
+assert(!debugEnvPriority.stderr.includes('[evokit:debug]'), '环境变量 false 优先于配置 true');
+
+// 模拟 pi 进程正常退出但无 stdout，验证安全摘要和原有错误语义。
+const secretPrompt = 'SENSITIVE_PROMPT_MARKER_DO_NOT_LOG';
+const secretToken = 'SENSITIVE_TOKEN_DO_NOT_LOG';
+debugCfg.prompts.inventory = `${secretPrompt} {inventory}`;
+debugCfg.agents.find((agent) => agent.id === 'pi').cli = {
+  bin: 'pi',
+  binPath: process.execPath,
+  args: ['-e', "process.stderr.write('Request timed out.')", '{prompt}'],
+  timeout: 5,
+  outputFormat: 'text',
+};
+writeFileSync(debugSettingsPath, JSON.stringify(debugCfg, null, 2) + '\n', 'utf-8');
+const debugAgent = runCapture(['--debug', 'inventory', '--agent', 'pi'], {
+  ANTHROPIC_AUTH_TOKEN: secretToken,
+});
+assert(debugAgent.code === 0 && debugAgent.stdout.includes('无输出'), 'pi 无 stdout 时保持现有用户错误语义');
+assert(debugAgent.stdout.includes('Request timed out.'), '底层 stderr 原因完整回显（不截断）');
+assert(debugAgent.stdout.includes('底层 pi 自报超时'), '超时错误附加诊断提示');
+assert(debugAgent.stderr.includes('[agents-cli] end') && debugAgent.stderr.includes('"exitCode":0'), 'agent 结束摘要含 exit code');
+assert(debugAgent.stderr.includes('"signal":null') && debugAgent.stderr.includes('"stderr"'), 'agent 摘要含 signal 与 stderr 元信息');
+assert(!debugAgent.stderr.includes(secretPrompt), 'debug 摘要不含完整 prompt');
+assert(!debugAgent.stderr.includes(secretToken), 'debug 摘要不含 token/敏感环境变量');
+assert(!debugAgent.stderr.includes('SENSITIVE_PROMPT'), 'inventory/prompt 日志只记录长度摘要');
+writeFileSync(debugSettingsPath, debugOriginal, 'utf-8');
+
+// ── 7h. inventory 报告导出 md ─────────────────────────────
+console.log('\n【7h. inventory 报告导出 md】');
+// 模拟一个成功返回的 agent（用 node 输出固定 markdown），验证默认导出 + 指定导出 + 禁用导出
+const exportCfg = JSON.parse(readFileSync(debugSettingsPath, 'utf-8'));
+exportCfg.agents.find((agent) => agent.id === 'pi').cli = {
+  bin: 'pi',
+  binPath: process.execPath,
+  args: ['-e', 'process.stdout.write("# 测试报告\\n\\n这是 agent 返回的 markdown")', '{prompt}'],
+  timeout: 5,
+  outputFormat: 'text',
+};
+writeFileSync(debugSettingsPath, JSON.stringify(exportCfg, null, 2) + '\n', 'utf-8');
+
+// 指定 --output 路径
+const outTmp = join(fakeHome, 'custom-report.md');
+const exportCustom = runCapture(['inventory', '--agent', 'pi', '--output', outTmp]);
+assert(exportCustom.stdout.includes('报告已导出到'), '指定 --output 时提示导出路径');
+assert(existsSync(outTmp), '指定 --output 生成文件');
+assert(readFileSync(outTmp, 'utf-8').includes('测试报告'), '导出文件含 agent 返回内容');
+assert(readFileSync(outTmp, 'utf-8').includes('Pi 的冗余体检报告'), '导出文件含 agent 标题分隔');
+
+// 默认导出（不指定 --output）：全局 → ~/.evokit/reports/
+const defaultOut = runCapture(['inventory', '--agent', 'pi'], {});
+assert(defaultOut.stdout.includes('报告已导出到'), '默认导出提示路径');
+const defaultMatch = defaultOut.stdout.match(/报告已导出到：(.+?)）\s*\n/);
+const defaultTarget = defaultMatch ? defaultMatch[1].trim() : '';
+assert(defaultMatch && existsSync(defaultTarget), '默认导出生成时间戳文件');
+assert(defaultTarget.includes(join(fakeHome, '.evokit', 'reports')), '默认导出到 ~/.evokit/reports/');
+
+// 默认导出（项目级）：--project → <cwd>/.evokit/reports/
+const exportProjDir = join(fakeHome, 'report-proj');
+mkdirSync(exportProjDir, { recursive: true });
+const projOut = runCaptureIn(exportProjDir, ['inventory', '--agent', 'pi', '--project'], {});
+assert(projOut.stdout.includes('报告已导出到'), '--project 默认导出提示路径');
+const projMatch = projOut.stdout.match(/报告已导出到：(.+?)）\s*\n/);
+const projTarget = projMatch ? projMatch[1].trim() : '';
+assert(projMatch && existsSync(projTarget), '--project 默认导出生成时间戳文件');
+assert(projTarget.includes(join(exportProjDir, '.evokit', 'reports')), '--project 默认导出到 <cwd>/.evokit/reports/');
+
+// --no-output 禁用导出
+const noOut = runCapture(['inventory', '--agent', 'pi', '--no-output']);
+assert(!noOut.stdout.includes('报告已导出到'), '--no-output 时不导出');
+
+// --output 漏写值：报错而非静默回退
+const outMissing = runCapture(['inventory', '--agent', 'pi', '--output']);
+assert(outMissing.code === 1, '--output 漏写值退出码为 1');
+assert(outMissing.stderr.includes('需要跟一个文件路径'), '--output 漏写值给出明确报错');
+// --output 后跟另一个 flag（也视为漏写值）
+const outFlag = runCapture(['inventory', '--agent', 'pi', '--output', '--project']);
+assert(outFlag.code === 1, '--output 后跟 flag 也报错退出');
+
+// 清理导出的默认时间戳文件
+if (defaultMatch && existsSync(defaultTarget)) {
+  rmSync(defaultTarget, { force: true });
+}
+if (projMatch && existsSync(projTarget)) {
+  rmSync(projTarget, { force: true });
+}
+writeFileSync(debugSettingsPath, debugOriginal, 'utf-8');
+
+// ── 7i. codex stdin 输入：长 prompt 走 stdin 而非 argv ──────
+console.log('\n【7i. codex stdin 输入（{prompt} 自动转 stdin，不重复传参）】');
+const codexStdinScript = join(fakeHome, 'fake-codex-stdin.js');
+writeFileSync(codexStdinScript, `
+const fs = require('fs');
+let stdin = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (d) => { stdin += d; });
+process.stdin.on('end', () => {
+  fs.writeFileSync(process.env.EVOKIT_FAKE_OUT, JSON.stringify({
+    stdinHas: stdin.includes(process.env.EVOKIT_SENTINEL),
+    argvHas: process.argv.slice(2).some((a) => String(a).includes(process.env.EVOKIT_SENTINEL)),
+    argv: process.argv.slice(2),
+  }));
+  process.stdout.write('# CODEX STDIN REPORT\\n');
+});
+`);
+const codexSentinel = 'CODEX_STDIN_SENTINEL_7f3a9c';
+const codexCfg = JSON.parse(readFileSync(debugSettingsPath, 'utf-8'));
+codexCfg.prompts.inventory = `${codexSentinel} {inventory}`;
+const codexAgent = codexCfg.agents.find((a) => a.id === 'codex');
+
+// 新默认：input:'stdin'（prompt 只走 stdin）
+codexAgent.cli = { bin: 'codex', binPath: process.execPath, args: [codexStdinScript], input: 'stdin', timeout: 5, outputFormat: 'text' };
+const codexOutNew = join(fakeHome, 'codex-stdin-new.json');
+writeFileSync(debugSettingsPath, JSON.stringify(codexCfg, null, 2) + '\n', 'utf-8');
+const codexNew = runCapture(['inventory', '--agent', 'codex'], { EVOKIT_FAKE_OUT: codexOutNew, EVOKIT_SENTINEL: codexSentinel });
+const codexNewRec = JSON.parse(readFileSync(codexOutNew, 'utf-8'));
+assert(codexNew.stdout.includes('CODEX STDIN REPORT'), 'codex(input:stdin) 正常返回报告');
+assert(codexNewRec.stdinHas === true, 'codex(input:stdin) prompt 走 stdin');
+assert(codexNewRec.argvHas === false, 'codex(input:stdin) prompt 不在 argv');
+assert(codexNewRec.argv.includes('-'), 'codex(input:stdin) 追加 stdin 占位符 -');
+
+// 旧配置兼容：args 含 {prompt} 且无 input → 自动转 stdin
+codexAgent.cli = { bin: 'codex', binPath: process.execPath, args: [codexStdinScript, '{prompt}'], timeout: 5, outputFormat: 'text' };
+const codexOutOld = join(fakeHome, 'codex-stdin-old.json');
+writeFileSync(debugSettingsPath, JSON.stringify(codexCfg, null, 2) + '\n', 'utf-8');
+const codexOld = runCapture(['inventory', '--agent', 'codex'], { EVOKIT_FAKE_OUT: codexOutOld, EVOKIT_SENTINEL: codexSentinel });
+const codexOldRec = JSON.parse(readFileSync(codexOutOld, 'utf-8'));
+assert(codexOld.stdout.includes('CODEX STDIN REPORT'), 'codex({prompt}旧配置) 正常返回报告');
+assert(codexOldRec.stdinHas === true, 'codex({prompt}旧配置) prompt 自动转 stdin');
+assert(codexOldRec.argvHas === false, 'codex({prompt}旧配置) {prompt} 已从 argv 移除');
+assert(codexOldRec.argv.includes('-'), 'codex({prompt}旧配置) 追加 stdin 占位符 -');
+
+writeFileSync(debugSettingsPath, debugOriginal, 'utf-8');
 
 // ── 8. 清理 ──────────────────────────────────────────────
 console.log('\n【清理测试目录】');

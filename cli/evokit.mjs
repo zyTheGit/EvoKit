@@ -48,6 +48,7 @@
  */
 
 import { parseAgentFilter, parseResourceFilter } from './src/config.js';
+import { debug, getDebugSource, initDebug, isDebugEnabled } from './src/debug.js';
 import {
   initGlobal, initProject,
   syncGlobal, syncProject, syncResources,
@@ -55,8 +56,12 @@ import {
   listAgents, listResources, inventory, help,
 } from './src/commands/index.js';
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+initDebug(rawArgs);
+const args = rawArgs.filter((arg) => arg !== '--debug');
 const cmd = args[0] || 'help';
+const startedAt = Date.now();
+debug('cli', 'start', { command: cmd, debug: isDebugEnabled(), source: getDebugSource() });
 const isProject = args.includes('--project') || args.includes('-p');
 let filter = parseAgentFilter(args);
 const resourceFilter = parseResourceFilter(args);
@@ -116,7 +121,22 @@ async function main() {
       break;
     case 'inventory': {
       const promptOnly = args.includes('--prompt');
-      inventory(filter, promptOnly);
+      const noOutput = args.includes('--no-output');
+      const outputIndex = args.findIndex((a) => a === '--output' || a === '-o');
+      let outputPath = null;
+      if (outputIndex !== -1) {
+        const next = args[outputIndex + 1];
+        // 漏写值：--output 后面没有参数，或下一个参数是另一个 flag（以 - 开头）
+        if (!next || next.startsWith('-')) {
+          console.error(`错误：\`${args[outputIndex]}\` 需要跟一个文件路径，例如 \`--output report.md\``);
+          process.exitCode = 1;
+          return;
+        }
+        outputPath = next;
+      } else if (noOutput) {
+        outputPath = 'false';
+      }
+      inventory(filter, promptOnly, outputPath, isProject);
       break;
     }
     case 'init':
@@ -155,4 +175,20 @@ async function main() {
   }
 }
 
-main();
+try {
+  await main();
+} catch (error) {
+  debug('cli', 'uncaught exception', {
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    durationMs: Date.now() - startedAt,
+  });
+  if (!isDebugEnabled()) throw error;
+  process.exitCode = 1;
+} finally {
+  debug('cli', 'end', {
+    command: cmd,
+    exitCode: process.exitCode || 0,
+    durationMs: Date.now() - startedAt,
+  });
+}

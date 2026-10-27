@@ -1,11 +1,12 @@
 // inventory 命令：扫描知识库 + 生成通用 prompt + 调 agents cli 整理 + 回显
 
-import { existsSync, readdirSync, lstatSync, readlinkSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { HOME } from '../paths.js';
+import { existsSync, readdirSync, lstatSync, readlinkSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
+import { HOME, EVOKIT_DIR } from '../paths.js';
 import { loadAgents, loadPrompts } from '../config.js';
 import { DEFAULT_PROMPTS } from '../defaults.js';
 import { detectAgentClis, runAgentCli } from '../agents-cli.js';
+import { debug, textMeta } from '../debug.js';
 
 /** 格式化文件大小 */
 function fmtSize(bytes) {
@@ -191,14 +192,63 @@ function buildPrompt(agentName, inventoryText) {
 }
 
 /**
- * 编排：扫描 → 生成 prompt → 调可用 agent CLI → 回显。
+ * 把多个 agent 的报告合并写入单个 Markdown 文件。
+ * @param {Array<{agent: string, name: string, output: string}>} reports 成功返回的报告
+ * @param {string} outputPath 目标文件路径
+ * @returns {string} 实际写入的绝对路径
+ */
+function writeReport(reports, outputPath) {
+  const target = resolve(outputPath);
+  const sections = [];
+  for (const r of reports) {
+    sections.push(`# ${r.name} 的冗余体检报告\n\n${r.output.trim()}`);
+  }
+  const header = `# EvoKit 知识库冗余体检报告\n\n> 生成时间：${new Date().toISOString()}\n> 委托 agent：${reports.map((r) => r.name).join('、')}\n\n---\n\n`;
+  const body = sections.join('\n\n---\n\n');
+  const content = header + body + '\n';
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, content, 'utf-8');
+  return target;
+}
+
+/**
+ * 生成默认导出路径。
+ * 全局：~/.evokit/reports/evokit-inventory-<时间戳>.md
+ * 项目级：<cwd>/.evokit/reports/evokit-inventory-<时间戳>.md
+ */
+function defaultOutputPath(isProject = false) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const baseDir = isProject ? join(resolve(process.cwd()), '.evokit', 'reports') : join(EVOKIT_DIR, 'reports');
+  return join(baseDir, `evokit-inventory-${stamp}.md`);
+}
+
+/**
+ * 编排：扫描 → 生成 prompt → 调可用 agent CLI → 回显 + 导出 md。
  * @param {Set|null} filter agent id 过滤（null=全部可用）
  * @param {boolean} promptOnly 只打印 prompt 不调 CLI（调试用）
+ * @param {string|null} outputPath 导出路径；null 用默认时间戳路径；'false'/'-' 表示禁用导出
+ * @param {boolean} isProject 是否项目级（决定默认导出目录）
  */
-export function inventory(filter = null, promptOnly = false) {
+export function inventory(filter = null, promptOnly = false, outputPath = null, isProject = false) {
   const g = scanGlobal();
   const p = scanProject();
   const invText = serializeInventory(g);
+  const groupCounts = (scan) => Object.fromEntries(
+    ['agents', 'skills', 'rules', 'commands']
+      .filter((key) => Array.isArray(scan[key]))
+      .flatMap((key) => scan[key].map((group) => [`${key}:${group.label}`, group.entries.length])),
+  );
+  debug('inventory', 'scan complete', {
+    global: {
+      ...groupCounts(g),
+      promptFiles: g.promptFiles.length,
+      mcpFiles: g.mcpFiles.length,
+    },
+    project: groupCounts(p),
+    inventory: textMeta(invText),
+  });
 
   console.log('EvoKit 知识库冗余体检\n');
   console.log(`家目录：${HOME}`);
@@ -210,13 +260,16 @@ export function inventory(filter = null, promptOnly = false) {
   const targets = filter ? clis.filter((c) => filter.has(c.id)) : clis;
 
   if (promptOnly) {
+    const prompt = buildPrompt('（任意 agent）', invText);
+    debug('inventory', 'prompt built', { agent: null, promptOnly: true, ...textMeta(prompt) });
     console.log('=== 生成的通用 prompt（未调用 CLI）===\n');
-    console.log(buildPrompt('（任意 agent）', invText));
+    console.log(prompt);
     return;
   }
 
   // 逐个调用可用 agent 整理
   let called = 0;
+  const reports = [];
   for (const cli of targets) {
     if (!cli.available) {
       console.log(`✗ ${cli.name}：未检测到 \`${cli.bin}\` CLI，跳过`);
@@ -225,6 +278,7 @@ export function inventory(filter = null, promptOnly = false) {
     console.log(`\n========== ${cli.name} 的冗余体检报告 ==========`);
     console.log(`（正在调用 \`${cli.bin}\` 分析，最长等待 120 秒…）\n`);
     const prompt = buildPrompt(cli.name, invText);
+    debug('inventory', 'prompt built', { agent: cli.id, promptOnly: false, ...textMeta(prompt) });
     const result = runAgentCli(cli, prompt);
     if (result.warnings && result.warnings.length) {
       for (const w of result.warnings) console.log(`（提示：${w}）`);
@@ -232,8 +286,19 @@ export function inventory(filter = null, promptOnly = false) {
     if (result.ok) {
       console.log(result.output);
       called++;
+      reports.push({ agent: cli.id, name: cli.name, output: result.output });
     } else {
       console.log(`（调用失败：${result.error}）`);
+    }
+  }
+
+  // 导出报告为 md（默认导出；--output 指定路径；--no-output 禁用）
+  if (outputPath !== 'false' && outputPath !== '-') {
+    if (reports.length > 0) {
+      const target = writeReport(reports, outputPath || defaultOutputPath(isProject));
+      console.log(`\n（报告已导出到：${target}）`);
+    } else {
+      console.log('\n（无成功结果，未生成报告文件）');
     }
   }
 

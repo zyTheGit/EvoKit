@@ -23,6 +23,8 @@ evokit resources            # 列出管理的所有资源（文本 / 软链接�
 evokit inventory            # 盘点知识库 + 委托 agent 找出冗余（调 claude/pi/codex CLI）
 evokit inventory --agent claude  # 只让指定 agent 整理（逗号分隔多选）
 evokit inventory --prompt   # 只生成通用整理 prompt，不调 CLI（调试用）
+evokit inventory --output report.md  # 报告导出到指定 .md（覆盖默认目录）
+evokit inventory --no-output  # 禁用导出，只在终端回显
 evokit sync                 # 同步所有资源到所有 agent
 evokit sync --resource <id> # 只同步指定资源（逗号分隔：--resource context,my-skill）
 evokit sync --agent claude  # 只同步指定 agent（逗号分隔多选：--agent claude,pi）
@@ -48,6 +50,27 @@ evokit uninstall --project  # 卸载当前项目入口（移除项目级托管�
 > `check` 在发现所有入口都尚未同步时，会**猜测你可能还没 init/sync**，直接给出下一步命令（`evokit init` → `evokit sync`），而不是只冷冰冰地说「文件不存在」。
 >
 > `check` 附带的 ctxlint 内容健康检查是**辅助功能**：优先用 `node + npm-cli.js` 直接驱动（规避 Windows 上 `npx.cmd` 会基于 cwd 向上误找 `node_modules`、导致 `Cannot find module .../npm-prefix.js` 报错栈泄漏的问题）。若本机 npm 环境确实异常导致它跑不起来，只会打印一行友好提示并跳过，**绝不泄漏 Node.js 原始报错栈**，也不阻塞同步结果。
+
+### 统一调试日志
+
+调试默认关闭。可用以下三种方式开启，优先级为 **`--debug` > `EVOKIT_DEBUG` > `settings.json`**：
+
+```bash
+# 命令行（--debug 也可放在命令后）
+node cli/evokit.mjs --debug inventory --agent pi
+
+# 环境变量（1/true 开启，0/false 关闭）
+EVOKIT_DEBUG=1 evokit inventory --agent pi
+```
+
+```jsonc
+// ~/.evokit/settings.json 或项目 <cwd>/.evokit/settings.json
+{
+  "debug": true
+}
+```
+
+项目级 `debug` 覆盖全局配置；未设置时默认 `false`。所有调试日志都写入 **stderr**，不会污染 `--prompt`、列表或 JSON 等正常 stdout。日志包含命令耗时、实际读取的配置路径、inventory 扫描与 prompt 大小、agent CLI 的退出码/signal/stdout/stderr 元信息等；默认**不记录完整 prompt、完整输出、环境变量或 token 等敏感信息**。agent 自身的 `Request timed out.` 仍按原语义展示，不会被误报为 EvoKit 的 `ETIMEDOUT`。
 
 ### 新增 / 自定义 agent（零代码改动）
 
@@ -78,6 +101,7 @@ agent 列表由 `~/.evokit/settings.json` 的 `agents` 驱动，**新增工具�
 | `bin` | 命令名（如 `claude`/`pi`/`codex`） |
 | `binPath` | CLI 绝对路径（可选，解决 fnm 安装目录不在 PATH 的问题） |
 | `args` | 参数数组，`{prompt}` 占位符表示 prompt 位置 |
+| `input` | `"stdin"` 表示把 prompt 通过 stdin 传入（`codex exec -` 用，避免长 prompt 走 argv） |
 | `model` | 指定模型（自动映射为 `--model`） |
 | `provider` | 指定供应商（codex 映射 `--model-provider`，claude/pi 忽略并告警） |
 | `timeout` | 超时秒数（默认 120） |
@@ -223,7 +247,11 @@ agent 列表由 `~/.evokit/settings.json` 的 `agents` 驱动，**新增工具�
 evokit inventory                  # 调所有可用 agent 整理并回显
 evokit inventory --agent claude   # 只让 claude 整理
 evokit inventory --prompt         # 只生成 prompt，不调 CLI（调试/手动喂）
+evokit inventory --output report.md  # 报告导出到指定 .md（覆盖默认目录）
+evokit inventory --no-output      # 禁用导出，只在终端回显
 ```
+
+报告默认导出为 Markdown：全局模式写到 `~/.evokit/reports/evokit-inventory-<时间戳>.md`，`--project` 模式写到 `<cwd>/.evokit/reports/evokit-inventory-<时间戳>.md`。`--output <file>`（或 `-o`）可覆盖为任意路径并绝对优先，`--no-output` 完全禁用导出。
 
 > **依赖**：会调用本机的 `claude` / `pi` / `codex` CLI。Pi 和 Codex 依赖 Node 24（经 `fnm` 安装），EvoKit 会自动探测 `fnm` 的 installation 目录。未安装的 agent 会提示「未检测到 CLI，跳过」，不影响其他 agent。
 >

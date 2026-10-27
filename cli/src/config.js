@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_FILE, EVOKIT_DIR } from './paths.js';
 import { DEFAULT_CONFIG } from './defaults.js';
+import { applyDebugConfig, debug } from './debug.js';
 
 /** 读取 JSON 配置文件；不存在则用默认值生成一份（仅对全局配置自动生成） */
 function loadJson(file, defaults, label) {
@@ -46,15 +47,31 @@ function mergeByKey(base, override) {
  * @param {string} projectDir 项目目录；传入则读 <projectDir>/.evokit/settings.json 覆盖全局
  */
 export function loadConfig(projectDir) {
+  const globalExisted = existsSync(CONFIG_FILE);
   const global = loadJson(CONFIG_FILE, DEFAULT_CONFIG, 'settings.json');
-  if (!projectDir) return global;
-  const projFile = join(projectDir, '.evokit', 'settings.json');
-  if (!existsSync(projFile)) return global;
-  const proj = JSON.parse(readFileSync(projFile, 'utf-8'));
+  const projFile = projectDir ? join(projectDir, '.evokit', 'settings.json') : null;
+  const projectExists = projFile !== null && existsSync(projFile);
+  const proj = projectExists ? JSON.parse(readFileSync(projFile, 'utf-8')) : null;
+  applyDebugConfig(proj && proj.debug !== undefined ? proj.debug : global.debug);
+
+  debug('config', 'loaded global settings', {
+    path: CONFIG_FILE,
+    existed: globalExisted,
+    created: !globalExisted,
+  });
+  if (projFile) {
+    debug('config', projectExists ? 'loaded project settings' : 'checked project settings', {
+      path: projFile,
+      exists: projectExists,
+    });
+  }
+  if (!proj) return global;
+
   return {
     agents: mergeById(global.agents || [], proj.agents),
     resources: mergeById(global.resources || [], proj.resources),
     prompts: mergeByKey(global.prompts || {}, proj.prompts),
+    debug: proj.debug !== undefined ? proj.debug : global.debug,
   };
 }
 

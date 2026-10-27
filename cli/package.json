@@ -24,6 +24,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node test-local.mjs"
+    "test": "node test-local.mjs",
+    "start": "node evokit.mjs",
+    "start:debug": "node evokit.mjs -- --debug"
   }
 }
