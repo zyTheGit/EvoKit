@@ -32,3 +32,6 @@ node_modules/
 .env.local
 __pycache__/
 .workbuddy/memory/
+
+# 构建产物（可再生，不入库）
+dist/
