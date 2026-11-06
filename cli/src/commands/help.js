@@ -23,6 +23,8 @@ export function help() {
   evokit status --project   查看当前项目各入口同步状态
   evokit uninstall [--agent <id>]  移除托管块，恢复入口文件（保留用户内容）
   evokit uninstall --project 移除当前项目入口的托管块（保留用户内容）
+  evokit knowledge init     初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
+  evokit review             待审草稿清单（裁决功能 M2 提供）
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi

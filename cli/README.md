@@ -37,6 +37,8 @@ evokit status --project     # 查看当前项目各入口同步状态
 evokit uninstall            # 移除托管块，恢复入口文件（保留用户内容）
 evokit uninstall --agent claude  # 只卸载指定 agent
 evokit uninstall --project  # 卸载当前项目入口（移除项目级托管块，保留用户内容）
+evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
+evokit review              # 查看待审草稿清单（裁决功能 M2 提供）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。

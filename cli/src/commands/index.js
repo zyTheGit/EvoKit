@@ -9,3 +9,5 @@ export { uninstallGlobal, uninstallProject } from './uninstall.js';
 export { listAgents, listResources } from './list.js';
 export { inventory } from './inventory.js';
 export { help } from './help.js';
+export { knowledgeCommand } from './knowledge.js';
+export { reviewCommand } from './review.js';
