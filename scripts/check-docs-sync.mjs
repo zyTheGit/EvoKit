@@ -16,6 +16,8 @@ const EXEMPTIONS = {
   'AGENTS-CLI-CONFIG-DESIGN.md': 'v2.0 agent CLI 配置设计（中文），英文侧由 cli/README.md 承担',
   'FINAL-DECISION.md': '方向终判记录（中文），引用大量中文讨论上下文，直译会失真',
   'INVENTORY-DESIGN.md': 'v2.0 inventory 功能设计（中文），使用说明已在 cli/README.md 透出',
+  'MEMORY-ENGINE-DESIGN.md': '记忆引擎设计方案（中文，2026-11）：方向裁决与里程碑文档，尚未立项实现、无英文读者；立项时再补译',
+  'MEMORY-ENGINE-IMPLEMENTATION-PLAN.md': '记忆引擎实施计划（中文，2026-11）：技术方案与任务拆分，随 MEMORY-ENGINE-DESIGN.md 同批立项；英文版与设计文档同批补译（见实施计划 §6 开放问题）',
   'AI-DEVELOPMENT-STANDARDS.md': 'v1.x 遗留的英文版规范；其中文版随 v2.0 转向已从本分支删除（仅存 main）',
 };
 
