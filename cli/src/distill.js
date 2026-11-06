@@ -1,11 +1,14 @@
 // distill 提纯引擎（T-M2.2 分批器 + T-M2.3 委托执行与解析容错）
 // 流程：inbox RawEvent → project×时间窗分批 → 阶段A 抽卡（委托 agent）→ 阶段B 裁决 → .pending 草稿
+// 水位线：无显式范围时按 state.distill.files 游标只取各 inbox 文件新增行（harvest 追加写保证行号稳定）；
+//   显式范围（events 注入 / --session）不走水位线；批次失败不推进，下次整箱重试（阶段 B 去重兜底）。
 // 纪律：解析三段容错（整体 JSON → 逐块 {...} → orphan 落盘，绝不丢弃，FR-06）；
 //       source 必须命中本批文件清单（防幻觉来源）；prompt 模板含委托纪律（红线 #9）。
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { INBOX_DIR, KNOWLEDGE_DIR, ORPHAN_DIR, PENDING_DIR } from './paths.js';
+import { INBOX_DIR, KNOWLEDGE_DIR, ORPHAN_DIR, PENDING_DIR, STATE_FILE } from './paths.js';
+import { loadState, saveState } from './state.js';
 import { CARD_TYPES, listCards, writeCard } from './knowledge-cards.js';
 import { detectAgentClis, runAgentCli } from './agents-cli.js';
 import { loadEngineConfig } from './commands/harvest.js';
@@ -355,6 +358,82 @@ export function readInboxEvents() {
   return { events, malformed };
 }
 
+/** distill 水位线游标表（懒初始化）：state.distill = { files: { "<inbox 文件绝对路径>": <已处理行数> } } */
+function distillCursorMap(state) {
+  if (!state.distill || typeof state.distill !== 'object' || Array.isArray(state.distill)) state.distill = {};
+  if (!state.distill.files || typeof state.distill.files !== 'object' || Array.isArray(state.distill.files)) state.distill.files = {};
+  return state.distill.files;
+}
+
+/**
+ * 水位线增量读取 inbox（全量增量路径专用）：递归遍历 INBOX_DIR 下各 source 目录的 *.jsonl，
+ * 逐文件数总行数，只解析「已记录行数之后」的新行为 RawEvent；未记录过的文件从第 0 行起。
+ * inbox 文件由 harvest 追加写（每行一个事件、\n 结尾），行号稳定，行数即游标；损坏行照旧计数跳过。
+ * 顺带清理已不存在文件的键（inbox 超 inboxRetentionDays 清理后的残留），是否落盘由调用方决定。
+ * @param {object} state loadState 产物（就地读写 distill.files；只动 distill 键，不碰 sources）
+ * @returns {{ events: object[], malformed: number, touched: Map<string, number>, pruned: number }}
+ *   touched: 本次遍历到的文件 绝对路径 → 当前总行数（处理成功后写回游标）；pruned: 清理的残留键数
+ */
+export function readNewInboxEvents(state) {
+  const events = [];
+  let malformed = 0;
+  let pruned = 0;
+  const touched = new Map();
+  const cursors = distillCursorMap(state);
+  // 先清已不存在文件的键（后续任何早退都不漏清理；真正落盘由调用方决定）
+  for (const k of Object.keys(cursors)) {
+    if (!existsSync(k)) {
+      delete cursors[k];
+      pruned += 1;
+    }
+  }
+  if (!existsSync(INBOX_DIR)) return { events, malformed, touched, pruned };
+  let sources;
+  try {
+    sources = readdirSync(INBOX_DIR, { withFileTypes: true });
+  } catch {
+    return { events, malformed, touched, pruned };
+  }
+  for (const ent of sources) {
+    if (!ent.isDirectory()) continue;
+    const dir = join(INBOX_DIR, ent.name);
+    let files;
+    try {
+      files = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      if (!f.endsWith('.jsonl')) continue;
+      const abs = join(dir, f);
+      let content = '';
+      try {
+        content = readFileSync(abs, 'utf-8');
+      } catch {
+        continue;
+      }
+      const lines = content.split(/\r?\n/);
+      if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop(); // 去掉结尾换行产生的空段
+      const total = lines.length;
+      touched.set(abs, total);
+      // 已记录行数超过当前总行数（文件被重写/截断，违反追加写假设）→ 从头重读，宁多勿漏
+      const from = Number.isInteger(cursors[abs]) && cursors[abs] >= 0 && cursors[abs] <= total ? cursors[abs] : 0;
+      for (let i = from; i < total; i++) {
+        const t = lines[i].trim();
+        if (!t) continue;
+        try {
+          const obj = JSON.parse(t);
+          if (obj && typeof obj === 'object' && typeof obj.text === 'string' && obj.text) events.push(obj);
+        } catch {
+          malformed += 1;
+        }
+      }
+    }
+  }
+  events.sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
+  return { events, malformed, touched, pruned };
+}
+
 // ── 执行者链 ──
 
 /**
@@ -402,11 +481,13 @@ function runWithChain(chain, prompt) {
  * @param {{ agent?: string | null, session?: string | null, events?: Array | null, quiet?: boolean }} options
  *   agent    显式执行者 id（跳过降级链；允许 claude，打印超时风险）
  *   session  只提纯指定 sessionId 的事件（meta.sessionId / 顶层 sessionId 均匹配）
- *   events   直接给定事件（测试注入；缺省读 inbox 全量）
+ *   events   直接给定事件（测试注入 / learn 会话过滤路径；显式范围，不推进水位线）
  *   quiet    不打印报告块
+ *   events 缺省且无 session 时为全量增量路径：按 state.distill 水位线只读各 inbox 文件新增行，
+ *   处理完成后把涉及文件游标累加写回（批次失败则不推进，下次整箱重试）。
  * @returns {{ ok: boolean, reason?: string, note?: string, batches: number, drafts: number, suspects: number,
  *             orphans: number, noops: number, invalid: number, failedBatches: number, malformed: number,
- *             agentId: string | null, notes: string[], durationMs: number }}
+ *             agentId: string | null, notes: string[], durationMs: number, advanced: boolean }}
  */
 export function runDistill(options = {}) {
   const { agent = null, session = null, events = null, quiet = false } = options;
@@ -416,22 +497,35 @@ export function runDistill(options = {}) {
   const tplB = (config.prompts && config.prompts.distillB) || DEFAULT_PROMPTS.distillB;
   const report = {
     ok: true, batches: 0, drafts: 0, suspects: 0, orphans: 0, noops: 0,
-    invalid: 0, failedBatches: 0, malformed: 0, agentId: null, notes: [], durationMs: 0,
+    invalid: 0, failedBatches: 0, malformed: 0, agentId: null, notes: [], durationMs: 0, advanced: false,
   };
 
-  // 1. 事件：注入 or 读 inbox；--session 过滤
+  // 1. 事件：三路取数——events 数组（注入/会话过滤，显式范围不动水位线）；--session 直调（全量读，
+  //    显式范围要能看到全部历史，不走水位线）；其余 = 全量增量（learn 无 triggers/--session）：
+  //    按水位线只读新增行，处理完成后推进
   let allEvents;
+  let wm = null; // 全量增量路径上下文：收尾时推进 state.distill 水位线
   if (Array.isArray(events)) {
     allEvents = events;
-  } else {
+  } else if (session) {
     const r = readInboxEvents();
     allEvents = r.events;
     report.malformed = r.malformed;
+  } else {
+    const state = loadState(STATE_FILE);
+    const r = readNewInboxEvents(state);
+    allEvents = r.events;
+    report.malformed = r.malformed;
+    wm = { state, touched: r.touched, pruned: r.pruned };
   }
   if (session) {
     allEvents = allEvents.filter((ev) => ev.sessionId === session || (ev.meta && ev.meta.sessionId === session));
   }
   if (allEvents.length === 0) {
+    // 增量路径空转：只把顺带清理掉的残留键落盘，游标一律不推进
+    if (wm && wm.pruned > 0) {
+      try { saveState(STATE_FILE, wm.state); } catch { /* 落盘失败留待下次清理 */ }
+    }
     report.note = '无待提纯事件';
     if (!quiet) console.log('⚗ distill — 无待提纯事件，跳过。');
     report.durationMs = Date.now() - startedAt;
@@ -556,6 +650,32 @@ export function runDistill(options = {}) {
         report.invalid += 1;
         report.notes.push(`批次 ${bi + 1} 写卡失败：${e instanceof Error ? e.message : String(e)}`);
       }
+    }
+  }
+  // 6. 全量增量路径收尾：全部批次处理完成才推进水位线（游标 = 涉及文件当前总行数，即旧游标累加新行数）；
+  //    有批次失败视为本轮未完成 → 不推进，下次整箱重试（阶段 B NOOP/MERGE 去重兜底）
+  if (wm) {
+    if (report.failedBatches === 0) {
+      const cursors = distillCursorMap(wm.state);
+      let advFiles = 0;
+      let advLines = 0;
+      for (const [abs, total] of wm.touched) {
+        const old = Number.isInteger(cursors[abs]) && cursors[abs] >= 0 ? cursors[abs] : 0;
+        if (total > old) {
+          advFiles += 1;
+          advLines += total - old;
+        }
+        cursors[abs] = total;
+      }
+      try {
+        saveState(STATE_FILE, wm.state);
+        report.advanced = true;
+        if (advFiles > 0) report.notes.push(`水位线推进 ${advFiles} 文件 · +${advLines} 行`);
+      } catch (e) {
+        report.notes.push(`水位线写入失败（下次重试）：${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else {
+      report.notes.push(`${report.failedBatches} 批失败，水位线不推进（下次重试，阶段 B 去重兜底）`);
     }
   }
   report.durationMs = Date.now() - startedAt;

@@ -1,7 +1,7 @@
 // learn 命令（T-M2.5）：triggers 消费 → harvest → distill → 按档位处理 .pending 草稿 的编排
 // T-M5.1：启动时消费 hook learn-enqueue 入队的 ~/.evokit/triggers/learn-*.json（消费即删，损坏文件删除跳过），
 //   收集 session 集合并入 --session；集合非空 → harvest 后在 distill 层按会话过滤（与既有 --session 同谓词）；
-//   无 triggers 且无 --session → 全量增量（现行为）。
+//   无 triggers 且无 --session → 全量增量（distill 按 state.distill 水位线只提纯 inbox 新增行）。
 // 三档（knowledge.automation，默认 manual 人在环，红线 #7）：
 //   manual  打印审阅提示，全部留审；
 //   assist  confidence ≥ autoThreshold 且裁决 ADD 且非 suspect 的自动入库（acceptedBy: auto），其余留审；
@@ -88,8 +88,9 @@ export function learnRun(opts = {}) {
   const hr = runHarvest({ full: !!opts.full, quiet: !!opts.quietHarvest });
 
   // ② distill（--no-distill 跳过；失败降级不中断）
-  // 会话集合非空（triggers / --session）：读 inbox 后按集合过滤（与既有 --session 同谓词），传过滤后事件；
-  // 集合为空：维持现行为（runDistill 自读 inbox 全量增量）
+  // 会话集合非空（triggers / --session）：读 inbox 后按集合过滤（与既有 --session 同谓词），传过滤后事件
+  //   （显式范围不走水位线：允许重跑，重复入库由阶段 B NOOP/MERGE 兜底）；
+  // 集合为空：全量增量——runDistill 按 state.distill 水位线只读各 inbox 文件新增行（夜间 learn --auto 不再整箱重提纯）
   let dr = null;
   if (!opts.noDistill) {
     let events = null;

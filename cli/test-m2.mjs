@@ -41,7 +41,8 @@ function wf(p, content) {
   writeFileSync(p, content, 'utf-8');
 }
 
-/** mock agent：stdin 收 prompt；按「阶段 B」标记从 env 指定文件读应答；prompt 追加进 EVOKIT_FAKE_LOG 供断言 */
+/** mock agent：stdin 收 prompt；按「阶段 B」标记从 env 指定文件读应答；prompt 追加进 EVOKIT_FAKE_LOG 供断言；
+ * 设置 EVOKIT_FAKE_OUT 时每次调用追加 CALL 作调用计数（distill 水位线测试用） */
 const FAKE_AGENT_SRC = `
 const fs = require('fs');
 let stdin = '';
@@ -54,6 +55,9 @@ process.stdin.on('end', () => {
   try { out = fs.readFileSync(file, 'utf-8'); } catch (e) { out = 'FAKE-MISSING: ' + e.message; }
   if (process.env.EVOKIT_FAKE_LOG) {
     fs.appendFileSync(process.env.EVOKIT_FAKE_LOG, '\\n==STAGE==' + (isB ? 'B' : 'A') + '\\n' + stdin);
+  }
+  if (process.env.EVOKIT_FAKE_OUT) {
+    fs.appendFileSync(process.env.EVOKIT_FAKE_OUT, 'CALL'); // 调用计数（distill 水位线测试用）
   }
   process.stdout.write(out);
 });
@@ -561,6 +565,101 @@ section('命令表：KNOWN_COMMANDS 含 harvest/learn · help 文案 · 拼错�
   assert(typoR.code === 1, '拼错 harvestt 退出码 1');
   assert((typoR.stdout + typoR.stderr).includes('harvest'), '拼错 harvestt 建议 harvest');
   rmSync(home, { recursive: true, force: true });
+}
+
+// ═══ S13. distill 水位线（全量增量路径）═══
+section('distill 水位线：首跑全量 · 二跑 0 新增 · 追加只处理新行 · --session 不受限 · 失败不推进');
+{
+  const home = mkHome('wm');
+  runCli(home, ['knowledge', 'init']);
+  const fake = writeFakeAgent(home);
+  wf(join(home, 'fake-a.txt'), '[]\n'); // 阶段 A 回空数组：批次走 orphan 但失败计数不增（本轮提纯视为完成）
+  const inboxDir = join(home, '.evokit', 'inbox', 'src');
+  const mkLine = (i, sess, file, project) => JSON.stringify({
+    source: 'src', kind: 'session', project, ts: `2026-01-01T00:00:${String(i).padStart(2, '0')}Z`,
+    sessionId: sess, text: `WMMARK-${sess}`, meta: { file, line: i },
+  });
+  const one = join(inboxDir, 'one.jsonl');
+  const two = join(inboxDir, 'two.jsonl');
+  wf(one, [1, 2, 3].map((i) => mkLine(i, `wm-a${i}`, 'one.jsonl', 'p1')).join('\n') + '\n');
+  wf(two, [4, 5].map((i) => mkLine(i, `wm-b${i}`, 'two.jsonl', 'p2')).join('\n') + '\n');
+  writeSettings(home, { sources: [], knowledge: { automation: 'manual', distillAgentOrder: ['codex'] }, codexCli: mockCli(fake) });
+  const fakeOut = join(home, 'calls.count');
+  const fakeLog = join(home, 'prompt.log');
+  const learnEnv = { EVOKIT_FAKE_A: join(home, 'fake-a.txt'), EVOKIT_FAKE_OUT: fakeOut, EVOKIT_FAKE_LOG: fakeLog };
+  const callCount = () => (existsSync(fakeOut) ? (readFileSync(fakeOut, 'utf-8').match(/CALL/g) || []).length : 0);
+  const readWm = (h) => {
+    const s = JSON.parse(readFileSync(join(h, '.evokit', 'state.json'), 'utf-8'));
+    return s.distill && s.distill.files ? s.distill.files : {};
+  };
+
+  // 首跑：两文件全部新行（p1 3 行 + p2 2 行 → 2 批 → 2 次 mock 调用）
+  let r = runCli(home, ['learn'], learnEnv);
+  assert(r.code === 0, 'learn 首跑退出码 0', (r.stderr || '').slice(0, 200));
+  assert(callCount() === 2, `首跑处理全部新行：2 批 → mock 调用 2 次（实际 ${callCount()}）`);
+  let wm = readWm(home);
+  assert(wm[one] === 3 && wm[two] === 2, `首跑水位线=各文件总行数（实际 one=${wm[one]}, two=${wm[two]}）`);
+  const rawState = JSON.parse(readFileSync(join(home, '.evokit', 'state.json'), 'utf-8'));
+  assert(rawState.sources !== undefined, '水位线写入未破坏 state.sources 键');
+
+  // 二跑：0 文件 0 行，mock 调用次数不变
+  const callsAfterFirst = readFileSync(fakeOut, 'utf-8');
+  r = runCli(home, ['learn'], learnEnv);
+  assert(r.code === 0 && r.stdout.includes('无待提纯事件'), '二跑 0 新事件（水位线拦截）');
+  assert(readFileSync(fakeOut, 'utf-8') === callsAfterFirst, '二跑 mock 调用次数不变');
+  assert(JSON.stringify(readWm(home)) === JSON.stringify(wm), '二跑水位线不变');
+
+  // 追加新行：只处理新行
+  writeFileSync(one, readFileSync(one, 'utf-8') + [6, 7].map((i) => mkLine(i, `wm-f${i}`, 'one.jsonl', 'p1')).join('\n') + '\n');
+  const logLenBefore = readFileSync(fakeLog, 'utf-8').length;
+  r = runCli(home, ['learn'], learnEnv);
+  assert(r.code === 0, '三跑（追加 2 行）退出码 0', (r.stderr || '').slice(0, 200));
+  assert(callCount() === 3, `只处理新行：仅 p1 新增 1 批（mock 调用 +1；实际 ${callCount()}）`);
+  wm = readWm(home);
+  assert(wm[one] === 5 && wm[two] === 2, `水位线累加：one=3+2=5、two 不变（实际 one=${wm[one]}, two=${wm[two]}）`);
+  const newSeg = readFileSync(fakeLog, 'utf-8').slice(logLenBefore);
+  assert(newSeg.includes('WMMARK-wm-f6') && newSeg.includes('WMMARK-wm-f7') && !newSeg.includes('WMMARK-wm-a1'), '新增批次 prompt 只含新行文本');
+
+  // --session 指定旧会话：显式范围不受水位线拦截，也不推进水位线
+  const wmBefore = JSON.stringify(readWm(home));
+  const callsBefore = callCount();
+  const logLen2 = readFileSync(fakeLog, 'utf-8').length;
+  r = runCli(home, ['learn', '--session', 'wm-a1'], learnEnv);
+  assert(r.code === 0 && callCount() === callsBefore + 1, '--session 旧会话仍重新处理（+1 批）');
+  assert(readFileSync(fakeLog, 'utf-8').slice(logLen2).includes('WMMARK-wm-a1'), '显式范围 prompt 含水位线之前的旧事件');
+  assert(JSON.stringify(readWm(home)) === wmBefore, '--session 路径不推进水位线');
+
+  // 文件被清理（如超 30 天）后：残留游标键顺带移除
+  rmSync(two);
+  r = runCli(home, ['learn'], learnEnv);
+  assert(r.code === 0 && r.stdout.includes('无待提纯事件'), '清理文件后 learn 正常空转');
+  wm = readWm(home);
+  assert(wm[one] === 5 && wm[two] === undefined && Object.keys(wm).length === 1, `不存在文件的游标键已移除（实际 keys=${Object.keys(wm).length}）`);
+
+  // distill 失败（执行者退出非零）：水位线不推进；修复后重试成功推进
+  const homeF = mkHome('wm-fail');
+  runCli(homeF, ['knowledge', 'init']);
+  const broken = writeBrokenAgent(homeF);
+  wf(join(homeF, 'fake-a.txt'), '[]\n');
+  const oneF = join(homeF, '.evokit', 'inbox', 'src', 'one.jsonl');
+  wf(oneF, [1, 2].map((i) => mkLine(i, `wm-x${i}`, 'one.jsonl', 'p')).join('\n') + '\n');
+  writeSettings(homeF, { sources: [], knowledge: { automation: 'manual', distillAgentOrder: ['codex'] }, codexCli: brokenCli(broken) });
+  r = runCli(homeF, ['learn']);
+  assert(r.code === 0, '执行者运行失败 learn 不崩溃（exit 0）');
+  assert(r.stdout.includes('水位线不推进'), '报告标注水位线不推进');
+  const stF = JSON.parse(readFileSync(join(homeF, '.evokit', 'state.json'), 'utf-8'));
+  assert(!stF.distill || Object.keys(stF.distill.files || {}).length === 0, 'distill 失败 → 水位线不推进（游标为空）');
+  const fakeF = writeFakeAgent(homeF);
+  const cfgF = JSON.parse(readFileSync(join(homeF, '.evokit', 'settings.json'), 'utf-8'));
+  cfgF.agents.find((a) => a.id === 'codex').cli = mockCli(fakeF);
+  wf(join(homeF, '.evokit', 'settings.json'), JSON.stringify(cfgF, null, 2) + '\n');
+  r = runCli(homeF, ['learn'], { EVOKIT_FAKE_A: join(homeF, 'fake-a.txt') });
+  assert(r.code === 0, '修复执行者后重试退出码 0', (r.stderr || '').slice(0, 200));
+  const wmF = readWm(homeF);
+  assert(wmF[oneF] === 2, `重试处理全部行并推进水位线（实际 one=${wmF[oneF]}）`);
+
+  rmSync(home, { recursive: true, force: true });
+  rmSync(homeF, { recursive: true, force: true });
 }
 
 // ── 清理与汇总 ──
