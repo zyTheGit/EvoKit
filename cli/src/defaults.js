@@ -142,6 +142,27 @@ export const DEFAULT_PROMPTS = {
 - 只依据输入裁决，不调用工具、不读取其他文件、不修改任何数据；只输出约定 JSON。
 - 不得包含任何密钥、token、密码、内网地址。
 - 拿不准时选 NOOP，宁缺毋滥。`,
+  // forge 锻造（T-M4.2）：confirmed 知识卡 → 单文件 SKILL.md 草稿；产出经 review --skill 人工过目后分发（D5）
+  forge: `# 技能锻造：从知识卡生成 SKILL.md
+你是技能锻造执行者。下面是知识库中同一主题的 confirmed 知识卡（JSON 数组）。
+## 输入
+主题：{topic}
+知识卡：
+{cards}
+## 任务
+把知识卡锻造成一个可供 AI 工具加载的技能，输出**一个** SKILL.md 全文（Markdown）。
+## 输出格式（严格遵守）
+第一行 \`---\`，YAML frontmatter 必须包含：
+- name：技能名，小写字母/数字/连字符（lowercase-hyphen），如 \`pms-release-flow\`
+- description：一句话说明技能用途与**触发时机**（什么场景下应加载本技能）
+frontmatter 结束后是正文：
+- 渐进披露：先「快速开始」给最少可用步骤，再按需展开细节章节
+- 内容全部来自输入知识卡，不得编造知识卡之外的流程
+## 纪律
+- 所有内容自足于单个 SKILL.md 文件：不要求 scripts/、references/ 等外部文件，正文不引用不存在的文件。
+- 只输出 SKILL.md 全文，不输出任何解释、前后缀或代码块围栏。
+- 不调用工具、不读取其他文件、不修改任何数据。
+- 任何密钥、token、密码、内网地址不得出现在输出中；发现则以 [REDACTED] 占位。`,
 };
 
 /** 内置默认采集源（设计文档 §4.1；sqlite 两条默认关闭，P2 储备） */

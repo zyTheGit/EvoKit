@@ -40,8 +40,9 @@ evokit uninstall --project  # 卸载当前项目入口（移除项目级托管�
 evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
 evokit harvest             # 采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
 evokit learn               # harvest→distill→按档位处理草稿（--no-distill / --agent <id> / --session <id> / --auto）
-evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --audit）
+evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --skill / --audit）
 evokit recall "<关键词>"     # 本地知识检索 + 命中计数（--limit n / --json）
+evokit forge               # 知识卡聚簇锻造技能（--from-tags a,b / --topic "…" / --audit）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -262,7 +263,7 @@ evokit inventory --no-output      # 禁用导出，只在终端回显
 >
 > **只读安全**：inventory 只扫描和调用 agent 分析，不修改任何文件。agent 返回的是「建议」，具体整理动作仍需你确认后手动执行。
 
-### 记忆引擎（v3）：harvest / learn / review
+### 记忆引擎（v3）：harvest / learn / review / forge
 
 经验层流水线 `harvest → distill → review`：把各 AI 工具的会话史提纯成统一知识库（`~/.evokit/knowledge/`，独立 git 版本化，commit 形如 `learn: <标题>`）。
 
@@ -281,6 +282,13 @@ evokit review --accept <id>     # 接受草稿入库（confirmed + 索引重建 
 evokit review --reject <id>     # 拒绝草稿（移入 .rejected/）
 evokit review --merge <id> <into>  # 并入既有卡（retired + mergedInto，canonical 保留）
 evokit review --audit           # 近期自动入库抽查（acceptedBy=auto + git log）
+evokit review --skill           # forge 技能草稿清单（trial）
+evokit review --skill-accept <name>  # 技能草稿通过并分发（symlink + distributedTo + forge-use 引用 + skill-lock 登记）
+evokit review --skill-veto <name>    # 否决技能草稿（vetoed）
+evokit forge                    # 列出可锻造的达标知识卡簇
+evokit forge --from-tags a,b    # 按标签取卡 → 委托 agent 生成单文件 SKILL.md 草稿（trial，不直接分发）
+evokit forge --topic "发布流程"   # 按主题关键词取卡锻造（--agent <id> 显式指定执行者）
+evokit forge --audit            # 试用期审计：trial 满期退役 / vetoed 提示 / 父卡失效提示重审
 evokit recall "fnm"              # 本地检索 confirmed 卡（tags×3 ＞ 标题×2 ＞ 正文×1，命中写 references 计数）
 evokit recall "fnm" --limit 5    # 只显示前 5 条
 evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消费）
@@ -289,6 +297,7 @@ evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消�
 - 源清单与分批/档位参数在 `settings.json` 的 `sources` / `knowledge` 块配置；`knowledge.automation` 默认 `manual`（人在环），`assist` 按 `autoThreshold`（默认 0.9）自动入库，`auto` 全自动。
 - distill 委托本机 agent CLI（默认 codex→pi 降级链，claude 不进自动链），解析失败的内容落 `.pending/orphan/` 绝不丢弃；来源可疑的卡打 `suspect` 标记留审；RawEvent 与卡片入库前双点脱敏。
 - L1 分发：内置 `knowledge-index` 资源经 `sync --resource knowledge-index` 把 ≤60 行索引写入三入口托管块；索引重建时 pitfall / 被 forge-use 引用的卡带粘性权重（优先保留），源缺失（未 `knowledge init`）时 sync 跳过并提示。
+- forge 锻造（D5/D6）：confirmed 且 type ∈ workflow|pattern 的卡按 tags Jaccard ≥ 0.5 聚簇，≥ `knowledge.forgeClusterMin`（默认 3）张达标；`evokit forge` 列出达标簇，`--from-tags a,b` / `--topic "…"` 委托本机 agent 生成单文件 SKILL.md 草稿到 `~/.agents/skills/<name>/`（附 generation.json，`review.status: trial`，parentCards 记录父卡），执行者链同 distill（claude 不进自动链，`--agent` 显式覆盖）。`review --skill` 人工过目；`--skill-accept <name>` 以 symlink 分发到 `~/.claude/skills`、`~/.codex/skills`，回写 `distributedTo`、对每个父卡追加 `forge-use` 引用，并向 `~/.agents/skills/.skill-lock.json` 无损追加登记（解析失败/非数组则跳过并提示，绝不破坏原文件）；`--skill-veto <name>` 否决。`forge --audit` 月度体检：trial 超 30 天且 0 uses 退役移入 `~/.agents/skills/.retired/<name>/` 并按 distributedTo 回收链接（只删链接/junction，绝不删真实目录）；vetoed 技能提示；confirmed 技能父卡过半 `validUntil` 过期时提示「技能需重审」。
 
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
 

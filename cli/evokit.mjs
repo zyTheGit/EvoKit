@@ -34,8 +34,9 @@
  *   evokit knowledge init     初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
  *   evokit harvest            采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
  *   evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto）
- *   evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --audit）
+ *   evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --skill / --audit）
  *   evokit recall "<关键词>"   本地知识检索 + 命中计数（--limit n / --json）
+ *   evokit forge              知识卡聚簇锻造技能（--from-tags a,b / --topic "…" / --audit / --agent <id>）
  *   evokit --help             帮助
  *
  * 说明：方括号 [ ] 表示可选；check/status/uninstall 还支持位置参数（evokit check pi ≡ evokit check --agent pi）。
@@ -66,6 +67,8 @@ import { harvestCommand } from './src/commands/harvest.js';
 import { learnCommand } from './src/commands/learn.js';
 // recall 为 M3 新增命令，直接从命令文件导入（commands/index.js 本轮不在改动范围）
 import { recallCommand } from './src/commands/recall.js';
+// forge 为 M4 新增命令，直接从命令文件导入（commands/index.js 本轮不在改动范围）
+import { forgeCommand } from './src/commands/forge.js';
 
 const rawArgs = process.argv.slice(2);
 initDebug(rawArgs);
@@ -78,7 +81,7 @@ let filter = parseAgentFilter(args);
 const resourceFilter = parseResourceFilter(args);
 
 // 已知命令清单（用于未知命令时猜测用户意图）
-const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'knowledge', 'harvest', 'learn', 'review', 'recall', 'help'];
+const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'knowledge', 'harvest', 'learn', 'review', 'recall', 'forge', 'help'];
 
 /** 计算两个字符串的编辑距离（Levenshtein），用于"是否打错命令"猜测 */
 function levenshtein(a, b) {
@@ -183,6 +186,9 @@ async function main() {
       break;
     case 'recall':
       recallCommand(args.slice(1));
+      break;
+    case 'forge':
+      forgeCommand(args.slice(1));
       break;
     case 'help':
     case '--help':

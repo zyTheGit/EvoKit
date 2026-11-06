@@ -1,27 +1,42 @@
 // review 命令（T-M2.4 完整实现）：.pending 草稿清单 + 裁决（accept/reject/merge）+ --audit
+// M4 增量（T-M4.3）：--skill / --skill-accept / --skill-veto —— forge 技能草稿过目、symlink 分发与 .skill-lock.json 无损登记
 // 纪律：accept = 校验 → 正文二次脱敏（FR-04 双点）→ 写库（confirmed + acceptedBy）→
 //       索引重建（未知透传段保留，红线 #1）→ 独立 git commit（身份缺失仅警告跳过，不失败）；
 //       reject/merge 只移动/退役，不物理删除（NFR-06 全链路只增不删）。
 // 可复用导出：acceptDraft / rejectDraft / mergeDraft（learn 的 assist/auto 档调用）。
 
-import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { KNOWLEDGE_DIR, KNOWLEDGE_INDEX_FILE, PENDING_DIR, REJECTED_DIR } from '../paths.js';
+import { AGENTS_SKILLS_DIR, KNOWLEDGE_DIR, KNOWLEDGE_INDEX_FILE, PENDING_DIR, REFERENCES_FILE, REJECTED_DIR, expandPath } from '../paths.js';
 import { listCards, mergeCards, readCardById, validateCard, writeCard } from '../knowledge-cards.js';
 import { readIndex, rebuildIndex, writeIndex } from '../knowledge-index.js';
 import { redact } from '../redact.js';
 import { loadEngineConfig } from './harvest.js';
+import { makeSymlink } from '../fs-utils.js';
+import { appendReference } from '../references.js';
 
 /**
  * `evokit review` 入口
  * @param {string[]} args 参数（不含 'review' 本身）：--list / --accept <id> / --reject <id> /
- *                        --merge <id> <into> / --audit（--skill 为 M4 预留）
+ *                        --merge <id> <into> / --skill / --skill-accept <name> / --skill-veto <name> / --audit
  */
 export function reviewCommand(args) {
   try {
     if (args.includes('--skill')) {
-      console.log('ℹ review --skill（forge 技能草稿过目）尚未实现，计划在 M4 提供。');
+      listSkillDrafts();
+      return;
+    }
+    const skillAcceptIdx = args.indexOf('--skill-accept');
+    if (skillAcceptIdx !== -1) {
+      const name = requireValue(args, skillAcceptIdx, '--skill-accept', '<name>');
+      acceptSkillDraft(name);
+      return;
+    }
+    const skillVetoIdx = args.indexOf('--skill-veto');
+    if (skillVetoIdx !== -1) {
+      const name = requireValue(args, skillVetoIdx, '--skill-veto', '<name>');
+      vetoSkillDraft(name);
       return;
     }
     if (args.includes('--audit')) {
@@ -62,9 +77,9 @@ export function reviewCommand(args) {
 }
 
 /** 解析 `--flag <id>` 的值；缺失即抛错（reviewCommand 统一捕获置退出码） */
-function requireValue(args, idx, flag) {
+function requireValue(args, idx, flag, example = '<卡片id>') {
   const v = args[idx + 1];
-  if (!v || v.startsWith('-')) throw new Error(`${flag} 需要跟一个 id，例如 ${flag} <卡片id>`);
+  if (!v || v.startsWith('-')) throw new Error(`${flag} 需要跟一个值，例如 ${flag} ${example}`);
   return v;
 }
 
@@ -183,6 +198,7 @@ function listPending() {
   evokit review --accept <id>        接受草稿入库（confirmed + 索引重建 + git commit）
   evokit review --reject <id>        拒绝草稿（移入 .rejected/，可人工恢复）
   evokit review --merge <id> <into>  并入既有卡（retired + mergedInto，canonical 保留）
+  evokit review --skill              forge 技能草稿过目（--skill-accept <name> / --skill-veto <name> 裁决）
   evokit review --audit              近期自动入库抽查（acceptedBy=auto + git log）`);
 }
 
@@ -268,4 +284,157 @@ function gitCommit(message) {
     return false;
   }
   return true;
+}
+
+// ── forge 技能草稿裁决（T-M4.3）：AGENTS_SKILLS_DIR 下含 generation.json 的 trial 技能 ──
+// 分发落点（D5 裁决）：直接 symlink（复用 makeSymlink 的 junction 回退），不改写用户 settings.json 的 resources；
+// .skill-lock.json（D6 裁决）：属于 skill 生态，EvoKit 只做无损追加，解析失败/结构不兼容则跳过并提示，绝不破坏原文件。
+
+/** 默认分发目录（expandPath 展开；EVOKIT_HOME 隔离时随家目录走） */
+const SKILL_DISTRIBUTE_TARGETS = ['~/.claude/skills', '~/.codex/skills'];
+
+/** 技能名只允许目录名安全字符（防路径穿越） */
+function assertSafeSkillName(name, flag) {
+  if (!name || typeof name !== 'string' || /[\\/]/.test(name) || name.includes('..') || name.startsWith('.')) {
+    throw new Error(`${flag} 的技能名不合法：${name}`);
+  }
+}
+
+/** 读 <AGENTS_SKILLS_DIR>/<name>/generation.json；不存在/解析失败即抛错 */
+function readSkillGeneration(name) {
+  const file = join(AGENTS_SKILLS_DIR, name, 'generation.json');
+  if (!existsSync(file)) {
+    throw new Error(`技能草稿不存在（或缺少 generation.json）：${name}（${file}）`);
+  }
+  try {
+    return JSON.parse(readFileSync(file, 'utf-8'));
+  } catch (e) {
+    throw new Error(`generation.json 解析失败：${name}（${e instanceof Error ? e.message : String(e)}）`);
+  }
+}
+
+/** 原位写回 generation.json（缩进 2，与 forge 生成时同格式） */
+function writeSkillGeneration(name, gen) {
+  writeFileSync(join(AGENTS_SKILLS_DIR, name, 'generation.json'), JSON.stringify(gen, null, 2) + '\n', 'utf-8');
+}
+
+/** --skill：列出 trial 状态的技能草稿（name / parentCards 数 / generatedAt / topic） */
+function listSkillDrafts() {
+  if (!existsSync(AGENTS_SKILLS_DIR)) {
+    console.log(`ℹ 技能源目录不存在（${AGENTS_SKILLS_DIR}）。先运行 \`evokit forge --from-tags <tags>\` 生成草稿。`);
+    return;
+  }
+  const drafts = [];
+  for (const ent of readdirSync(AGENTS_SKILLS_DIR, { withFileTypes: true })) {
+    if (!ent.isDirectory() || ent.name.startsWith('.')) continue;
+    const file = join(AGENTS_SKILLS_DIR, ent.name, 'generation.json');
+    if (!existsSync(file)) continue; // 外来技能（无 forge 元数据）不在过目范围
+    let gen = null;
+    try {
+      gen = JSON.parse(readFileSync(file, 'utf-8'));
+    } catch {
+      continue; // 元数据损坏：不阻塞清单，forge --audit 会单独提示
+    }
+    if (gen && gen.review && gen.review.status === 'trial') drafts.push({ name: ent.name, gen });
+  }
+  if (drafts.length === 0) {
+    console.log('✓ 暂无 trial 状态的技能草稿。运行 `evokit forge --from-tags <tags>` / `--topic "<主题>"` 生成。');
+    return;
+  }
+  console.log(`🛠 forge 技能草稿（trial，${drafts.length} 个）— ${AGENTS_SKILLS_DIR}\n`);
+  drafts.forEach((d, i) => {
+    const parents = Array.isArray(d.gen.parentCards) ? d.gen.parentCards.length : 0;
+    console.log(`  ${i + 1}. ${d.name}  父卡 ${parents} 张  generatedAt=${d.gen.generatedAt ?? '-'}  topic=${d.gen.topic || '-'}`);
+  });
+  console.log(`\n裁决命令:\n  evokit review --skill-accept <name>  通过并分发（symlink → ${SKILL_DISTRIBUTE_TARGETS.join('、')} + distributedTo 回写 + forge-use 引用 + .skill-lock.json 登记）\n  evokit review --skill-veto <name>    否决（vetoed，--audit 时提示）`);
+}
+
+/** .skill-lock.json 无损追加（D6）：数组则登记（同名条目就地更新），否则跳过并提示；原文件绝不破坏 */
+function appendSkillLock(name, gen) {
+  const lockFile = join(AGENTS_SKILLS_DIR, '.skill-lock.json');
+  if (!existsSync(lockFile)) return '.skill-lock.json 不存在，未创建（按约定不代建）';
+  let lock = null;
+  try {
+    lock = JSON.parse(readFileSync(lockFile, 'utf-8'));
+  } catch (e) {
+    return `⚠ .skill-lock.json 解析失败（${e instanceof Error ? e.message : String(e)}），跳过登记，原文件未动`;
+  }
+  if (!Array.isArray(lock)) return '⚠ .skill-lock.json 结构非数组，跳过登记，原文件未动';
+  const entry = {
+    name,
+    sourceType: 'evokit',
+    generatedAt: gen.generatedAt ?? null,
+    parentCards: Array.isArray(gen.parentCards) ? gen.parentCards : [],
+  };
+  const idx = lock.findIndex((x) => x && typeof x === 'object' && x.name === name);
+  if (idx === -1) lock.push(entry);
+  else lock[idx] = { ...lock[idx], ...entry }; // 同名条目就地更新，其余条目无损
+  try {
+    writeFileSync(lockFile, JSON.stringify(lock, null, 2) + '\n', 'utf-8');
+    return idx === -1 ? '.skill-lock.json 已无损追加登记' : '.skill-lock.json 同名条目已更新';
+  } catch (e) {
+    return `⚠ .skill-lock.json 写回失败（${e instanceof Error ? e.message : String(e)}），原文件未动`;
+  }
+}
+
+/**
+ * --skill-accept：人工过目通过 → 逐个 makeSymlink 分发 → 成功落点回写 distributedTo →
+ * review.status=confirmed → 每个父卡追加 forge-use 引用 → .skill-lock.json 无损追加（D6）。
+ * uses 不回填（由人工/工具计数，本期不做）。symlink 失败：回写已成功落点、保持 trial 并报错（可修复后重试）。
+ */
+function acceptSkillDraft(name) {
+  assertSafeSkillName(name, '--skill-accept');
+  const gen = readSkillGeneration(name);
+  const review = gen.review && typeof gen.review === 'object' ? gen.review : {};
+  const status = String(review.status || '');
+  if (status === 'confirmed') {
+    throw new Error(`技能 ${name} 已是 confirmed（重复 accept 会产生重复 forge-use 引用；如需重分发请手工处理）`);
+  }
+  if (status === 'vetoed') {
+    throw new Error(`技能 ${name} 已被否决（vetoed）；如需恢复先手工把 generation.json 的 review 改回 trial`);
+  }
+  const parentCards = Array.isArray(gen.parentCards) ? gen.parentCards.map(String) : [];
+  const sourceDir = join(AGENTS_SKILLS_DIR, name);
+  const okTargets = [];
+  const failed = [];
+  for (const dir of SKILL_DISTRIBUTE_TARGETS) {
+    try {
+      makeSymlink(sourceDir, join(expandPath(dir), name));
+      okTargets.push(expandPath(dir));
+    } catch (e) {
+      failed.push(`${dir}：${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (failed.length > 0) {
+    gen.distributedTo = okTargets; // 回写已成功部分
+    writeSkillGeneration(name, gen);
+    for (const f of failed) console.error(`  ✗ 分发失败 ${f}`);
+    throw new Error(`symlink 分发失败 ${failed.length}/${SKILL_DISTRIBUTE_TARGETS.length}（已回写成功落点，review.status 保持 trial，可修复后重试 --skill-accept ${name}）`);
+  }
+  gen.distributedTo = okTargets;
+  gen.review = { ...review, status: 'confirmed' };
+  writeSkillGeneration(name, gen);
+  let refCount = 0;
+  for (const cardId of parentCards) {
+    try {
+      appendReference(REFERENCES_FILE, { type: 'forge-use', cardId });
+      refCount += 1;
+    } catch (e) {
+      console.warn(`⚠ forge-use 引用写入失败（cardId=${cardId}）：${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  const lockMsg = appendSkillLock(name, gen);
+  console.log(`✓ 技能 ${name} 已确认并分发：`);
+  for (const dir of okTargets) console.log(`  · ${join(dir, name)}`);
+  console.log(`  review.status=confirmed · distributedTo ${okTargets.length} 处 · forge-use 引用 ${refCount} 条 · ${lockMsg}`);
+}
+
+/** --skill-veto：人工否决（review.vetoed=true + status=vetoed）；分发链接不动，forge --audit 提示已否决 */
+function vetoSkillDraft(name) {
+  assertSafeSkillName(name, '--skill-veto');
+  const gen = readSkillGeneration(name);
+  const review = gen.review && typeof gen.review === 'object' ? gen.review : {};
+  gen.review = { ...review, vetoed: true, status: 'vetoed' };
+  writeSkillGeneration(name, gen);
+  console.log(`✓ 技能 ${name} 已否决（review.vetoed=true + status=vetoed）；分发链接未动，\`evokit forge --audit\` 会提示已否决。`);
 }

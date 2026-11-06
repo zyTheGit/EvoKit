@@ -26,8 +26,9 @@ export function help() {
   evokit knowledge init     初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
   evokit harvest            采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
   evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto）
-  evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --audit）
+  evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --skill / --audit）
   evokit recall "<关键词>"   本地知识检索 + 命中计数（tags×3 ＞ 标题×2 ＞ 正文×1；--limit n / --json）
+  evokit forge              知识卡聚簇锻造技能草稿（--from-tags a,b / --topic "…" / --agent <id> / --audit）
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi
