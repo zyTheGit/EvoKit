@@ -27,6 +27,7 @@ export function help() {
   evokit harvest            采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
   evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto）
   evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --audit）
+  evokit recall "<关键词>"   本地知识检索 + 命中计数（tags×3 ＞ 标题×2 ＞ 正文×1；--limit n / --json）
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi

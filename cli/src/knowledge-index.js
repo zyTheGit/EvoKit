@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { listCards } from './knowledge-cards.js';
-import { lastRefMap } from './references.js';
+import { lastRefMap, readReferences } from './references.js';
 
 // 桶 header 与旧别名（读侧映射用）
 const EVOKIT_HEADER = '## EvoKit 知识';
@@ -17,8 +17,8 @@ const REFERENCES_FILE_NAME = 'references.jsonl'; // 与 paths.js REFERENCES_FILE
 // 索引行提取：全链路唯一规则（ADR 0009 §4，对齐 ADR 0008）
 const ID_LINE_RE = /^- \[([^\]]+)\]/;
 
-// 类型 → 摘要前缀标记（不进中括号）
-const TYPE_MARK = { pitfall: '⚠ ', pattern: '🏛 ', workflow: '🔧 ' };
+// 类型 → 摘要前缀标记（不进中括号）；recall 命令输出复用同一映射
+export const TYPE_MARK = { pitfall: '⚠ ', pattern: '🏛 ', workflow: '🔧 ' };
 
 /**
  * 读索引：EvoKit 桶行提取 {id, text}；其余 `##` 段逐字收进 unknown（含 header 行与空行）。
@@ -112,6 +112,9 @@ export function buildIndexLine(card) {
 
 /**
  * 重建 EvoKit 桶行：confirmed 才进索引；溢出按（最近引用 desc、confidence desc、updated desc）挤出。
+ * 粘性权重（ADR 0009 §5 / 计划 D7）：pitfall 类型或被 forge-use 引用过的卡为 sticky 优先层，
+ * 溢出时先从非 sticky 层按同键从尾部挤出，仍不够才挤 sticky 层尾部；层内排序规则相同。
+ * 行序保持全局同键排序（与无粘性版本一致，test-m0 向后兼容）。
  * 无引用数据时「最近引用」退化为 updated。被挤出卡保留在库文件中（本函数只产出行，不删文件）。
  * @param {string} knowledgeDir 知识根目录
  * @param {Array<{ id: string, front: Record<string, unknown>, body: string }>} cards listCards 产物
@@ -119,21 +122,39 @@ export function buildIndexLine(card) {
  * @returns {{ lines: string[], dropped: string[] }}
  */
 export function rebuildIndex(knowledgeDir, cards, budget = 60) {
-  const refs = lastRefMap(join(knowledgeDir, REFERENCES_FILE_NAME));
+  const refFile = join(knowledgeDir, REFERENCES_FILE_NAME);
+  const refs = lastRefMap(refFile);
+  // 粘性判定：pitfall 类型，或 references.jsonl 中出现过 forge-use 引用的卡
+  const forgeUsed = new Set();
+  for (const rec of readReferences(refFile)) {
+    if (rec.type === 'forge-use') forgeUsed.add(rec.cardId);
+  }
   const scored = cards
     .filter((c) => c.front.status === 'confirmed')
     .map((c) => ({
       id: c.id,
       front: c.front,
+      sticky: String(c.front.type) === 'pitfall' || forgeUsed.has(c.id),
       refTs: refs.get(c.id) || String(c.front.updated ?? ''),
       conf: Number(c.front.confidence) || 0,
       updated: String(c.front.updated ?? ''),
     }));
-  scored.sort((a, b) =>
-    b.refTs.localeCompare(a.refTs) || b.conf - a.conf || b.updated.localeCompare(a.updated));
+  const byPriority = (a, b) =>
+    b.refTs.localeCompare(a.refTs) || b.conf - a.conf || b.updated.localeCompare(a.updated);
+  const sorted = [...scored].sort(byPriority);
+  const cap = Math.max(0, budget);
+  const overflow = Math.max(0, scored.length - cap);
+  // 挤出顺序：非 sticky 层按同键从尾部先挤（dropped[0] = 最先被挤者）；仍溢出才挤 sticky 层尾部
+  const nonSticky = scored.filter((c) => !c.sticky).sort(byPriority);
+  const sticky = scored.filter((c) => c.sticky).sort(byPriority);
+  const dropped = nonSticky.slice(Math.max(0, nonSticky.length - Math.min(overflow, nonSticky.length))).map((c) => c.id);
+  if (overflow > nonSticky.length) {
+    dropped.push(...sticky.slice(Math.max(0, sticky.length - (overflow - nonSticky.length))).map((c) => c.id));
+  }
+  const droppedSet = new Set(dropped);
   return {
-    lines: scored.slice(0, Math.max(0, budget)).map(buildIndexLine),
-    dropped: scored.slice(Math.max(0, budget)).map((c) => c.id),
+    lines: sorted.filter((c) => !droppedSet.has(c.id)).map(buildIndexLine),
+    dropped,
   };
 }
 

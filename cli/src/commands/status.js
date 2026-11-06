@@ -5,9 +5,10 @@ import { join, resolve } from 'node:path';
 import { GLOBAL_SOURCE, BEGIN, END, expandPath } from '../paths.js';
 import { loadAgents, filterAgents } from '../config.js';
 import { readSource } from '../fs-utils.js';
+import { collectPartsForTarget, joinParts } from '../entry-content.js';
 
 /** 通用状态展示：列出各入口的同步状态 */
-function showStatus(source, sourceLabel, entries) {
+function showStatus(source, sourceLabel, entries, expectedFn = null) {
   console.log(`源：${source} ${existsSync(source) ? '' : '（不存在，先 init）'}\n`);
   console.log('入口文件：');
   for (const { name, file } of entries) {
@@ -25,7 +26,9 @@ function showStatus(source, sourceLabel, entries) {
     const managed = content.slice(start, end).trim();
     const hasUserContent = content.slice(0, content.indexOf(BEGIN)).trim() !== '' ||
       content.slice(end + END.length).trim() !== '';
-    const consistent = existsSync(source) && managed === readSource(source);
+    // v3：全局入口按「全部 text 资源合并」的期望值判定一致性；项目级维持单源比较
+    const expectedContent = expectedFn ? expectedFn(file) : readSource(source);
+    const consistent = existsSync(source) && managed === expectedContent;
     const mark = consistent ? '✓ 一致' : '⚠ 不一致（需 sync）';
     const user = hasUserContent ? '（块外有用户内容）' : '';
     console.log(`  ✓ ${name}  ${file}  — ${mark}${user}`);
@@ -45,5 +48,6 @@ export function status(filter, isProject = false) {
   }
   const agents = filterAgents(loadAgents(), filter);
   const entries = agents.map((a) => ({ name: `${a.name} (${a.id})`, file: expandPath(a.global) }));
-  showStatus(GLOBAL_SOURCE, GLOBAL_SOURCE, entries);
+  const expectedFn = (file) => joinParts(collectPartsForTarget(file).present).trim();
+  showStatus(GLOBAL_SOURCE, GLOBAL_SOURCE, entries, expectedFn);
 }

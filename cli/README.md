@@ -41,6 +41,7 @@ evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git
 evokit harvest             # 采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
 evokit learn               # harvest→distill→按档位处理草稿（--no-distill / --agent <id> / --session <id> / --auto）
 evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --audit）
+evokit recall "<关键词>"     # 本地知识检索 + 命中计数（--limit n / --json）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -280,10 +281,14 @@ evokit review --accept <id>     # 接受草稿入库（confirmed + 索引重建 
 evokit review --reject <id>     # 拒绝草稿（移入 .rejected/）
 evokit review --merge <id> <into>  # 并入既有卡（retired + mergedInto，canonical 保留）
 evokit review --audit           # 近期自动入库抽查（acceptedBy=auto + git log）
+evokit recall "fnm"              # 本地检索 confirmed 卡（tags×3 ＞ 标题×2 ＞ 正文×1，命中写 references 计数）
+evokit recall "fnm" --limit 5    # 只显示前 5 条
+evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消费）
 ```
 
 - 源清单与分批/档位参数在 `settings.json` 的 `sources` / `knowledge` 块配置；`knowledge.automation` 默认 `manual`（人在环），`assist` 按 `autoThreshold`（默认 0.9）自动入库，`auto` 全自动。
 - distill 委托本机 agent CLI（默认 codex→pi 降级链，claude 不进自动链），解析失败的内容落 `.pending/orphan/` 绝不丢弃；来源可疑的卡打 `suspect` 标记留审；RawEvent 与卡片入库前双点脱敏。
+- L1 分发：内置 `knowledge-index` 资源经 `sync --resource knowledge-index` 把 ≤60 行索引写入三入口托管块；索引重建时 pitfall / 被 forge-use 引用的卡带粘性权重（优先保留），源缺失（未 `knowledge init`）时 sync 跳过并提示。
 
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
 

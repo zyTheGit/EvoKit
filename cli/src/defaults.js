@@ -32,6 +32,13 @@ export const DEFAULT_RESOURCES = [
     source: '~/.evokit/context.md',
     targets: ['~/.claude/CLAUDE.md', '~/.pi/agent/APPEND_SYSTEM.md', '~/.codex/AGENTS.md'],
   },
+  // 记忆引擎 L1 分发（T-M3.1）：知识索引 → 三入口托管块；源缺失时 sync 跳过并提示（见 commands/sync.js）
+  {
+    id: 'knowledge-index',
+    type: 'text',
+    source: '~/.evokit/knowledge/knowledge-index.md',
+    targets: ['~/.claude/CLAUDE.md', '~/.pi/agent/APPEND_SYSTEM.md', '~/.codex/AGENTS.md'],
+  },
 ];
 
 /** 内置默认提示词模板（用户配置只覆盖同名 key，未覆盖的仍用默认） */
