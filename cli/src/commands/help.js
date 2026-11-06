@@ -24,11 +24,13 @@ export function help() {
   evokit uninstall [--agent <id>]  移除托管块，恢复入口文件（保留用户内容）
   evokit uninstall --project 移除当前项目入口的托管块（保留用户内容）
   evokit knowledge init     初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
+  evokit knowledge gc       归档失效卡（retired / validUntil 过期）+ 清理 .rejected 超期文件（--before <YYYY-MM-DD> / --dry-run）
   evokit harvest            采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
-  evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto）
+  evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto；启动时消费 hook 触发）
   evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --skill / --audit）
   evokit recall "<关键词>"   本地知识检索 + 命中计数（tags×3 ＞ 标题×2 ＞ 正文×1；--limit n / --json）
   evokit forge              知识卡聚簇锻造技能草稿（--from-tags a,b / --topic "…" / --agent <id> / --audit）
+  evokit hook learn-enqueue 钩子入队：写 ~/.evokit/triggers/ 触发文件立即返回，不执行 learn（--session <id> / --json；任何异常 exit 0）
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi

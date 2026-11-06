@@ -38,11 +38,13 @@ evokit uninstall            # 移除托管块，恢复入口文件（保留用�
 evokit uninstall --agent claude  # 只卸载指定 agent
 evokit uninstall --project  # 卸载当前项目入口（移除项目级托管块，保留用户内容）
 evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
+evokit knowledge gc        # 归档失效卡（retired / validUntil 过期）+ 清理 .rejected 超期文件（--before <YYYY-MM-DD> / --dry-run）
 evokit harvest             # 采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
-evokit learn               # harvest→distill→按档位处理草稿（--no-distill / --agent <id> / --session <id> / --auto）
+evokit learn               # harvest→distill→按档位处理草稿；启动时消费 hook 触发（--no-distill / --agent <id> / --session <id> / --auto）
 evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --skill / --audit）
 evokit recall "<关键词>"     # 本地知识检索 + 命中计数（--limit n / --json）
 evokit forge               # 知识卡聚簇锻造技能（--from-tags a,b / --topic "…" / --audit）
+evokit hook learn-enqueue  # 会话结束钩子入队：写 ~/.evokit/triggers/ 触发文件立即返回，不执行 learn（--session <id> / --json）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -262,6 +264,8 @@ evokit inventory --no-output      # 禁用导出，只在终端回显
 > **依赖**：会调用本机的 `claude` / `pi` / `codex` CLI。Pi 和 Codex 依赖 Node 24（经 `fnm` 安装），EvoKit 会自动探测 `fnm` 的 installation 目录。未安装的 agent 会提示「未检测到 CLI，跳过」，不影响其他 agent。
 >
 > **只读安全**：inventory 只扫描和调用 agent 分析，不修改任何文件。agent 返回的是「建议」，具体整理动作仍需你确认后手动执行。
+>
+> **知识库区块**：扫描清单含「知识库」区块——confirmed/draft/retired 卡计数、`.pending` 草稿数、`references.jsonl` 事件数、索引行数，以及每卡一行（id/title/type/status/tags，上限 200 行）的卡片清单，随 `{inventory}` 并入委托 prompt（六区块体检覆盖知识库）。知识根未初始化时只输出一行提示，不影响其他区块。
 
 ### 记忆引擎（v3）：harvest / learn / review / forge
 
@@ -294,6 +298,8 @@ evokit recall "fnm" --limit 5    # 只显示前 5 条
 evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消费）
 ```
 
+- 自动化层（M5 / T-M5.1）：`evokit hook learn-enqueue [--session <id>] [--json]` 是会话结束钩子的**入队命令**——只往 `~/.evokit/triggers/` 写一条 `learn-*.json`（含 ts/session/cwd）立即返回。任何异常（目录不可写/磁盘满/未知错误）**无条件 exit 0**：非 `--json` 时错误只进 stderr，`--json` 时 stdout 恰好一个合法 JSON（`{"ok":true,"queued":true,"file":"…"}` / `{"ok":true,"queued":false,"error":"…"}`），堆栈禁入 stdout（ADR 0007 纪律）。安装方式 = 把 Stop 钩子命令（`node <evokit.mjs 绝对路径> hook learn-enqueue --session $CLAUDE_SESSION_ID`）手动合并进 `~/.claude/settings.json`，EvoKit 不自动改写工具配置。`evokit learn` 启动时消费并删除这些触发（「收到 N 条会话学习触发」），session 并入本次提纯的会话过滤；无触发时维持全量增量。
+- `evokit knowledge gc [--before <YYYY-MM-DD>] [--dry-run]`（T-M5.3）：把 `status: retired` 或 `validUntil` 早于 before（缺省=今天，当天仍有效）的卡移入 `knowledge/.archive/`（重名加时间戳），删除 `.rejected/` 中 mtime 超过 `knowledge.rejectedRetentionDays`（默认 90 天）的文件；随后重建索引（未知透传段保留）并做独立 git commit（`gc: archive N cards`，非仓库/身份缺失仅警告跳过）；`--dry-run` 只列表不改动。汇总输出归档数 / 清理数 / 剩余 confirmed 数。
 - 源清单与分批/档位参数在 `settings.json` 的 `sources` / `knowledge` 块配置；`knowledge.automation` 默认 `manual`（人在环），`assist` 按 `autoThreshold`（默认 0.9）自动入库，`auto` 全自动。
 - distill 委托本机 agent CLI（默认 codex→pi 降级链，claude 不进自动链），解析失败的内容落 `.pending/orphan/` 绝不丢弃；来源可疑的卡打 `suspect` 标记留审；RawEvent 与卡片入库前双点脱敏。
 - L1 分发：内置 `knowledge-index` 资源经 `sync --resource knowledge-index` 把 ≤60 行索引写入三入口托管块；索引重建时 pitfall / 被 forge-use 引用的卡带粘性权重（优先保留），源缺失（未 `knowledge init`）时 sync 跳过并提示。

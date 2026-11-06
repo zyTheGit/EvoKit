@@ -1,13 +1,18 @@
-// learn 命令（T-M2.5）：harvest → distill → 按档位处理 .pending 草稿 的编排
+// learn 命令（T-M2.5）：triggers 消费 → harvest → distill → 按档位处理 .pending 草稿 的编排
+// T-M5.1：启动时消费 hook learn-enqueue 入队的 ~/.evokit/triggers/learn-*.json（消费即删，损坏文件删除跳过），
+//   收集 session 集合并入 --session；集合非空 → harvest 后在 distill 层按会话过滤（与既有 --session 同谓词）；
+//   无 triggers 且无 --session → 全量增量（现行为）。
 // 三档（knowledge.automation，默认 manual 人在环，红线 #7）：
 //   manual  打印审阅提示，全部留审；
 //   assist  confidence ≥ autoThreshold 且裁决 ADD 且非 suspect 的自动入库（acceptedBy: auto），其余留审；
 //   auto    全部自动入库；--auto 本次临时覆盖为 auto 档。
 
-import { PENDING_DIR } from '../paths.js';
+import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { PENDING_DIR, TRIGGERS_DIR } from '../paths.js';
 import { listCards } from '../knowledge-cards.js';
 import { runHarvest, loadEngineConfig } from './harvest.js';
-import { runDistill } from '../distill.js';
+import { runDistill, readInboxEvents } from '../distill.js';
 import { acceptDraft } from './review.js';
 
 /** 解析 `--flag <value>`；缺失返回 null */
@@ -44,10 +49,38 @@ export function learnCommand(args) {
  * learn 主体（供测试复用）：采集 → 提纯 → 草稿三档处理 → 尾部报告（各步计数）。
  * @param {{ full?: boolean, noDistill?: boolean, auto?: boolean, agent?: string | null,
  *           session?: string | null, quietHarvest?: boolean }} opts
- * @returns {{ harvest: object, distill: object | null, automation: string, autoAccepted: number, leftPending: string[], acceptFailed: string[] }}
+ * @returns {{ harvest: object, distill: object | null, automation: string, autoAccepted: number, leftPending: string[], acceptFailed: string[], triggersConsumed: number, sessions: string[] }}
  */
 export function learnRun(opts = {}) {
   const startedAt = Date.now();
+  // ⓪ 消费 hook learn-enqueue 入队的触发（T-M5.1，消费即删）：读 learn-*.json 收集 session 集合后全部删除。
+  //   损坏文件删除跳过；目录不存在/读目录失败视为无触发（触发属便利层，不阻断 learn）
+  const sessionSet = new Set();
+  let triggersConsumed = 0;
+  try {
+    if (existsSync(TRIGGERS_DIR)) {
+      const names = readdirSync(TRIGGERS_DIR).filter((n) => /^learn-.*\.json$/.test(n)).sort();
+      for (const name of names) {
+        const file = join(TRIGGERS_DIR, name);
+        try {
+          const obj = JSON.parse(readFileSync(file, 'utf-8'));
+          triggersConsumed += 1;
+          if (obj && typeof obj.session === 'string' && obj.session) sessionSet.add(obj.session);
+        } catch {
+          // 损坏文件：删除跳过，不进 session 集合
+        }
+        try {
+          rmSync(file, { force: true });
+        } catch {
+          // 删除失败：留待下次 learn 再消费，不影响本次运行
+        }
+      }
+    }
+  } catch {
+    // 读目录失败视为无触发
+  }
+  if (opts.session) sessionSet.add(String(opts.session)); // --session 显式值并入同一集合
+  if (triggersConsumed > 0) console.log(`📬 收到 ${triggersConsumed} 条会话学习触发（triggers 消费即删）`);
   const { knowledge } = loadEngineConfig();
   const automation = opts.auto ? 'auto' : String(knowledge.automation || 'manual');
 
@@ -55,9 +88,19 @@ export function learnRun(opts = {}) {
   const hr = runHarvest({ full: !!opts.full, quiet: !!opts.quietHarvest });
 
   // ② distill（--no-distill 跳过；失败降级不中断）
+  // 会话集合非空（triggers / --session）：读 inbox 后按集合过滤（与既有 --session 同谓词），传过滤后事件；
+  // 集合为空：维持现行为（runDistill 自读 inbox 全量增量）
   let dr = null;
   if (!opts.noDistill) {
-    dr = runDistill({ agent: opts.agent, session: opts.session });
+    let events = null;
+    if (sessionSet.size > 0) {
+      events = readInboxEvents().events.filter((ev) => {
+        const top = typeof ev.sessionId === 'string' ? ev.sessionId : '';
+        const meta = ev.meta && typeof ev.meta.sessionId === 'string' ? ev.meta.sessionId : '';
+        return (top !== '' && sessionSet.has(top)) || (meta !== '' && sessionSet.has(meta));
+      });
+    }
+    dr = runDistill({ agent: opts.agent, events });
   }
 
   // ③ .pending 按档位处理
@@ -110,5 +153,5 @@ export function learnRun(opts = {}) {
   if (leftPending.length > 0 && automation !== 'auto') {
     console.log('  后续：evokit review 查看待审清单并裁决（--accept / --reject / --merge / --audit）。');
   }
-  return { harvest: hr, distill: dr, automation, autoAccepted, leftPending, acceptFailed };
+  return { harvest: hr, distill: dr, automation, autoAccepted, leftPending, acceptFailed, triggersConsumed, sessions: [...sessionSet] };
 }
