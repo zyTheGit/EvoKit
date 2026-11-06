@@ -510,8 +510,18 @@ M0–M2 完成即有实用价值（经验不再散失），可在此提前收敛
 
 ---
 
-## 附录 A：AGENTS.md 输出目标 spike 结论（待 T-M3.2 填写）
+## 附录 A：AGENTS.md 输出目标 spike 结论（T-M3.2 已收口，2026-11-06 实读核验）
 
-> 结论：_待核验_
-> 核验项：① 家目录级 AGENTS.md（`~/.cursor/AGENTS.md` 等）是否被各工具读取；② 项目根 AGENTS.md 的拼接/覆盖语义；③ 各工具官方文档证据链接。
-> 纪律：未核验通道不定级、不承诺（ADR 0006）；结论决定是否新增 agent 条目。
+> 结论：**不新增任何家目录级 AGENTS.md 条目，M3 无需代码改动**。家目录级 AGENTS.md 仅 Codex CLI 一家读取（`~/.codex/AGENTS.md`，已是 v2.0 既有 agent 目标）；其余工具的家目录记忆文件均为专有格式（`~/.claude/CLAUDE.md`、`~/.gemini/GEMINI.md`、`~/.copilot/copilot-instructions.md`、`~/.trae/user_rules`），写 `~/.xxx/AGENTS.md` 会被无视。
+
+| 工具 | 家目录级 AGENTS.md | 项目根 AGENTS.md | 多层级语义 | EvoKit 裁定 |
+| --- | --- | --- | --- | --- |
+| Codex CLI | **是**（唯一） | 是 | 根→cwd 逐层拼接、越近越覆盖；32KiB 上限 | 既有目标已覆盖；索引 ≤60 行设计正好契合截断限制 |
+| Cursor | 否 | 是 | 根+子目录组合、就近优先 | 用户可在 settings 自加 project 目标（零代码） |
+| Copilot (VS Code/CLI/远程) | 否 | 是（GA） | 按 harness 组合、无统一优先序；嵌套多为实验开关 | 同上，项目根单文件是可靠通道 |
+| Qoder | 否 | 是 | 未说明 [未核验]；rules 冲突时压过 AGENTS.md | 同上；注意 100k 字符上限 |
+| Trae | 否 | 是，但需用户开 Import 开关 | 子目录就近触发 | 写根 AGENTS.md 需文档提示开开关；或走原生 `.trae/rules/` |
+| Gemini CLI | 否（家目录是 GEMINI.md） | 默认否，需 `context.fileName` 配置 | 三层全拼接、无覆盖 | 不写 AGENTS.md；需要时写 GEMINI.md（用户配置） |
+| Claude Code（对照） | 否 | 有条件：cwd 及以上无任何 CLAUDE.md 才读 | 同 CLAUDE.md 机制拼接 | 主通道是 CLAUDE.md（既有）；AGENTS.md 会被 CLAUDE.md 整体遮蔽，勿依赖 |
+
+**对 v3 的落地裁定**：① L1 全局索引分发维持既有三入口（CLAUDE.md / APPEND_SYSTEM.md / ~/.codex/AGENTS.md），零改动；② 项目级 AGENTS.md（Cursor/Copilot/Qoder）由用户在 settings.json 的 agents 块加 `project: 'AGENTS.md'` 条目即可，EvoKit 机制已支持，不进默认配置；③ 知识索引只写项目根一层，不依赖嵌套覆盖语义（各家实现差异大，详见核验记录）。核验方法与逐工具证据链接见子代理调研存档（.zwork/runs/30d6f71f/2-研究员.md），引用时以各工具官方文档为准。
