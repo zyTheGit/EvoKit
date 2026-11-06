@@ -1,0 +1,31 @@
+{
+  "name": "@evokit/cli",
+  "version": "2.0.0",
+  "description": "EvoKit CLI — 个人多工具偏好同步工具（零依赖，一份偏好同步到 Claude Code / Pi / Codex）",
+  "type": "module",
+  "bin": {
+    "evokit": "evokit.mjs"
+  },
+  "files": [
+    "evokit.mjs",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "evokit",
+    "claude",
+    "codex",
+    "pi",
+    "ai-context",
+    "sync",
+    "claude-code"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test-local.mjs",
+    "start": "node evokit.mjs",
+    "start:debug": "node evokit.mjs -- --debug"
+  }
+}
