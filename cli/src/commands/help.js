@@ -24,7 +24,9 @@ export function help() {
   evokit uninstall [--agent <id>]  移除托管块，恢复入口文件（保留用户内容）
   evokit uninstall --project 移除当前项目入口的托管块（保留用户内容）
   evokit knowledge init     初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
-  evokit review             待审草稿清单（裁决功能 M2 提供）
+  evokit harvest            采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
+  evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto）
+  evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --audit）
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi

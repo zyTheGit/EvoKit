@@ -38,7 +38,9 @@ evokit uninstall            # 移除托管块，恢复入口文件（保留用�
 evokit uninstall --agent claude  # 只卸载指定 agent
 evokit uninstall --project  # 卸载当前项目入口（移除项目级托管块，保留用户内容）
 evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
-evokit review              # 查看待审草稿清单（裁决功能 M2 提供）
+evokit harvest             # 采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
+evokit learn               # harvest→distill→按档位处理草稿（--no-distill / --agent <id> / --session <id> / --auto）
+evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --audit）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -258,6 +260,30 @@ evokit inventory --no-output      # 禁用导出，只在终端回显
 > **依赖**：会调用本机的 `claude` / `pi` / `codex` CLI。Pi 和 Codex 依赖 Node 24（经 `fnm` 安装），EvoKit 会自动探测 `fnm` 的 installation 目录。未安装的 agent 会提示「未检测到 CLI，跳过」，不影响其他 agent。
 >
 > **只读安全**：inventory 只扫描和调用 agent 分析，不修改任何文件。agent 返回的是「建议」，具体整理动作仍需你确认后手动执行。
+
+### 记忆引擎（v3）：harvest / learn / review
+
+经验层流水线 `harvest → distill → review`：把各 AI 工具的会话史提纯成统一知识库（`~/.evokit/knowledge/`，独立 git 版本化，commit 形如 `learn: <标题>`）。
+
+```bash
+evokit harvest                  # 采集所有启用源 → ~/.evokit/inbox/（水位线增量 + 收割即脱敏）
+evokit harvest --full           # 忽略水位线全量处理
+evokit harvest --source claude-sessions  # 只跑指定源
+evokit harvest --dry-run        # 只报告不写盘
+evokit learn                    # harvest→distill→按档位处理草稿，尾部报告各步计数
+evokit learn --no-distill       # 只采集，不提纯
+evokit learn --agent claude     # 显式指定提纯执行者（claude 不在自动链，注意超时风险）
+evokit learn --session <id>     # 只提纯指定会话
+evokit learn --auto             # 本次临时用 auto 档（全部自动入库）
+evokit review                   # 待审草稿清单
+evokit review --accept <id>     # 接受草稿入库（confirmed + 索引重建 + git commit）
+evokit review --reject <id>     # 拒绝草稿（移入 .rejected/）
+evokit review --merge <id> <into>  # 并入既有卡（retired + mergedInto，canonical 保留）
+evokit review --audit           # 近期自动入库抽查（acceptedBy=auto + git log）
+```
+
+- 源清单与分批/档位参数在 `settings.json` 的 `sources` / `knowledge` 块配置；`knowledge.automation` 默认 `manual`（人在环），`assist` 按 `autoThreshold`（默认 0.9）自动入库，`auto` 全自动。
+- distill 委托本机 agent CLI（默认 codex→pi 降级链，claude 不进自动链），解析失败的内容落 `.pending/orphan/` 绝不丢弃；来源可疑的卡打 `suspect` 标记留审；RawEvent 与卡片入库前双点脱敏。
 
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
 

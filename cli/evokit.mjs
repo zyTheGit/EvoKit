@@ -32,7 +32,9 @@
  *   evokit uninstall [--agent <id>] 移除托管块，恢复入口文件（保留用户内容）
  *   evokit uninstall --project    移除当前项目入口的托管块（保留用户内容）
  *   evokit knowledge init     初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
- *   evokit review             待审草稿清单（裁决功能 M2 提供）
+ *   evokit harvest            采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
+ *   evokit learn              harvest→distill→草稿三档处理（--no-distill / --agent <id> / --session <id> / --auto）
+ *   evokit review             待审草稿清单 + 裁决（--accept / --reject / --merge / --audit）
  *   evokit --help             帮助
  *
  * 说明：方括号 [ ] 表示可选；check/status/uninstall 还支持位置参数（evokit check pi ≡ evokit check --agent pi）。
@@ -58,6 +60,9 @@ import {
   listAgents, listResources, inventory, help,
   knowledgeCommand, reviewCommand,
 } from './src/commands/index.js';
+// harvest/learn 为 M1/M2 新增命令，直接从命令文件导入（commands/index.js 本轮不在改动范围）
+import { harvestCommand } from './src/commands/harvest.js';
+import { learnCommand } from './src/commands/learn.js';
 
 const rawArgs = process.argv.slice(2);
 initDebug(rawArgs);
@@ -70,7 +75,7 @@ let filter = parseAgentFilter(args);
 const resourceFilter = parseResourceFilter(args);
 
 // 已知命令清单（用于未知命令时猜测用户意图）
-const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'knowledge', 'review', 'help'];
+const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'knowledge', 'harvest', 'learn', 'review', 'help'];
 
 /** 计算两个字符串的编辑距离（Levenshtein），用于"是否打错命令"猜测 */
 function levenshtein(a, b) {
@@ -163,6 +168,12 @@ async function main() {
       break;
     case 'knowledge':
       knowledgeCommand(args.slice(1));
+      break;
+    case 'harvest':
+      harvestCommand(args.slice(1));
+      break;
+    case 'learn':
+      learnCommand(args.slice(1));
       break;
     case 'review':
       reviewCommand(args.slice(1));

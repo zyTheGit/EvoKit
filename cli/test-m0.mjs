@@ -340,7 +340,7 @@ assert(reviewR.stdout.includes(draftCardId) && reviewR.stdout.includes('CLI 冒�
 assert(reviewR.stdout.includes('k20260101-11111111'), 'review 列出 related');
 assert(reviewR.stdout.includes('--accept'), 'review 打印裁决命令提示');
 const acceptR = runCli(['review', '--accept', draftCardId]);
-assert(acceptR.stdout.includes('尚未实现') || acceptR.stderr.includes('尚未实现'), '裁决参数提示未实现（M2 提供）');
+assert(acceptR.code === 0 && acceptR.stdout.includes('已入库'), '裁决入库（T-M2.4 提供）');
 // help 与拼错建议
 const helpR = runCli(['help']);
 assert(helpR.stdout.includes('knowledge') && helpR.stdout.includes('review'), 'help 含 knowledge/review');
