@@ -73,6 +73,10 @@ export function syncProject(filter) {
 export async function syncResources(filter) {
   const resources = filterResources(loadResources(), filter);
   for (const r of resources) {
+    if (r.enabled === false) {
+      console.log(`ℹ 资源 ${r.id} 已禁用（enabled: false），跳过`);
+      continue;
+    }
     const syncFn = resolveSyncer(r);
     if (!syncFn) {
       console.error(`✗ 资源 ${r.id} 的 type 不支持：${r.type}（支持：${Object.keys(SYNCERS).join(', ')}）`);

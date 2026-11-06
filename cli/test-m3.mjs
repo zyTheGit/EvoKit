@@ -112,6 +112,44 @@ for (const [id, file] of Object.entries(entryFiles)) {
     `${id} 块外用户内容逐字保留`);
 }
 
+// ── 1c. 隐式内置：老 settings 无 knowledge-index 条目时仍分发；enabled:false 可关闭 ──
+console.log('\n【1c. 隐式内置资源（兼容老 settings）】');
+{
+  const legacyHome = mkdtempSync(join(tmpRoot, 'legacy-'));
+  assert(runCli(['init'], legacyHome).code === 0, 'legacy home evokit init 退出码 0');
+  // 模拟 v2.0 时代 settings：resources 剔除 knowledge-index（loadJson 不回填新增默认项）
+  const legacyCfgPath = join(legacyHome, '.evokit', 'settings.json');
+  const legacyCfg = JSON.parse(readFileSync(legacyCfgPath, 'utf-8'));
+  legacyCfg.resources = legacyCfg.resources.filter((r) => r.id !== 'knowledge-index');
+  writeFileSync(legacyCfgPath, JSON.stringify(legacyCfg, null, 2) + '\n', 'utf-8');
+  assert(runCli(['knowledge', 'init'], legacyHome).code === 0, 'legacy home knowledge init 退出码 0');
+  const legacyKDir = join(legacyHome, '.evokit', 'knowledge');
+  const legacyIdx = join(legacyKDir, 'knowledge-index.md');
+  cards.writeCard(legacyKDir, {
+    front: { title: '老设置兼容卡', type: 'fact', source: 'test-m3', status: 'confirmed', confidence: '0.9' },
+    body: '老设置兼容',
+  });
+  const { lines } = index.rebuildIndex(legacyKDir, cards.listCards(legacyKDir, { excludeHidden: true }), 60);
+  const { unknown } = index.readIndex(legacyIdx);
+  index.writeIndex(legacyIdx, lines, unknown);
+  assert(runCli(['sync'], legacyHome).code === 0, 'legacy home sync 退出码 0');
+  const legacyClaude = join(legacyHome, '.claude', 'CLAUDE.md');
+  assert(readFileSync(legacyClaude, 'utf-8').includes('## EvoKit 知识'),
+    '老 settings 缺 knowledge-index 条目时 sync 仍分发知识索引（隐式内置资源）');
+  // enabled:false 显式关闭 → 重新 sync 后索引从托管块移除（只留 context）
+  legacyCfg.resources.push({
+    id: 'knowledge-index', type: 'text',
+    source: '~/.evokit/knowledge/knowledge-index.md',
+    targets: ['~/.claude/CLAUDE.md', '~/.pi/agent/APPEND_SYSTEM.md', '~/.codex/AGENTS.md'],
+    enabled: false,
+  });
+  writeFileSync(legacyCfgPath, JSON.stringify(legacyCfg, null, 2) + '\n', 'utf-8');
+  assert(runCli(['sync'], legacyHome).code === 0, '禁用后 sync 退出码 0');
+  assert(!readFileSync(legacyClaude, 'utf-8').includes('## EvoKit 知识'),
+    'enabled:false 后 sync 把知识索引从托管块移除（显式退出生效）');
+  rmSync(legacyHome, { recursive: true, force: true });
+}
+
 // ── 2. 粘性权重（T-M0.3 遗留，ADR 0009 §5）────────────────
 console.log('\n【2. 粘性权重：pitfall / forge-use】');
 // 2a. 61 卡（1 张 pitfall 最旧）→ pitfall 留在索引，最旧的无引用 workflow 被挤出

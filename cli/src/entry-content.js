@@ -17,6 +17,7 @@ import { expandPath, KNOWLEDGE_DIR } from './paths.js';
 import { loadResources } from './config.js';
 import { readSource } from './fs-utils.js';
 import { isRemote } from './remote.js';
+import { KNOWLEDGE_INDEX_RESOURCE } from './defaults.js';
 
 /** 资源是否为 text 型（未写 type 且非 http(s) 源也视为 text，与 syncers 分派规则一致） */
 export function isTextResource(r) {
@@ -31,6 +32,9 @@ function normTarget(p) {
 
 /**
  * 收集指向某入口文件的全部 text 资源内容（按 settings 资源定义顺序）。
+ * knowledge-index 为隐式内置资源：v2.0 老用户的 settings.json 缺该条目时自动补入
+ * （loadJson 对已存在文件不回填新增默认项）；settings 显式提供同名 id 时以用户配置为准，
+ * enabled:false 可显式关闭；其余 enabled:false 的资源同样跳过。
  * @param {string} targetFile 入口文件路径（~ 写法或绝对路径均可）
  * @returns {{ present: {id, content}[], missing: {id, recoverable}[] }}
  */
@@ -38,8 +42,13 @@ export function collectPartsForTarget(targetFile) {
   const key = normTarget(targetFile);
   const present = [];
   const missing = [];
-  for (const r of loadResources()) {
+  let resList = loadResources();
+  if (!resList.some((r) => r.id === 'knowledge-index')) {
+    resList = [...resList, KNOWLEDGE_INDEX_RESOURCE];
+  }
+  for (const r of resList) {
     if (!isTextResource(r)) continue;
+    if (r.enabled === false) continue;
     const targets = (r.targets || []).map(normTarget);
     if (!targets.includes(key)) continue;
     const srcFile = expandPath(r.source);
