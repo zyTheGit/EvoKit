@@ -77,11 +77,43 @@ export const DEFAULT_PROMPTS = {
 - 仅输出最终 Markdown 报告。`,
 };
 
+/** 内置默认采集源（设计文档 §4.1；sqlite 两条默认关闭，P2 储备） */
+export const DEFAULT_SOURCES = [
+  { id: 'claude-sessions', adapter: 'claude-projects', root: '~/.claude/projects', since: '2026-08-01', enabled: true },
+  { id: 'claude-history', adapter: 'jsonl-fields', root: '~/.claude/history.jsonl', enabled: true },
+  { id: 'codex-sessions', adapter: 'codex-rollout', root: '~/.codex/sessions', enabled: true },
+  { id: 'qoder-cn-memory', adapter: 'memory-cards', root: '~/.qoder-cn/memory', glob: 'feedback-*.md', enabled: true },
+  { id: 'qoder-memory', adapter: 'memory-cards', root: '~/.qoder/memory', enabled: true },
+  { id: 'codearts-memory', adapter: 'memory-cards', root: '~/.codeartsdoer/memory', recursive: true, enabled: true },
+  { id: 'trae-memory', adapter: 'trae-session-memory', root: '~/.trae-cn/memory/projects', enabled: true },
+  // workbuddy 日报在项目内，root 缺省 = 当前工作目录
+  { id: 'workbuddy-log', adapter: 'daily-log', glob: '**/.workbuddy/memory/*.md', enabled: true },
+  { id: 'pi-sessions', adapter: 'pi-sessions', root: '~/.pi/agent/sessions', enabled: true },
+  { id: 'trae-solo-db', adapter: 'sqlite', root: '~/AppData/Roaming/TRAE SOLO CN/ModularData/ai-agent/database.db', enabled: false },
+  { id: 'autoclaw-db', adapter: 'sqlite', root: '~/AppData/Roaming/AutoClaw-official/accounts/*/runtime/runtime.sqlite', enabled: false },
+];
+
+/** 内置默认 knowledge 配置块（记忆引擎 v3；用户配置浅合并覆盖） */
+export const DEFAULT_KNOWLEDGE = {
+  automation: 'manual',            // manual | assist | auto（默认人在环）
+  autoThreshold: 0.9,              // assist 档自动入库的 confidence 阈值
+  indexBudget: 60,                 // L1 索引常驻行数硬上限（ADR 0009 §5）
+  inboxRetentionDays: 30,          // RawEvent 暂存保留天数
+  rejectedRetentionDays: 90,       // .rejected 保留天数
+  distillAgentOrder: ['codex', 'pi'], // distill 执行者降级链（claude 长文超时 bug，不进自动链）
+  batchMaxSessions: 8,             // distill 单批最大会话数
+  batchMaxPromptKB: 24,            // distill 单批 prompt 上限（KB）
+  forgeClusterMin: 3,              // forge 聚簇达标最少 confirmed 卡数
+  redact: { extraPatterns: [] },   // 脱敏规则扩充（正则字符串数组）
+};
+
 /** 统一默认配置（首次生成 settings.json 用） */
 export const DEFAULT_CONFIG = {
   agents: DEFAULT_AGENTS,
   resources: DEFAULT_RESOURCES,
   prompts: DEFAULT_PROMPTS,
+  sources: DEFAULT_SOURCES,
+  knowledge: DEFAULT_KNOWLEDGE,
 };
 
 /** 默认全局偏好源内容 */
