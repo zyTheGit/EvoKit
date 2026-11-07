@@ -31,6 +31,9 @@ export function help() {
   evokit recall "<关键词>"   本地知识检索 + 命中计数（tags×3 ＞ 标题×2 ＞ 正文×1；--limit n / --json）
   evokit forge              知识卡聚簇锻造技能草稿（--from-tags a,b / --topic "…" / --agent <id> / --audit）
   evokit hook learn-enqueue 钩子入队：写 ~/.evokit/triggers/ 触发文件立即返回，不执行 learn（--session <id> / --json；任何异常 exit 0）
+  evokit schedule enable [--time HH:MM] [--mode auto|assist]  注册每日定时学习（Windows 任务计划）
+  evokit schedule disable [--task <name>]  取消定时任务
+  evokit schedule list  查看正在定时跑的 EvoKit 任务
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi

@@ -6,6 +6,7 @@
 //   manual  打印审阅提示，全部留审；
 //   assist  confidence ≥ autoThreshold 且裁决 ADD 且非 suspect 的自动入库（acceptedBy: auto），其余留审；
 //   auto    全部自动入库；--auto 本次临时覆盖为 auto 档。
+//   --assist 本次临时覆盖为 assist 档（T-M6，与 --auto 互斥，同传报错 exit 1）。
 
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -27,16 +28,22 @@ function flagValue(args, flag) {
  * `evokit learn` 入口
  * @param {string[]} args 参数（不含 'learn' 本身）：
  *   --full 全量收割 / --no-distill 跳过提纯 / --agent <id> 显式执行者 /
- *   --session <id> 只提纯指定会话 / --auto 本次临时用 auto 档
+ *   --session <id> 只提纯指定会话 / --auto 本次临时用 auto 档 / --assist 本次临时用 assist 档（与 --auto 互斥）
  */
 export function learnCommand(args) {
   const opts = {
     full: args.includes('--full'),
     noDistill: args.includes('--no-distill'),
     auto: args.includes('--auto'),
+    assist: args.includes('--assist'),
     agent: flagValue(args, '--agent'),
     session: flagValue(args, '--session'),
   };
+  if (opts.auto && opts.assist) {
+    console.error('✗ learn：--auto 与 --assist 互斥，只能二选一（--auto 全部自动入库 / --assist 高置信自动入库其余留审）');
+    process.exitCode = 1;
+    return;
+  }
   try {
     learnRun(opts);
   } catch (e) {
@@ -47,7 +54,7 @@ export function learnCommand(args) {
 
 /**
  * learn 主体（供测试复用）：采集 → 提纯 → 草稿三档处理 → 尾部报告（各步计数）。
- * @param {{ full?: boolean, noDistill?: boolean, auto?: boolean, agent?: string | null,
+ * @param {{ full?: boolean, noDistill?: boolean, auto?: boolean, assist?: boolean, agent?: string | null,
  *           session?: string | null, quietHarvest?: boolean }} opts
  * @returns {{ harvest: object, distill: object | null, automation: string, autoAccepted: number, leftPending: string[], acceptFailed: string[], triggersConsumed: number, sessions: string[] }}
  */
@@ -82,7 +89,8 @@ export function learnRun(opts = {}) {
   if (opts.session) sessionSet.add(String(opts.session)); // --session 显式值并入同一集合
   if (triggersConsumed > 0) console.log(`📬 收到 ${triggersConsumed} 条会话学习触发（triggers 消费即删）`);
   const { knowledge } = loadEngineConfig();
-  const automation = opts.auto ? 'auto' : String(knowledge.automation || 'manual');
+  // 档位：--auto > --assist > settings（命令行本次临时覆盖优先于配置）
+  const automation = opts.auto ? 'auto' : (opts.assist ? 'assist' : String(knowledge.automation || 'manual'));
 
   // ① harvest（复用 T-M1.5 同一实现）
   const hr = runHarvest({ full: !!opts.full, quiet: !!opts.quietHarvest });

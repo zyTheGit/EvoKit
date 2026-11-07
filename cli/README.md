@@ -40,11 +40,14 @@ evokit uninstall --project  # 卸载当前项目入口（移除项目级托管�
 evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
 evokit knowledge gc        # 归档失效卡（retired / validUntil 过期）+ 清理 .rejected 超期文件（--before <YYYY-MM-DD> / --dry-run）
 evokit harvest             # 采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
-evokit learn               # harvest→distill→按档位处理草稿；启动时消费 hook 触发（--no-distill / --agent <id> / --session <id> / --auto）
+evokit learn               # harvest→distill→按档位处理草稿；启动时消费 hook 触发（--no-distill / --agent <id> / --session <id> / --auto / --assist）
 evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --skill / --audit）
 evokit recall "<关键词>"     # 本地知识检索 + 命中计数（--limit n / --json）
 evokit forge               # 知识卡聚簇锻造技能（--from-tags a,b / --topic "…" / --audit）
 evokit hook learn-enqueue  # 会话结束钩子入队：写 ~/.evokit/triggers/ 触发文件立即返回，不执行 learn（--session <id> / --json）
+evokit schedule enable [--time HH:MM] [--mode auto|assist]  # 注册每日定时学习（Windows 任务计划）
+evokit schedule disable [--task <name>]  # 取消定时任务
+evokit schedule list  # 查看正在定时跑的 EvoKit 任务
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -281,6 +284,7 @@ evokit learn --no-distill       # 只采集，不提纯
 evokit learn --agent claude     # 显式指定提纯执行者（claude 不在自动链，注意超时风险）
 evokit learn --session <id>     # 只提纯指定会话
 evokit learn --auto             # 本次临时用 auto 档（全部自动入库）
+evokit learn --assist           # 本次临时用 assist 档（高置信自动入库，其余留审；与 --auto 互斥）
 evokit review                   # 待审草稿清单
 evokit review --accept <id>     # 接受草稿入库（confirmed + 索引重建 + git commit）
 evokit review --reject <id>     # 拒绝草稿（移入 .rejected/）

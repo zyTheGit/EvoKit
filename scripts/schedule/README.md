@@ -1,3 +1,5 @@
+> 推荐用 evokit schedule enable/disable/list，本目录模板为手工备用方案。
+
 # Windows 夜间自动学习 · 任务计划模板（T-M5.2）
 
 `register-nightly-learn.ps1` 把 `evokit learn` 注册为 Windows 计划任务，每天固定时间自动执行「收割 → 提纯 → 按档位入库」的夜间学习。脚本只是模板，**不会自动注册**——按下面的命令手动安装/管理，任务名为 `EvoKit Learn`。
