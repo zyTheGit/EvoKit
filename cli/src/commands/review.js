@@ -175,9 +175,16 @@ export function mergeDraft(id, intoId) {
   if (id === intoId) throw new Error('--merge 的两个 id 相同，拒绝与自身合并');
   const dropZone = locateCardZone(id);
   const intoZone = locateCardZone(intoId);
+  // 未命中任何区：报错明示两区均查过（旧文案只提 knowledge/ 曾误导）
+  if (!dropZone) throw new Error(`未找到卡：${id}（.pending/ 与 knowledge/ 均不存在该 id）`);
+  if (!intoZone) throw new Error(`未找到卡：${intoId}（.pending/ 与 knowledge/ 均不存在该 id）`);
   // ④ 已入库→草稿：canonical 必须是已入库卡，方向反了直接报错
   if (dropZone === 'knowledge' && intoZone === 'pending') {
     throw new Error('canonical 应为已入库卡：请改用 --merge <草稿id> <已入库id>');
+  }
+  // ③ 双已入库：--merge 不支持合并两张已入库卡（报错明确，避免落入「待审草稿不存在」的歧义文案）
+  if (dropZone === 'knowledge' && intoZone === 'knowledge') {
+    throw new Error('两张卡均为已入库卡：review --merge 不支持合并两张已入库卡');
   }
   // ① 双草稿：.pending 内原地合并，canonical 保持 draft 留审
   if (dropZone === 'pending' && intoZone === 'pending') {

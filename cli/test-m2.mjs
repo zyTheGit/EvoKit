@@ -295,6 +295,7 @@ section('review：accept/reject/merge 全流程 + 索引 + git 版本化 + 错�
   assert(r.code === 1 && (r.stdout + r.stderr).includes('不存在'), 'accept 不存在的 id 报错退出 1');
   r = runCli(home, ['review', '--merge', 'nope', d1]);
   assert(r.code === 1, 'merge 不存在的草稿报错退出 1');
+  assert((r.stdout + r.stderr).includes('均不存在'), 'merge 未命中 id 报错明示两区均查过');
 
   r = runCli(home, ['review', '--audit']);
   assert(r.code === 0 && r.stdout.includes('git log'), 'audit 输出含 git log 区块');
