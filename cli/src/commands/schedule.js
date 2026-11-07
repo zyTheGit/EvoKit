@@ -43,6 +43,8 @@ const isValidTime = (t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
 const isValidTask = (t) => /^EvoKit[\w -]*$/.test(t);
 /** 任务名 → 包装脚本路径（任务名去空白 + .cmd） */
 const wrapperPathFor = (task) => join(EVOKIT_DIR, 'schedule', task.replace(/\s+/g, '') + '.cmd');
+/** 任务计划信息性状态码（非失败）：0x41301 运行中 / 0x41303 尚未运行 / 0x41306 已终止 */
+const SCHED_INFO_CODES = { 267009: '运行中', 267011: '尚未运行', 267014: '已终止' };
 /** evokit.mjs 脚本绝对路径（本文件位于 cli/src/commands/，向上两级到 cli/） */
 const scriptPathOf = () => resolve(dirname(fileURLToPath(import.meta.url)), '../../evokit.mjs');
 
@@ -198,7 +200,7 @@ function listSub(args, run, platform) {
     return;
   }
   const cell = (s, w) => (s.length > w ? s.slice(0, Math.max(1, w - 1)) + '…' : s.padEnd(w));
-  const widths = [20, 8, 16, 22, 10, 12];
+  const widths = [20, 8, 16, 22, 16, 12];
   const headers = ['任务名', '状态', '计划动作', '下次运行', '上次结果', '包装脚本'];
   console.log(headers.map((h, i) => cell(h, widths[i])).join('  '));
   for (const r of rows) {
@@ -212,7 +214,9 @@ function listSub(args, run, platform) {
     const resultRaw = info ? info.LastTaskResult : undefined;
     const result = resultRaw === undefined || resultRaw === null
       ? '—'
-      : (Number(resultRaw) === 0 ? `成功 (${resultRaw})` : `⚠ ${resultRaw}`);
+      : (Number(resultRaw) === 0
+        ? `成功 (${resultRaw})`
+        : (SCHED_INFO_CODES[Number(resultRaw)] ? `${SCHED_INFO_CODES[Number(resultRaw)]} (${resultRaw})` : `⚠ ${resultRaw}`));
     const hasWrapper = existsSync(wrapperPathFor(name));
     console.log([cell(name, widths[0]), cell(state, widths[1]), cell(seg, widths[2]), cell(next || '—', widths[3]), cell(result, widths[4]), hasWrapper ? '✓' : '—'].join('  '));
   }

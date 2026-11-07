@@ -276,15 +276,18 @@ console.log('\n【7. list 非 win32】');
 console.log('\n【8. list win32 表格输出】');
 {
   const oldRow = taskRow('EvoKit Old', 'auto', 'C:\\repo-old\\cli\\evokit.mjs learn --auto');
-  oldRow.info.LastTaskResult = 267009; // 非 0：上次运行失败，表格应标 ⚠
-  const psJson = JSON.stringify([taskRow('EvoKit Learn', 'auto'), oldRow]);
+  oldRow.info.LastTaskResult = 1; // 真失败码：表格应标 ⚠
+  const notYetRow = taskRow('EvoKit NotYet', 'auto');
+  notYetRow.info.LastTaskResult = 267011; // 信息性状态码：尚未运行，不应标 ⚠
+  const psJson = JSON.stringify([taskRow('EvoKit Learn', 'auto'), oldRow, notYetRow]);
   const { deps, calls } = makeDeps({ platform: 'win32', ps: () => ({ status: 0, stdout: psJson, stderr: '' }) });
   const r = runSchedule(['list'], deps);
   assert(r.code === 0, `list exit 0（实际 ${r.code}）`, r.text.slice(0, 200));
   assert(r.text.includes('EvoKit Learn') && r.text.includes('EvoKit Old'), '表格含任务名');
   assert(r.text.includes('2026/11/9 2:00:00'), '表格含下次运行');
   assert(r.text.includes('成功 (0)'), '上次结果 0 → 成功');
-  assert(r.text.includes('⚠ 267009'), '上次结果非 0 → 标 ⚠');
+  assert(r.text.includes('⚠ 1'), '真失败码 → 标 ⚠');
+  assert(r.text.includes('尚未运行 (267011)'), '267011=任务尚未运行（信息性，不标 ⚠）');
   assert(r.text.includes('learn --auto'), '计划动作含 learn --mode');
   assert(r.text.includes('脚本已移动'), 'action 不含当前 script 路径 → 脚本已移动提示');
   const psCall = calls.find((c) => c.cmd === 'powershell');
