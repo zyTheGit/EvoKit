@@ -15,6 +15,7 @@ import { listCards } from '../knowledge-cards.js';
 import { runHarvest, loadEngineConfig } from './harvest.js';
 import { runDistill, readInboxEvents } from '../distill.js';
 import { acceptDraft } from './review.js';
+import { autoSyncIndex } from './sync.js';
 
 /** 解析 `--flag <value>`；缺失返回 null */
 function flagValue(args, flag) {
@@ -146,6 +147,9 @@ export function learnRun(opts = {}) {
   } else {
     leftPending.push(...pending.map((c) => c.id));
   }
+
+  // F2：本次有自动入库 → 自动分发索引一次（多张只 sync 一次；manual 档无自动入库自然不触发）
+  if (autoAccepted > 0) autoSyncIndex();
 
   // ④ 尾部报告（各步计数）
   const secs = ((Date.now() - startedAt) / 1000).toFixed(1);

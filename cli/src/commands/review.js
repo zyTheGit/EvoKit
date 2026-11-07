@@ -1,5 +1,7 @@
 // review 命令（T-M2.4 完整实现）：.pending 草稿清单 + 裁决（accept/reject/merge）+ --audit
 // M4 增量（T-M4.3）：--skill / --skill-accept / --skill-veto —— forge 技能草稿过目、symlink 分发与 .skill-lock.json 无损登记
+// F1：--merge 双区定位（drop/into 各自查 .pending 与 knowledge/），双草稿合并纯 .pending 原地退役；
+// F2：accept/merge 成功后由 CLI 编排层自动分发索引（autoSyncIndex，库函数不内嵌 sync）。
 // 纪律：accept = 校验 → 正文二次脱敏（FR-04 双点）→ 写库（confirmed + acceptedBy）→
 //       索引重建（未知透传段保留，红线 #1）→ 独立 git commit（身份缺失仅警告跳过，不失败）；
 //       reject/merge 只移动/退役，不物理删除（NFR-06 全链路只增不删）。
@@ -15,6 +17,7 @@ import { redact } from '../redact.js';
 import { loadEngineConfig } from './harvest.js';
 import { makeSymlink } from '../fs-utils.js';
 import { appendReference } from '../references.js';
+import { autoSyncIndex } from './sync.js';
 
 /**
  * `evokit review` 入口
@@ -48,6 +51,7 @@ export function reviewCommand(args) {
       const id = requireValue(args, acceptIdx, '--accept');
       const r = acceptDraft(id, { acceptedBy: 'manual' });
       console.log(`✓ 已入库 ${r.id}（status: confirmed${r.committed ? '，git commit ✓' : '，git 提交跳过'}${r.redactHits ? `，二次脱敏 ${r.redactHits} 处` : ''}）`);
+      autoSyncIndex(); // F2：入库后自动分发索引（全局源缺失/失败均降级提示，不置退出码）
       return;
     }
     const rejectIdx = args.indexOf('--reject');
@@ -65,7 +69,13 @@ export function reviewCommand(args) {
         throw new Error('--merge 需要两个值：--merge <草稿id> <既有卡id>');
       }
       const r = mergeDraft(id, intoId);
-      console.log(`✓ 已合并 ${r.id} → ${r.intoId}（canonical 保留，索引已重建${r.committed ? '，git commit ✓' : ''}）`);
+      if (r.zone === 'pending') {
+        // F1 ①双草稿：纯 .pending 原地合并，无 git、无索引重建、不触发索引分发
+        console.log(`✓ 已合并（草稿区）${r.id} → ${r.intoId}（canonical 保持 draft 留审，被并卡原位 retired）`);
+      } else {
+        console.log(`✓ 已合并 ${r.id} → ${r.intoId}（canonical 保留，索引已重建${r.committed ? '，git commit ✓' : ''}）`);
+        autoSyncIndex(); // F2：drop 已进 knowledge（索引已重建的路径），自动分发索引
+      }
       return;
     }
     // 无参数 / --list：列清单
@@ -145,15 +155,36 @@ export function rejectDraft(id) {
 }
 
 /**
- * 合并草稿到既有卡：草稿先落库（保留原 id），再按 merge 语义退役为 tombstone
- * （被并卡 retired + mergedInto + validUntil；canonical 保留；索引只留 canonical）。
- * @param {string} id .pending 草稿 id
- * @param {string} intoId knowledge/ 既有 canonical 卡 id
- * @returns {{ id: string, intoId: string, committed: boolean }}
+ * 合并草稿到既有卡（F1 双区定位）：drop（id）与 canonical（intoId）各自在 .pending / knowledge 查找，
+ * 四种组合：
+ *   ① 双草稿（均在 .pending）→ mergeCards 原地合并（keep 保持 draft 留审，drop 原地 retired），
+ *      无 git、无索引重建、不触发索引分发；
+ *   ② 草稿→已入库 → 原路径：草稿落库（保留原 id）+ 按 merge 语义退役为 tombstone
+ *      （被并卡 retired + mergedInto + validUntil；canonical 保留；索引只留 canonical）+ 索引重建 + git commit；
+ *   ③ 双已入库 → 维持原行为（原报错，不在 review --merge 路径合并两张已入库卡）；
+ *   ④ 已入库→草稿 → 报错提示改用 --merge <草稿id> <已入库id>。
+ * 定位函数 pending/knowledge 双查，任一 id 都找不到 → 维持原报错文案。
+ * @param {string} id 被并卡 id
+ * @param {string} intoId canonical 卡 id
+ * @returns {{ id: string, intoId: string, zone: 'pending' | 'knowledge', committed?: boolean }}
+ *          zone='pending' 为双草稿合并（无 committed 字段）；zone='knowledge' 为原路径
  */
 export function mergeDraft(id, intoId) {
   assertSafeId(id, '--merge');
   assertSafeId(intoId, '--merge');
+  if (id === intoId) throw new Error('--merge 的两个 id 相同，拒绝与自身合并');
+  const dropZone = locateCardZone(id);
+  const intoZone = locateCardZone(intoId);
+  // ④ 已入库→草稿：canonical 必须是已入库卡，方向反了直接报错
+  if (dropZone === 'knowledge' && intoZone === 'pending') {
+    throw new Error('canonical 应为已入库卡：请改用 --merge <草稿id> <已入库id>');
+  }
+  // ① 双草稿：.pending 内原地合并，canonical 保持 draft 留审
+  if (dropZone === 'pending' && intoZone === 'pending') {
+    mergeCards(PENDING_DIR, intoId, id);
+    return { id, intoId, zone: 'pending' };
+  }
+  // ②③ 及未命中组合：维持原路径与原报错文案（含 ③ 双已入库）
   const src = join(PENDING_DIR, `${id}.md`);
   if (!existsSync(src)) throw new Error(`待审草稿不存在：${id}（${PENDING_DIR}/${id}.md）`);
   if (!readCardById(KNOWLEDGE_DIR, intoId)) throw new Error(`既有卡不存在：${intoId}（knowledge/${intoId}.md）`);
@@ -163,7 +194,14 @@ export function mergeDraft(id, intoId) {
   mergeCards(KNOWLEDGE_DIR, intoId, id);
   refreshIndex();
   const committed = gitCommit(`learn: merge ${id} into ${intoId}`);
-  return { id, intoId, committed };
+  return { id, intoId, zone: 'knowledge', committed };
+}
+
+/** F1 双区定位：id 在 .pending/（'pending'）或 knowledge/（'knowledge'）；两区都不在返回 null */
+function locateCardZone(id) {
+  if (existsSync(join(PENDING_DIR, `${id}.md`))) return 'pending';
+  if (readCardById(KNOWLEDGE_DIR, id)) return 'knowledge';
+  return null;
 }
 
 /** 列出 .pending/*.md 草稿摘要 + 打印裁决命令（--list / 无参数） */
@@ -172,9 +210,13 @@ function listPending() {
     console.log(`ℹ 知识根尚未初始化（缺 ${KNOWLEDGE_DIR}），先运行 \`evokit knowledge init\`。`);
     return;
   }
-  const cards = listCards(PENDING_DIR);
+  const all = listCards(PENDING_DIR);
+  // F1：retired 草稿（合并产物）不再展示，末尾单独提示（gc 时归档）
+  const cards = all.filter((c) => String(c.front.status) !== 'retired');
+  const retiredCount = all.length - cards.length;
   if (cards.length === 0) {
     console.log('✓ 暂无待审草稿（.pending/ 为空）。运行 `evokit learn` 从会话史提纯产出草稿。');
+    if (retiredCount > 0) console.log(`ℹ 另有 ${retiredCount} 张 retired 草稿（合并产物，gc 时归档）。`);
     return;
   }
   console.log(`📋 待审草稿（${cards.length} 张）— ${PENDING_DIR}\n`);
@@ -200,6 +242,7 @@ function listPending() {
   evokit review --merge <id> <into>  并入既有卡（retired + mergedInto，canonical 保留）
   evokit review --skill              forge 技能草稿过目（--skill-accept <name> / --skill-veto <name> 裁决）
   evokit review --audit              近期自动入库抽查（acceptedBy=auto + git log）`);
+  if (retiredCount > 0) console.log(`\nℹ 另有 ${retiredCount} 张 retired 草稿（合并产物，gc 时归档）。`);
 }
 
 /** --audit：近期 acceptedBy=auto 的卡（listCards 过滤）+ 知识库 git log 尾 10 条 */

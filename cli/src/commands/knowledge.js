@@ -1,9 +1,10 @@
 // knowledge 命令：知识根初始化（M0 骨架）/ gc 归档（T-M5.3 实实现）
 // 计划 §2.4：init 建根（knowledge/、.pending/、.rejected/、索引骨架、git init + .gitignore）并体检 git 身份
 // gc 纪律（红线 #8「过期不删除」的唯一显式物理清理入口）：
-//   retired / validUntil < before 的卡移入 .archive/（重名加时间戳）；.rejected/ 中 mtime 超
+//   retired / validUntil < before 的卡移入 .archive/（重名加时间戳）；F1 合并产生的草稿区 retired 卡
+//   （.pending/ 内 status:retired）一并移入 .archive/；.rejected/ 中 mtime 超
 //   knowledge.rejectedRetentionDays（默认 90 天）的文件删除；gc 后重建索引（未知透传段保留，红线 #1）
-//   + 独立 git commit（身份缺失仅警告跳过）；--dry-run 只列表不移动。
+//   + 独立 git commit（身份缺失仅警告跳过）；--dry-run 只列表不移动（库内/草稿区分组显示）。
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -109,12 +110,13 @@ function isExpired(card, before) {
 
 /**
  * 把一张卡移入 .archive/（重名加时间戳后缀，再撞名递增序号）。
+ * @param {string} dir 卡片所在基目录（knowledge/ 或 F1 草稿区 .pending/）
  * @param {{ id: string, file: string, front: Record<string, unknown> }} card listCards 产物
  * @param {string} stamp 时间戳后缀（同一轮 gc 共用）
  * @returns {boolean} 是否移动成功
  */
-function archiveCardFile(card, stamp) {
-  const src = join(KNOWLEDGE_DIR, card.file);
+function archiveCardFile(dir, card, stamp) {
+  const src = join(dir, card.file);
   const m = card.file.match(/([^/]+)$/);
   const base = m ? m[1] : card.file;
   const stem = base.replace(/\.md$/i, '');
@@ -152,6 +154,9 @@ function knowledgeGc(args) {
   const cards = listCards(KNOWLEDGE_DIR, { excludeHidden: true });
   const toArchive = cards.filter((c) => isExpired(c, before));
 
+  // 1b. 草稿区 retired 卡（F1 合并产物）：一并移入 .archive/（.pending 与 .archive 均 gitignored，纯文件移动不涉 git）
+  const pendingRetired = listCards(PENDING_DIR).filter((c) => String(c.front.status) === 'retired');
+
   // 2. .rejected 超期文件（mtime 超过 knowledge.rejectedRetentionDays，默认 90）
   const { knowledge } = loadEngineConfig();
   const retention = Number(knowledge.rejectedRetentionDays) > 0 ? Number(knowledge.rejectedRetentionDays) : 90;
@@ -169,26 +174,34 @@ function knowledgeGc(args) {
   }
   toClean.sort();
 
-  // 3. 列表（--dry-run 只列表不移动）
+  // 3. 列表（--dry-run 只列表不移动；库内与草稿区分组显示）
   console.log(`🧹 knowledge gc — before=${before}${dryRun ? '（dry-run，只列表不改动）' : ''}`);
+  if (toArchive.length > 0) console.log(`  库内 ${toArchive.length} 张：`);
   for (const c of toArchive) {
     const reason = String(c.front.status) === 'retired' ? 'status=retired' : `validUntil=${c.front.validUntil}`;
     console.log(`  [归档] ${c.id} 「${c.front.title ?? ''}」 ${reason}`);
   }
+  if (pendingRetired.length > 0) console.log(`  草稿区 ${pendingRetired.length} 张：`);
+  for (const c of pendingRetired) {
+    console.log(`  [归档] ${c.id} 「${c.front.title ?? ''}」 status=retired（.pending）`);
+  }
   for (const name of toClean) {
     console.log(`  [清理] .rejected/${name}（mtime 超过 ${retention} 天）`);
   }
-  if (toArchive.length === 0 && toClean.length === 0) console.log('  （无失效卡、无超期文件）');
+  if (toArchive.length === 0 && pendingRetired.length === 0 && toClean.length === 0) console.log('  （无失效卡、无超期文件）');
 
   // 4. 执行（dry-run 到此为止；无改动时不重建索引、不产生空提交）
   let archived = 0;
   let cleaned = 0;
-  if (!dryRun && (toArchive.length > 0 || toClean.length > 0)) {
-    if (toArchive.length > 0) {
+  if (!dryRun && (toArchive.length > 0 || pendingRetired.length > 0 || toClean.length > 0)) {
+    if (toArchive.length > 0 || pendingRetired.length > 0) {
       mkdirSync(ARCHIVE_DIR, { recursive: true });
       const stamp = fileStamp();
       for (const c of toArchive) {
-        if (archiveCardFile(c, stamp)) archived += 1;
+        if (archiveCardFile(KNOWLEDGE_DIR, c, stamp)) archived += 1;
+      }
+      for (const c of pendingRetired) {
+        if (archiveCardFile(PENDING_DIR, c, stamp)) archived += 1;
       }
     }
     for (const name of toClean) {
@@ -203,10 +216,11 @@ function knowledgeGc(args) {
     gitCommitGc(`gc: archive ${archived} cards`);
   }
 
-  // 5. 汇总（剩余 confirmed 以当前 knowledge/ 实况为准）
+  // 5. 汇总（剩余 confirmed 以当前 knowledge/ 实况为准；归档计数含草稿区 retired 卡）
+  const totalArchive = toArchive.length + pendingRetired.length;
   const confirmedLeft = listCards(KNOWLEDGE_DIR, { excludeHidden: true })
     .filter((c) => String(c.front.status) === 'confirmed').length;
-  console.log(`\n📊 gc 汇总${dryRun ? '（dry-run，未改动任何文件）' : ''}：归档 ${dryRun ? toArchive.length : archived} 张 · 清理 .rejected ${dryRun ? toClean.length : cleaned} 个 · 剩余 confirmed ${confirmedLeft} 张`);
+  console.log(`\n📊 gc 汇总${dryRun ? '（dry-run，未改动任何文件）' : ''}：归档 ${dryRun ? totalArchive : archived} 张 · 清理 .rejected ${dryRun ? toClean.length : cleaned} 个 · 剩余 confirmed ${confirmedLeft} 张`);
 }
 
 /** gc 后重建 EvoKit 索引桶；未知 `##` 透传段逐字保留（红线 #1），预算取 knowledge.indexBudget */

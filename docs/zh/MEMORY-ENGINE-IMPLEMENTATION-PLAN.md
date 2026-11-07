@@ -238,6 +238,7 @@ draft ──accept──▶ confirmed ──gc/过期──▶ retired(validUnti
 | `evokit recall "<关键词>"` | 本地检索 + 计数 | `--limit n` / `--json` | M3 |
 | `evokit forge` | 聚簇锻造 | `--topic` / `--from-tags a,b` / `--audit` | M4 |
 | `evokit knowledge gc` | 显式归档失效卡 | `--before <date>` / `--dry-run` | M5 |
+| `evokit schedule enable / disable / list` | 定时学习开关与查看（Windows 任务计划；enable 写包装脚本固定 cwd=~/.evokit 并读回验证，替代 T-M5.2 手工模板） | `--time HH:MM` / `--mode auto·assist` / `--task <name>` / `--json`（list） | M6 追加 |
 | `evokit hook learn-enqueue` | 钩子入队（不执行 learn） | `--session <id>` / `--json` | M5 |
 
 新增命令逐一同步：`KNOWN_COMMANDS`、switch、`commands/index.js`、`help.js`、`cli/README.md`（红线 #5）。

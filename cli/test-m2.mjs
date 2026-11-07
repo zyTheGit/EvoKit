@@ -7,6 +7,7 @@
  *       库级用例在进程级 scratch home 下动态 import（paths.js 加载时读 env）。
  * mock agent 手法仿 test-local.mjs 的 codex stdin 测试：
  *       settings agents codex cli.binPath=process.execPath args=[fakeScript] input:'stdin'。
+ * S14 F1/F2 增量：双草稿合并 / --list 跳过 retired 草稿 / accept-merge-learn 尾部自动分发索引 / gc 归档草稿区 retired。
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
@@ -660,6 +661,102 @@ section('distill 水位线：首跑全量 · 二跑 0 新增 · 追加只处理�
 
   rmSync(home, { recursive: true, force: true });
   rmSync(homeF, { recursive: true, force: true });
+}
+
+// ═══ S14. F1/F2 改进（真机测试发现项）═══
+section('F1/F2：双草稿合并 · --list 跳过 retired · accept/merge/learn 尾部自动分发索引 · gc 归档草稿区');
+{
+  // ① F1 双草稿合并：keep 保持 draft 留审，drop 原地 retired；无 git、无索引重建、不触发分发
+  const home = mkHome('f1-merge');
+  runCli(home, ['knowledge', 'init']);
+  const kDir = join(home, '.evokit', 'knowledge');
+  const pending = join(kDir, '.pending');
+  const keepId = cardsMod.writeCard(pending, { front: { title: '保留草稿乙', type: 'fact', source: 'x.md', status: 'draft', confidence: 0.5 }, body: '保留。' });
+  const dropId = cardsMod.writeCard(pending, { front: { title: '重复草稿甲', type: 'fact', source: 'x.md', status: 'draft', confidence: 0.5 }, body: '与乙重复。' });
+  let r = runCli(home, ['review', '--merge', dropId, keepId]);
+  assert(r.code === 0, `双草稿合并 exit 0（${(r.stderr || '').slice(0, 150)}）`);
+  assert(r.stdout.includes('已合并（草稿区）'), '输出 ✓ 已合并（草稿区）');
+  assert(!r.stdout.includes('索引已重建') && !r.stdout.includes('git commit'), '双草稿合并无索引重建、无 git');
+  assert(readFileSync(join(pending, `${keepId}.md`), 'utf-8').includes('status: draft'), 'keep 仍 draft 且留在 .pending/');
+  const dropRaw = readFileSync(join(pending, `${dropId}.md`), 'utf-8');
+  assert(dropRaw.includes('status: retired') && dropRaw.includes(`mergedInto: ${keepId}`) && dropRaw.includes('validUntil'), 'drop 原地 retired + mergedInto + validUntil');
+  const log0 = spawnSync('git', ['-C', kDir, 'log', '--oneline'], { encoding: 'utf-8' });
+  assert(!(log0.stdout || '').includes('learn:'), '双草稿合并不产生 git 提交');
+  // --list 跳过 retired 草稿并在末尾提示
+  r = runCli(home, ['review']);
+  assert(r.stdout.includes('待审草稿（1 张）') && r.stdout.includes('保留草稿乙') && !r.stdout.includes('重复草稿甲'), '--list 只计未 retired 草稿（1 张）且不含 drop 标题');
+  assert(r.stdout.includes('retired 草稿'), '--list 末尾提示另有 retired 草稿');
+
+  // ② F2：evokit init 建全局源 → --accept 后【不手跑 sync】，托管块已含新索引行（自动分发生效）
+  runCli(home, ['init']);
+  r = runCli(home, ['review', '--accept', keepId]);
+  assert(r.code === 0, `--accept exit 0（${(r.stderr || '').slice(0, 150)}）`);
+  assert((r.stdout.match(/✓ 已同步/g) || []).length === 3, 'accept 输出恰一组自动分发 ✓ 已同步行（默认 3 agent）');
+  const claudeMd = readFileSync(join(home, '.claude', 'CLAUDE.md'), 'utf-8');
+  assert(claudeMd.includes(`- [${keepId}]`), 'F2 自动分发：入口托管块含新入库卡索引行');
+  const log = spawnSync('git', ['-C', kDir, 'log', '--oneline'], { encoding: 'utf-8' });
+  assert((log.stdout || '').includes('learn: 保留草稿乙'), 'knowledge 根 git log 含 learn commit', (log.stderr || '').slice(0, 100));
+
+  // ⑤ gc：①的 retired 草稿 → dry-run 草稿区分组列出 → 真实 gc 移入 .archive/
+  r = runCli(home, ['knowledge', 'gc', '--dry-run']);
+  assert(r.code === 0 && r.stdout.includes(dropId), 'gc --dry-run 列出草稿区 retired 卡');
+  assert(r.stdout.includes('草稿区 1 张'), 'gc --dry-run 分组显示（草稿区 N 张）');
+  r = runCli(home, ['knowledge', 'gc']);
+  assert(r.code === 0, 'gc exit 0', (r.stderr || '').slice(0, 150));
+  assert(existsSync(join(kDir, '.archive', `${dropId}.md`)), '真实 gc：retired 草稿移入 .archive/');
+  assert(!existsSync(join(pending, `${dropId}.md`)), '真实 gc：.pending 不再含 retired 草稿');
+  assert(r.stdout.includes('归档 1 张'), 'gc 汇总归档计数含草稿区 retired 卡');
+  rmSync(home, { recursive: true, force: true });
+
+  // F1 ④ 已入库→草稿：方向反了报错并提示改用（②③组合维持原行为已由 S5 覆盖）
+  const home2 = mkHome('f1-wrongdir');
+  runCli(home2, ['knowledge', 'init']);
+  const kDir2 = join(home2, '.evokit', 'knowledge');
+  const confirmedId = cardsMod.writeCard(kDir2, { front: { title: '已入库卡', type: 'fact', source: 'x.md', status: 'confirmed', confidence: 0.8 }, body: '已入库。' });
+  const draftId = cardsMod.writeCard(join(kDir2, '.pending'), { front: { title: '草稿卡', type: 'fact', source: 'x.md', status: 'draft', confidence: 0.5 }, body: '草稿。' });
+  r = runCli(home2, ['review', '--merge', confirmedId, draftId]);
+  assert(r.code === 1, 'merge 已入库→草稿 exit 1');
+  assert((r.stdout + r.stderr).includes('请改用 --merge'), '报错含改用提示');
+  rmSync(home2, { recursive: true, force: true });
+
+  // F2 ③ 无 context.md 的 home：--accept 后自动分发降级为 ℹ，exit 0、不建入口文件
+  const home3 = mkHome('f2-nosrc');
+  runCli(home3, ['knowledge', 'init']);
+  const noSrcId = cardsMod.writeCard(join(home3, '.evokit', 'knowledge', '.pending'), { front: { title: '无源入库', type: 'fact', source: 'x.md', status: 'draft', confidence: 0.5 }, body: '内容。' });
+  r = runCli(home3, ['review', '--accept', noSrcId]);
+  assert(r.code === 0, '无全局源 accept 仍 exit 0', (r.stderr || '').slice(0, 150));
+  assert((r.stdout + r.stderr).includes('未找到全局源'), '自动分发降级提示未找到全局源');
+  assert(!existsSync(join(home3, '.claude', 'CLAUDE.md')), '未分发：入口文件未被创建');
+  rmSync(home3, { recursive: true, force: true });
+
+  // F2 ④ learn --auto（mock agent 出 2 卡）：多张只 sync 一次，入口托管块含两条索引行
+  const home4 = mkHome('f2-learn');
+  const fx4 = writeHarvestFixtures(home4);
+  const fake4 = writeFakeAgent(home4);
+  runCli(home4, ['knowledge', 'init']);
+  wf(join(home4, '.evokit', 'context.md'), '# 全局偏好（测试源）\n\n- 测试用全局偏好源\n');
+  wf(join(home4, 'fake-a.json'), JSON.stringify([
+    { title: '自动卡一', type: 'fact', tags: ['x'], statement: '陈述一。', evidence: [join(fx4, 'a.md')], confidence: 0.9 },
+    { title: '自动卡二', type: 'fact', tags: ['y'], statement: '陈述二。', evidence: [join(fx4, 'b.md')], confidence: 0.9 },
+  ]) + '\n');
+  wf(join(home4, 'fake-b.json'), JSON.stringify([{ title: '自动卡一', verdict: 'ADD' }, { title: '自动卡二', verdict: 'ADD' }]) + '\n');
+  writeSettings(home4, {
+    sources: [{ id: 'mem-src', adapter: 'memory-cards', root: fx4, enabled: true }],
+    knowledge: { distillAgentOrder: ['codex'] },
+    codexCli: mockCli(fake4),
+  });
+  r = runCli(home4, ['learn', '--auto'], {
+    EVOKIT_FAKE_A: join(home4, 'fake-a.json'),
+    EVOKIT_FAKE_B: join(home4, 'fake-b.json'),
+  });
+  assert(r.code === 0, 'learn --auto exit 0', (r.stderr || '').slice(0, 200));
+  const kDir4 = join(home4, '.evokit', 'knowledge');
+  const ids4 = cardsMod.listCards(kDir4, { excludeHidden: true }).map((c) => c.id);
+  assert(ids4.length === 2, `两卡自动入库（实际 ${ids4.length}）`);
+  assert((r.stdout.match(/✓ 已同步/g) || []).length === 3, `自动分发恰一组 ✓ 已同步行（多张只 sync 一次，3 agent；实际 ${(r.stdout.match(/✓ 已同步/g) || []).length}）`);
+  const claudeMd4 = readFileSync(join(home4, '.claude', 'CLAUDE.md'), 'utf-8');
+  assert(ids4.length === 2 && ids4.every((id) => claudeMd4.includes(`- [${id}]`)), 'F2 自动分发：入口托管块含两条索引行');
+  rmSync(home4, { recursive: true, force: true });
 }
 
 // ── 清理与汇总 ──

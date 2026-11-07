@@ -24,13 +24,16 @@ function hintMissing(id) {
   hintedMissing.add(id);
 }
 
-export function syncGlobal(filter) {
-  if (!existsSync(GLOBAL_SOURCE)) {
-    console.log(`✗ 未找到全局源：${GLOBAL_SOURCE}`);
-    console.log('  请先运行 evokit init 创建。');
-    process.exitCode = 1;
-    return;
-  }
+/**
+ * 可复用的全局入口同步（F2 从 syncGlobal 提取，逐行输出格式与原实现完全一致）：
+ * 读全局源 → 逐 agent 合并同块资源（context + knowledge-index 等）写入托管块 → 打 ✓ 行。
+ * GLOBAL_SOURCE 缺失时返回 { ok:false, reason:'global-source-missing' }（不打印、不置退出码），
+ * 供 accept/merge/learn 尾部自动分发静默降级；成功返回 { ok:true, synced: <agent 数> }。
+ * @param {string|null} filter --agent 过滤（逗号分隔 id 集合），null = 全部
+ * @returns {{ ok: boolean, reason?: string, synced?: number }}
+ */
+export function syncKnowledgeIndex(filter = null) {
+  if (!existsSync(GLOBAL_SOURCE)) return { ok: false, reason: 'global-source-missing' };
   const source = readSource(GLOBAL_SOURCE);
   const agents = filterAgents(loadAgents(), filter);
   for (const a of agents) {
@@ -45,7 +48,35 @@ export function syncGlobal(filter) {
     applyManagedBlock(file, parts.join('\n\n'));
     console.log(`✓ 已同步 ${a.name} (${a.id})  → ${file}`);
   }
+  return { ok: true, synced: agents.length };
+}
+
+export function syncGlobal(filter) {
+  if (!existsSync(GLOBAL_SOURCE)) {
+    console.log(`✗ 未找到全局源：${GLOBAL_SOURCE}`);
+    console.log('  请先运行 evokit init 创建。');
+    process.exitCode = 1;
+    return;
+  }
+  syncKnowledgeIndex(filter);
   console.log(`\n完成。全局源：${GLOBAL_SOURCE}`);
+}
+
+/**
+ * accept/merge/learn 尾部自动分发索引（F2，编排层专用）：绝不设置 process.exitCode。
+ * 全局源缺失 → ℹ 提示后返回（索引留在知识根，可稍后手动 evokit sync）；
+ * 分发抛错 → ⚠ 警告（含原始错误消息）；成功不打额外行（✓ 行由 syncKnowledgeIndex 输出）。
+ */
+export function autoSyncIndex() {
+  if (!existsSync(GLOBAL_SOURCE)) {
+    console.log('ℹ 未找到全局源（evokit init），本次未分发索引');
+    return;
+  }
+  try {
+    syncKnowledgeIndex();
+  } catch (e) {
+    console.warn(`⚠ 索引自动分发失败（可手动 evokit sync）：${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 export function syncProject(filter) {
