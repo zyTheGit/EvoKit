@@ -57,3 +57,25 @@ export function formatSize(bytes) {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
+
+// ── 命令执行（FR-13）──
+
+// 需要二次确认的命令：镜像自 cli/src/web/exec.js EXEC_WHITELIST 的 confirm 分级（改动需两侧同步）
+export const CONFIRM_CMDS = ['sync', 'review', 'knowledge', 'harvest', 'learn', 'forge', 'inventory', 'schedule', 'uninstall'];
+
+/**
+ * 执行一条白名单命令（POST /api/exec）。
+ * @returns {Promise<{cmd,args,tier,exitCode,timedOut,durationMs,stdout,stderr,truncated}>}
+ */
+export async function execCommand(cmd, args = []) {
+  const res = await fetch('/api/exec', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ cmd, args }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? `执行失败（HTTP ${res.status}）`);
+  }
+  return body;
+}

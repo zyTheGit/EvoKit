@@ -3,15 +3,15 @@
  * EvoKit web 服务端测试（M7）
  *
  * 通过 EVOKIT_HOME 把数据根重定向到临时目录，进程内启动 web 服务（listen 0 取实际端口），
- * 用 fetch 验证：13 个端点契约、只读纪律（目录快照零变化）、安全边界（穿越/白名单/未匹配方法）、
- * 稳定性（handler 抛错后进程不退出）、优雅关闭、静态托管与产物缺失降级。
+ * 用 fetch 验证：13 个只读端点契约 + 命令执行端点（白名单/真实 CLI 语义）、只读纪律（目录快照零变化）、
+ * 安全边界（穿越/白名单/未匹配方法）、稳定性（handler 抛错后进程不退出）、优雅关闭、静态托管与产物缺失降级。
  *
  * 运行：node cli/test-m7-web.mjs
  * 纪律：EVOKIT_HOME 必须在任何 cli/src 模块动态 import 之前设置（paths.js 在模块加载时读环境变量）。
  * 夹具铺设在 test-m7-fixture.mjs（纯 fs，无 cli/src 依赖）。
  */
 
-import { writeFileSync, rmSync, statSync, readdirSync } from 'node:fs';
+import { writeFileSync, rmSync, statSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFixture } from './test-m7-fixture.mjs';
 
@@ -72,6 +72,11 @@ async function jget(path, init) {
   let body = null;
   try { body = JSON.parse(text); } catch { /* 非 JSON 响应保持 null */ }
   return { status: res.status, body, text, headers: res.headers };
+}
+
+/** 夹具 references.jsonl 当前非空行数（exec 用例验证 CLI 写口径） */
+function fixtureRefLines() {
+  return readFileSync(join(fx.knowledgeDir, 'references.jsonl'), 'utf-8').split('\n').filter((l) => l.trim() !== '').length;
 }
 
 const before = snapshot();
@@ -229,7 +234,7 @@ console.log(`\n—— web 服务端测试（${base}）——`);
 // ── 13. 方法与未知端点 ──
 {
   const post = await jget('/api/cards', { method: 'POST' });
-  assert(post.status === 404 && post.body?.error?.code === 'not_found', 'POST → 统一 404 JSON', post.status);
+  assert(post.status === 404 && post.body?.error?.code === 'not_found', 'GET 路由上的 POST → 404 JSON', post.status);
   const unknown = await jget('/api/nope');
   assert(unknown.status === 404 && unknown.body?.error?.code === 'not_found', '未知 API → 404 JSON');
 }
@@ -242,14 +247,34 @@ console.log(`\n—— web 服务端测试（${base}）——`);
   assert(alive.status === 200, 'boom 后服务仍响应（进程不退出）');
 }
 
-// ── 15. 只读纪律：快照对比 ──
+// ── 15. 只读纪律：快照对比（浏览类端点全程零写入）──
 {
   const after = snapshot();
   const changed = [...after.keys()].filter((k) => before.get(k) !== after.get(k));
-  assert(changed.length === 0, `全端点遍历后数据目录零变化（${before.size} 个文件）`, changed.join(', '));
+  assert(changed.length === 0, `浏览类端点遍历后数据目录零变化（${before.size} 个文件）`, changed.join(', '));
 }
 
-// ── 16. 优雅关闭 + 产物缺失降级 ──
+// ── 16. 命令执行（FR-13）：白名单 + 真实 CLI 语义 ──
+{
+  const st = await jget('/api/exec/status');
+  assert(st.status === 200 && st.body?.busy === false, 'exec/status 空闲态');
+  const bad = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'nope' }) });
+  assert(bad.status === 400 && bad.body?.error?.code === 'bad_request', '白名单外命令 → 400 bad_request', bad.status);
+  const recursion = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'sync', args: ['web'] }) });
+  assert(recursion.status === 400, '参数含 web → 400（防递归）', recursion.status);
+  const help = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'help' }) });
+  assert(help.status === 200 && help.body?.exitCode === 0 && help.body?.stdout?.includes('evokit'), '执行 help → 200 + 输出', help.status);
+  assert(help.body?.durationMs >= 0 && typeof help.body?.tier === 'string', '执行结果带耗时与分级');
+  // 网页执行 recall = 真实 CLI 语义：命中写 references（与浏览检索不写形成对照）
+  const refsBefore = fixtureRefLines();
+  const rc = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'recall', args: ['夹具', '--json'] }) });
+  assert(rc.status === 200 && rc.body?.exitCode === 0, '执行 recall → 200', rc.status);
+  const parsed = JSON.parse(rc.body.stdout);
+  assert(Array.isArray(parsed) && parsed.length === 2, 'recall 命中 2 张 confirmed', rc.body.stdout.slice(0, 80));
+  assert(fixtureRefLines() === refsBefore + 2, 'CLI recall 写入 2 条 references（网页浏览不写）', `${refsBefore} → ${fixtureRefLines()}`);
+}
+
+// ── 17. 优雅关闭 + 产物缺失降级 ──
 {
   await srv.close();
   let refused = false;

@@ -20,6 +20,7 @@ export function errorStatusCode(err) {
 export function errorCode(status) {
   if (status === 404) return 'not_found';
   if (status === 400) return 'bad_request';
+  if (status === 409) return 'conflict';
   if (status === 503) return 'unavailable';
   return 'internal';
 }

@@ -10,12 +10,13 @@
 // 端口策略：默认 4177；显式 --port 被占 → 报错退出；未显式 → 自动探测 +1..+10
 // 稳定性：单请求异常 → 统一 500 JSON（进程不退出）；SIGINT/SIGTERM → server.close + 3s 兜底退出
 
-import { createApp, createRouter, defineEventHandler, toNodeHandler, withBase, getQuery, getRouterParam } from 'h3';
+import { createApp, createRouter, defineEventHandler, toNodeHandler, withBase, getQuery, getRouterParam, readBody } from 'h3';
 import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { jsonError, errorStatusCode, errorCode } from './respond.js';
 import { staticHandler } from './static.js';
+import { execStatus, runCommand } from './exec.js';
 import * as cardsApi from './api/cards.js';
 import { syncEntries } from './api/sync.js';
 import * as historyApi from './api/history.js';
@@ -51,8 +52,9 @@ function wrap(fn) {
 }
 
 /**
- * API 路由器（13 个契约端点，全部 GET-only）。
+ * API 路由器（13 个只读端点 + 2 个命令执行端点）。
  * 注意：经 withBase('/api', ...) 挂载时前缀被剥掉，因此这里注册的路径不带 /api 前缀。
+ * 命令执行是唯一的写通道：POST /exec 白名单 + 互斥 + 超时（技术设计 D9）。
  */
 function buildRouter(extraRoutes = []) {
   const router = createRouter();
@@ -71,6 +73,17 @@ function buildRouter(extraRoutes = []) {
   router.get('/reports', wrap(() => miscApi.reportsList()));
   router.get('/reports/:name', wrap((event) => miscApi.reportData(param(event, 'name'))));
   router.get('/inbox', wrap(() => miscApi.inboxData()));
+  // ── 命令执行（FR-13）：唯一写通道，白名单见 src/web/exec.js ──
+  router.get('/exec/status', wrap(() => execStatus()));
+  router.post('/exec', wrap(async (event) => {
+    const body = await readBody(event) ?? {};
+    const result = await runCommand(body.cmd, body.args, { timeoutMs: body.timeoutMs });
+    // runCommand 返回 {status, body} 包装：非 200 转成带 statusCode 的异常（wrap 统一 JSON 错误），200 直接返回结果体
+    if (result.status !== 200) {
+      throw Object.assign(new Error(result.body.error.message), { statusCode: result.status });
+    }
+    return result.body;
+  }));
   // 测试注入口（如 /api/__boom 验证错误边界与进程存活）；路径兼容带/不带 /api 前缀两种写法
   for (const route of extraRoutes) {
     const path = route.path.replace(/^\/api(?=\/|$)/, '') || '/';

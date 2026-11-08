@@ -1,7 +1,8 @@
 <script setup>
 // 卡片详情：front 全字段 + 正文渲染 + 召回次数 + 单卡历史入口
-import { watch } from 'vue';
-import { useList, formatDate } from '../composables/useApi';
+import { watch, ref } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { useList, formatDate, execCommand } from '../composables/useApi';
 import MarkdownView from '../components/MarkdownView.vue';
 
 const props = defineProps({
@@ -10,6 +11,35 @@ const props = defineProps({
 
 const { data, loading, error, reload } = useList(() => `/api/cards/${encodeURIComponent(props.id)}`);
 watch(() => props.id, reload);
+
+// 待审草稿快捷裁决（FR-13）：网页上直接执行 review --accept / --reject（confirm 类命令，先二次确认）
+const reviewing = ref(false);
+async function reviewDraft(action) {
+  const actionLabel = action === 'accept' ? '通过入库' : '拒绝';
+  try {
+    await ElMessageBox.confirm(
+      `确认对草稿「${data.value?.front?.title ?? props.id}」执行 review --${action}？该操作会产生实际改动（入库/移入 .rejected）。`,
+      `确认${actionLabel}`,
+      { confirmButtonText: actionLabel, cancelButtonText: '取消', type: 'warning' },
+    );
+  } catch {
+    return; // 用户取消
+  }
+  reviewing.value = true;
+  try {
+    const r = await execCommand('review', [`--${action}`, props.id]);
+    if (r.exitCode === 0) {
+      ElMessage.success(`${actionLabel}完成（${(r.durationMs / 1000).toFixed(1)}s）`);
+      reload();
+    } else {
+      ElMessage.error(`退出码 ${r.exitCode}：${(r.stderr || r.stdout || '').slice(-300)}`);
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : String(e));
+  } finally {
+    reviewing.value = false;
+  }
+}
 
 // front 动态字段展平展示（未知键保留是知识库写入纪律，详情页全量透出）
 const fields = computed2();
@@ -44,7 +74,15 @@ function computed2() {
     </div>
 
     <el-card shadow="never" class="block">
-      <template #header>元数据（frontmatter 全字段）</template>
+      <template #header>
+        <div class="head-row">
+          <span>元数据（frontmatter 全字段）</span>
+          <span v-if="data.zone === '待审草稿'" class="quick-ops">
+            <el-button type="success" size="small" :loading="reviewing" @click="reviewDraft('accept')">通过入库</el-button>
+            <el-button type="danger" size="small" :loading="reviewing" @click="reviewDraft('reject')">拒绝</el-button>
+          </span>
+        </div>
+      </template>
       <el-descriptions :column="2" border size="small">
         <el-descriptions-item v-for="f in fields.value" :key="f.key" :label="f.key">
           <span class="field">{{ f.value }}</span>
@@ -64,6 +102,8 @@ function computed2() {
 .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .back { margin-left: auto; }
 .block { margin-bottom: 16px; }
+.head-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.quick-ops { display: flex; gap: 8px; }
 .field { word-break: break-all; }
 .muted { margin-top: 8px; font-size: 12px; color: var(--el-text-color-secondary); }
 </style>
