@@ -18,6 +18,8 @@ const EXEMPTIONS = {
   'INVENTORY-DESIGN.md': 'v2.0 inventory 功能设计（中文），使用说明已在 cli/README.md 透出',
   'MEMORY-ENGINE-DESIGN.md': '记忆引擎设计方案（中文，2026-11）：方向裁决与里程碑文档，已实现（2026-11-08，见实施计划完成状态）；英文版随 v3.0 发布补译',
   'MEMORY-ENGINE-IMPLEMENTATION-PLAN.md': '记忆引擎实施计划（中文，2026-11）：技术方案、任务拆分与完成状态，已实现；英文版随 v3.0 发布补译',
+  'WEB-VIEWER-REQUIREMENTS.md': '知识库网页端展示需求文档（中文，2026-11）：只读本机控制台需求草案，待评审；英文版随实现补译',
+  'WEB-VIEWER-TECH-DESIGN.md': '知识库网页端技术设计文档（中文，2026-11）：开源前端栈+零依赖服务端技术方案，待评审；英文版随实现补译',
   'AI-DEVELOPMENT-STANDARDS.md': 'v1.x 遗留的英文版规范；其中文版随 v2.0 转向已从本分支删除（仅存 main）',
 };
 
