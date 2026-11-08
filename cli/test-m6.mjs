@@ -3,7 +3,7 @@
  * EvoKit CLI M6 定时学习管理测试（schedule enable/disable/list + learn --assist）
  *
  * 自包含：直接 `node cli/test-m6.mjs` 运行；任一断言失败退出码 1。
- * 隔离与安全：schedule 全部经注入 deps={run, platform} 的假 runner 驱动，绝不真调 schtasks /Create、/Delete；
+ * 隔离与安全：schedule 全部经注入 deps={run, platform} 的假 runner 驱动，绝不真调 schtasks / launchctl / crontab；
  *   learn 走隔离 EVOKIT_HOME（进程级重定向 + CLI 子进程注入 env），不触碰真实知识根。
  *
  * 覆盖：
@@ -15,12 +15,15 @@
  *  - enable 读回校验失败：读回 action 不含包装脚本路径（或不可解析）→ ✗「存储命令不完整」exit 1；
  *    读回通过但包装脚本第三行缺 learn --mode → ✗「包装脚本内容异常」exit 1。
  *  - disable：存在 → /Delete /TN <task> /F + 包装脚本删除；不存在（stderr 含 ERROR: The scheduled task）→ exit 0 友好提示。
- *  - list：非 win32 → exit 1 提示参考 scripts/schedule/ 且不调 run；win32 解析 JSON → 表格含任务名/下次运行/
+ *  - list：不支持平台（freebsd）→ exit 1「当前平台暂不支持定时管理」且不调 run；win32 解析 JSON → 表格含任务名/下次运行/
  *    结果 0=成功/非 0 标 ⚠/learn --mode；空 JSON → 「无正在运行的 EvoKit 定时任务」；--json 输出原始 JSON 数组；
  *    action 不含对应包装脚本路径 → 「脚本已移动」提示；--task 精确名查询。
  *  - learn --assist：与 --auto 互斥 exit 1；--assist 单独生效（learnRun automation 临时覆盖为 assist，
  *    未传时仍按 settings 默认 manual；CLI 层输出 assist 档）。
  *  - schedule 注册：KNOWN_COMMANDS（拼错 schedul 建议 schedule）、help 文案含 enable/disable/list、未知子命令用法 exit 1。
+ *  - 跨平台（darwin/linux 后端）：enable 写 LaunchAgent plist（launchctl unload→load→list 读回）/ crontab 托管块
+ *    （读改写→stdin 写回→读回校验），失败路径（读回不含 label / load 失败 / 无 crontab 命令）；disable 幂等
+ *    （unload+删 plist / 删块写回 / 无任务 exit 0）；list 解析 launchctl list 与 crontab 托管块（--json 行形状同 win32）。
  */
 
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -48,14 +51,28 @@ const learn = await import('./src/commands/learn.js');
 
 const EVOKIT_DIR = join(tmpRoot, '.evokit'); // 与 paths.js 同源
 const SCHEDULE_DIR = join(EVOKIT_DIR, 'schedule');
+const LAUNCHAGENTS_DIR = join(tmpRoot, 'Library', 'LaunchAgents'); // darwin LaunchAgents（EVOKIT_HOME 隔离到 tmp）
+/** darwin plist 路径（label=com.evokit.<slug>） */
+const darwinPlistFor = (slug) => join(LAUNCHAGENTS_DIR, `com.evokit.${slug}.plist`);
 
 /** 构造注入 deps：run 记录每次调用并按命令分派（powershell → ps，其余 → st），platform 可指定 */
 const makeDeps = ({ platform = 'win32', ps = () => ({ status: 0, stdout: '', stderr: '' }), st = () => ({ status: 0, stdout: '', stderr: '' }) } = {}) => {
   const calls = [];
-  const run = (cmd, args) => {
-    calls.push({ cmd, args });
+  const run = (cmd, args, input) => {
+    calls.push({ cmd, args, input });
     if (cmd === 'powershell') return ps(args, calls.length);
-    return st(args, calls.length);
+    return st(args, calls.length, input);
+  };
+  return { deps: { run, platform }, calls };
+};
+
+/** 构造多命令注入 deps：按 cmd 分派假 runner（handlers[cmd](args, input, idx)），记录 {cmd,args,input}；未命中命令返回 status 0 */
+const makeDepsByCmd = ({ platform, handlers = {} } = {}) => {
+  const calls = [];
+  const run = (cmd, args, input) => {
+    calls.push({ cmd, args, input });
+    const h = handlers[cmd];
+    return h ? h(args, input, calls.length) : { status: 0, stdout: '', stderr: '' };
   };
   return { deps: { run, platform }, calls };
 };
@@ -262,14 +279,14 @@ console.log('\n【6. disable 任务不存在（幂等）】');
   assert(calls.filter((c) => c.cmd === 'schtasks').length === 1, '仍调用了一次 /Delete');
 }
 
-// ── 7. list 非 win32：提示 + exit 1 ─────────────────────────
-console.log('\n【7. list 非 win32】');
+// ── 7. 不支持平台（freebsd）：✗ 提示 + exit 1 ───────────────
+console.log('\n【7. 不支持平台（freebsd）】');
 {
-  const { deps, calls } = makeDeps({ platform: 'linux' });
+  const { deps, calls } = makeDeps({ platform: 'freebsd' });
   const r = runSchedule(['list'], deps);
-  assert(r.code === 1, `非 win32 → exit 1（实际 ${r.code}）`);
+  assert(r.code === 1, `不支持平台 → exit 1（实际 ${r.code}）`);
   assert(calls.length === 0, '不调用任何外部命令');
-  assert(r.text.includes('scripts/schedule/'), '提示参考 scripts/schedule/');
+  assert(r.text.includes('当前平台暂不支持定时管理'), '提示「当前平台暂不支持定时管理（支持 Windows / macOS / Linux）」');
 }
 
 // ── 8. list win32：解析 JSON → 表格 + 脚本已移动提示 ────────
@@ -373,6 +390,251 @@ console.log('\n【13. schedule 命令注册】');
   const r = runSchedule(['bogus'], deps);
   assert(r.code === 1 && r.text.includes('用法'), '未知子命令打印用法并 exit 1');
   assert(calls.length === 0, '未知子命令不调用外部命令');
+}
+
+// ── 14. darwin enable：写 plist + launchctl unload→load→list 读回 ──
+console.log('\n【14. darwin enable】');
+{
+  const plist = darwinPlistFor('EvoKitLearn');
+  const logPath = join(EVOKIT_DIR, 'schedule', 'logs', 'EvoKitLearn.log');
+  const { deps, calls } = makeDepsByCmd({
+    platform: 'darwin',
+    handlers: {
+      launchctl: (args) => (args[0] === 'list'
+        ? { status: 0, stdout: '-\t0\tcom.evokit.EvoKitLearn\n', stderr: '' }
+        : { status: 0, stdout: '', stderr: '' }),
+    },
+  });
+  const r = runSchedule(['enable'], deps);
+  assert(r.code === 0, `darwin enable exit 0（实际 ${r.code}）`, r.text.slice(0, 200));
+  assert(existsSync(plist), 'plist 已写盘（~/Library/LaunchAgents/com.evokit.EvoKitLearn.plist）');
+  if (existsSync(plist)) {
+    const xml = readFileSync(plist, 'utf-8');
+    assert(xml.includes('<key>Label</key>') && xml.includes('<string>com.evokit.EvoKitLearn</string>'), 'plist 含 Label=com.evokit.EvoKitLearn');
+    assert(xml.includes(`<string>${process.execPath}</string>`) && xml.includes(`<string>${EXPECTED_SCRIPT}</string>`), 'ProgramArguments 含 node 与 evokit.mjs 绝对路径');
+    assert(/<string>learn<\/string>\s*<string>--auto<\/string>/.test(xml), 'ProgramArguments 含 learn --auto');
+    assert(/<key>Hour<\/key>\s*<integer>2<\/integer>/.test(xml) && /<key>Minute<\/key>\s*<integer>0<\/integer>/.test(xml), 'StartCalendarInterval Hour=2 Minute=0（默认 02:00）');
+    assert(xml.includes(`<string>${EVOKIT_DIR}</string>`), 'WorkingDirectory=EVOKIT_DIR');
+    assert(xml.includes(`<string>${logPath}</string>`), 'StandardOutPath/StandardErrorPath 指向 ~/.evokit/schedule/logs/');
+  }
+  assert(calls.length === 3, `launchctl 恰好 3 次调用（实际 ${calls.length}）`);
+  assert(calls[0].args[0] === 'unload' && calls[1].args[0] === 'load' && calls[2].args[0] === 'list', 'launchctl 顺序 unload→load→list（读回）');
+  assert(calls[1].args[1] === plist, 'load 指向 plist 绝对路径');
+  assert(r.text.includes('✓') && r.text.includes('02:00') && r.text.includes('learn --auto') && r.text.includes('日志文件'), '输出 ✓ 与 计划/档位/日志文件');
+
+  // 读回不含 label → ✗ exit 1
+  const t2 = makeDepsByCmd({
+    platform: 'darwin',
+    handlers: { launchctl: (args) => (args[0] === 'list' ? { status: 0, stdout: '-\t0\tcom.other.Thing\n', stderr: '' } : { status: 0, stdout: '', stderr: '' }) },
+  });
+  const r2 = runSchedule(['enable'], t2.deps);
+  assert(r2.code === 1, `读回不含 label → exit 1（实际 ${r2.code}）`);
+  assert(r2.text.includes('✗'), '输出 ✗');
+
+  // load 失败 → ✗ exit 1
+  const t3 = makeDepsByCmd({
+    platform: 'darwin',
+    handlers: { launchctl: (args) => (args[0] === 'load' ? { status: 1, stdout: '', stderr: 'Load failed: 5: Input/output error' } : { status: 0, stdout: '', stderr: '' }) },
+  });
+  const r3 = runSchedule(['enable', '--task', 'EvoKit LoadFail'], t3.deps);
+  assert(r3.code === 1 && r3.text.includes('load 失败'), `launchctl load 失败 → exit 1（实际 ${r3.code}）`);
+}
+
+// ── 15. darwin disable：unload + 删 plist（幂等） ────────────
+console.log('\n【15. darwin disable】');
+{
+  mkdirSync(LAUNCHAGENTS_DIR, { recursive: true });
+  const plist = darwinPlistFor('EvoKitAlive');
+  writeFileSync(plist, '<plist/>', 'utf-8');
+  const { deps, calls } = makeDepsByCmd({ platform: 'darwin' });
+  const r = runSchedule(['disable', '--task', 'EvoKit Alive'], deps);
+  assert(r.code === 0, `darwin disable 存在 → exit 0（实际 ${r.code}）`);
+  assert(calls.length === 1 && calls[0].args[0] === 'unload' && calls[0].args[1] === plist, 'launchctl unload 指向 plist');
+  assert(!existsSync(plist), 'plist 已删除');
+  assert(r.text.includes('✓'), '输出 ✓');
+
+  // 不存在 → 幂等 exit 0（unload 仍尝试，失败容忍）
+  const t2 = makeDepsByCmd({ platform: 'darwin', handlers: { launchctl: () => ({ status: 1, stdout: '', stderr: 'Could not find service' }) } });
+  const r2 = runSchedule(['disable', '--task', 'EvoKit Ghost'], t2.deps);
+  assert(r2.code === 0, `darwin disable 不存在 → exit 0（实际 ${r2.code}）`);
+  assert(r2.text.includes('ℹ'), '输出 ℹ 幂等提示');
+  assert(t2.calls.length === 1 && t2.calls[0].args[0] === 'unload', '仍尝试 unload（失败容忍）');
+}
+
+// ── 16. darwin list：launchctl list + 逐 label 读 plist ──────
+console.log('\n【16. darwin list】');
+{
+  mkdirSync(LAUNCHAGENTS_DIR, { recursive: true });
+  writeFileSync(darwinPlistFor('EvoKitLearn'), '<?xml version="1.0"?><plist version="1.0"><dict>'
+    + '<key>Label</key><string>com.evokit.EvoKitLearn</string>'
+    + '<key>ProgramArguments</key><array><string>/node</string><string>/cli/evokit.mjs</string><string>learn</string><string>--assist</string></array>'
+    + '<key>StartCalendarInterval</key><dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>30</integer></dict>'
+    + '</dict></plist>', 'utf-8');
+  // com.evokit.EvoKitGhost 有 launchctl 记录但 plist 不存在 → action='—'；not.evokit. 前缀被过滤
+  const { deps } = makeDepsByCmd({
+    platform: 'darwin',
+    handlers: { launchctl: () => ({ status: 0, stdout: '-\t0\tcom.evokit.EvoKitLearn\n12345\t15\tcom.evokit.EvoKitGhost\n999\t0\tnot.evokit.Other\n', stderr: '' }) },
+  });
+  const r = runSchedule(['list'], deps);
+  assert(r.code === 0, `darwin list exit 0（实际 ${r.code}）`, r.text.slice(0, 200));
+  assert(r.text.includes('com.evokit.EvoKitLe') && r.text.includes('com.evokit.EvoKitGh'), '表格含两个 com.evokit. 任务名（22 字符截到 19+…，与 win32 列宽一致；完整 label 由 --json 断言）');
+  assert(r.text.includes('learn --assist'), '表格含 learn --assist（来自 plist ProgramArguments）');
+  assert(!r.text.includes('not.evokit.Other'), '非 com.evokit. 前缀被过滤');
+  const t2 = makeDepsByCmd({
+    platform: 'darwin',
+    handlers: { launchctl: () => ({ status: 0, stdout: '-\t0\tcom.evokit.EvoKitLearn\n', stderr: '' }) },
+  });
+  const r2 = runSchedule(['list', '--json'], t2.deps);
+  let arr = null;
+  try { arr = JSON.parse(r2.text.trim()); } catch { arr = null; }
+  assert(Array.isArray(arr) && arr.length === 1, '--json 输出数组（长度 1）');
+  assert(!!arr && arr[0].name === 'com.evokit.EvoKitLearn' && arr[0].state === 'loaded'
+    && arr[0].info.NextRunTime === '—' && arr[0].info.LastRunTime === '—' && arr[0].info.LastTaskResult === 0,
+    'JSON 行形状同 win32（name/state/action/info，Next/LastRunTime=—，LastTaskResult=launchctl 第二列）');
+  assert(!!arr && arr[0].action.includes('learn --assist') && arr[0].action.includes('03:30'), 'action 含 learn --assist 与 HH:MM（来自 plist）');
+
+  // 空 launchctl list → 无任务提示
+  const t3 = makeDepsByCmd({ platform: 'darwin', handlers: { launchctl: () => ({ status: 0, stdout: '', stderr: '' }) } });
+  const r3 = runSchedule(['list'], t3.deps);
+  assert(r3.code === 0 && r3.text.includes('无正在运行的 EvoKit 定时任务'), '空结果 → 无任务提示');
+}
+
+// ── 17. linux enable：crontab 读改写 + 读回校验 ──────────────
+console.log('\n【17. linux enable】');
+{
+  const oldCrontab = [
+    'SHELL=/bin/bash',
+    '# EVOKIT:BEGIN EvoKit Learn',
+    '0 3 * * * cd "/old" && "/old/node" "/old/evokit.mjs" learn --assist >> "/old/log" 2>&1',
+    '# EVOKIT:END EvoKit Learn',
+    '30 4 * * * user-job --flag',
+  ].join('\n') + '\n';
+  let writtenInput = null;
+  const { deps, calls } = makeDepsByCmd({
+    platform: 'linux',
+    handlers: {
+      crontab: (args, input, idx) => {
+        if (args[0] === '-') { writtenInput = input; return { status: 0, stdout: '', stderr: '' }; }
+        return idx === 1 ? { status: 0, stdout: oldCrontab, stderr: '' } : { status: 0, stdout: writtenInput || '', stderr: '' };
+      },
+    },
+  });
+  const r = runSchedule(['enable'], deps);
+  assert(r.code === 0, `linux enable exit 0（实际 ${r.code}）`, r.text.slice(0, 200));
+  const write = calls.find((c) => c.cmd === 'crontab' && c.args[0] === '-');
+  assert(!!write, 'crontab - 收到 stdin 写回调用');
+  const nextContent = write ? String(write.input) : '';
+  assert(nextContent.includes('# EVOKIT:BEGIN EvoKit Learn') && nextContent.includes('# EVOKIT:END EvoKit Learn'), '新全文含 BEGIN/END 托管块');
+  assert(nextContent.includes('0 2 * * * cd "') && nextContent.includes(`cd "${EVOKIT_DIR}"`), 'cron 时间分钟在前（0 2 * * *）且 cd 到 EVOKIT_DIR');
+  assert(nextContent.includes(`"${process.execPath}" "${EXPECTED_SCRIPT}" learn --auto`), 'cron 行含 node/script 绝对路径与 learn --auto');
+  assert(nextContent.includes(join(EVOKIT_DIR, 'schedule', 'logs', 'EvoKitLearn.log')) && nextContent.includes('2>&1'), '日志重定向到 ~/.evokit/schedule/logs/ 且含 2>&1');
+  assert(!nextContent.includes('--assist') && (nextContent.match(/# EVOKIT:BEGIN EvoKit Learn/g) || []).length === 1, '旧块被替换（--assist 消失，同名块仅一份）');
+  assert(nextContent.includes('30 4 * * * user-job --flag'), '用户既有 crontab 行保留');
+  assert(nextContent.endsWith('\n'), '新全文以换行结尾');
+
+  // 无 crontab 命令 → ✗ exit 1
+  const t2 = makeDepsByCmd({ platform: 'linux', handlers: { crontab: () => ({ status: null, stdout: '', stderr: '' }) } });
+  const r2 = runSchedule(['enable'], t2.deps);
+  assert(r2.code === 1 && r2.text.includes('未检测到 crontab'), `无 crontab 命令 → exit 1（实际 ${r2.code}）`);
+
+  // no crontab for → 视为空表，正常注册
+  let emptyInput = null;
+  const t3 = makeDepsByCmd({
+    platform: 'linux',
+    handlers: {
+      crontab: (args, input, idx) => {
+        if (args[0] === '-') { emptyInput = input; return { status: 0, stdout: '', stderr: '' }; }
+        return idx === 1 ? { status: 1, stdout: '', stderr: 'no crontab for zy' } : { status: 0, stdout: emptyInput || '', stderr: '' };
+      },
+    },
+  });
+  const r3 = runSchedule(['enable'], t3.deps);
+  assert(r3.code === 0 && r3.text.includes('✓'), `no crontab for → 视为空表并注册成功（实际 ${r3.code}）`);
+  assert(!!emptyInput && emptyInput.startsWith('# EVOKIT:BEGIN EvoKit Learn'), '空表时新全文仅含托管块');
+}
+
+// ── 18. linux disable：删块写回（幂等） ──────────────────────
+console.log('\n【18. linux disable】');
+{
+  const crontabWithBlock = [
+    '30 4 * * * user-job',
+    '# EVOKIT:BEGIN EvoKit Learn',
+    '0 2 * * * cd "/x" && "/node" "/e.mjs" learn --auto >> log 2>&1',
+    '# EVOKIT:END EvoKit Learn',
+  ].join('\n') + '\n';
+  let writtenInput = null;
+  const { deps, calls } = makeDepsByCmd({
+    platform: 'linux',
+    handlers: {
+      crontab: (args, input) => {
+        if (args[0] === '-') { writtenInput = input; return { status: 0, stdout: '', stderr: '' }; }
+        return { status: 0, stdout: crontabWithBlock, stderr: '' };
+      },
+    },
+  });
+  const r = runSchedule(['disable', '--task', 'EvoKit Learn'], deps);
+  assert(r.code === 0, `linux disable 存在 → exit 0（实际 ${r.code}）`);
+  assert(!!writtenInput && !writtenInput.includes('# EVOKIT:BEGIN') && writtenInput.includes('30 4 * * * user-job'), '写回全文已删托管块且保留用户行');
+  assert(r.text.includes('✓'), '输出 ✓');
+  assert(calls.filter((c) => c.args[0] === '-').length === 1, 'crontab - 恰好一次');
+
+  // 无 crontab → 幂等 exit 0
+  const t2 = makeDepsByCmd({ platform: 'linux', handlers: { crontab: () => ({ status: 1, stdout: '', stderr: 'no crontab for zy' }) } });
+  const r2 = runSchedule(['disable', '--task', 'EvoKit Learn'], t2.deps);
+  assert(r2.code === 0 && r2.text.includes('ℹ'), `无 crontab → 幂等 exit 0（实际 ${r2.code}）`);
+
+  // crontab 存在但无 EVOKIT 块 → 幂等 exit 0 且不写回
+  const t3 = makeDepsByCmd({
+    platform: 'linux',
+    handlers: { crontab: (args) => (args[0] === '-l' ? { status: 0, stdout: '30 4 * * * user-job\n', stderr: '' } : { status: 0, stdout: '', stderr: '' }) },
+  });
+  const r3 = runSchedule(['disable', '--task', 'EvoKit Ghost'], t3.deps);
+  assert(r3.code === 0 && r3.text.includes('ℹ'), `无托管块 → 幂等 exit 0（实际 ${r3.code}）`);
+  assert(t3.calls.filter((c) => c.args[0] === '-').length === 0, '无块时不写回 crontab');
+}
+
+// ── 19. linux list：解析 crontab 托管块 ──────────────────────
+console.log('\n【19. linux list】');
+{
+  const crontab = [
+    '30 4 * * * user-job',
+    '# EVOKIT:BEGIN EvoKit Learn',
+    '0 2 * * * cd "/x" && "/node" "/e.mjs" learn --auto >> log 2>&1',
+    '# EVOKIT:END EvoKit Learn',
+    '# EVOKIT:BEGIN EvoKit Night',
+    '30 3 * * * cd "/x" && "/node" "/e.mjs" learn --assist >> log 2>&1',
+    '# EVOKIT:END EvoKit Night',
+  ].join('\n') + '\n';
+  const { deps } = makeDepsByCmd({ platform: 'linux', handlers: { crontab: () => ({ status: 0, stdout: crontab, stderr: '' }) } });
+  const r = runSchedule(['list'], deps);
+  assert(r.code === 0, `linux list exit 0（实际 ${r.code}）`, r.text.slice(0, 200));
+  assert(r.text.includes('EvoKit Learn') && r.text.includes('EvoKit Night'), '表格含两个托管块任务名');
+  assert(r.text.includes('learn --auto') && r.text.includes('learn --assist'), '计划动作含 learn --mode 段');
+  const t2 = makeDepsByCmd({ platform: 'linux', handlers: { crontab: () => ({ status: 0, stdout: crontab, stderr: '' }) } });
+  const r2 = runSchedule(['list', '--json'], t2.deps);
+  let arr = null;
+  try { arr = JSON.parse(r2.text.trim()); } catch { arr = null; }
+  assert(Array.isArray(arr) && arr.length === 2, '--json 输出数组（长度 2）');
+  assert(!!arr && arr[0].name === 'EvoKit Learn' && arr[0].state === 'scheduled' && arr[0].action === 'learn --auto'
+    && arr[0].info.NextRunTime === '—' && arr[0].info.LastRunTime === '—' && arr[0].info.LastTaskResult === '—',
+    'JSON 行形状同 win32（mac/linux 无的信息用 —）');
+
+  // 读不到 crontab → 按空结果
+  const t3 = makeDepsByCmd({ platform: 'linux', handlers: { crontab: () => ({ status: 1, stdout: '', stderr: 'no crontab for zy' }) } });
+  const r3 = runSchedule(['list'], t3.deps);
+  assert(r3.code === 0 && r3.text.includes('无正在运行的 EvoKit 定时任务'), '读不到 crontab → 无任务提示');
+}
+
+// ── 20. 跨平台不支持（freebsd）：enable/disable 均 ✗ exit 1 ──
+console.log('\n【20. 跨平台不支持（freebsd）】');
+{
+  const t1 = makeDepsByCmd({ platform: 'freebsd' });
+  const r1 = runSchedule(['enable'], t1.deps);
+  assert(r1.code === 1 && r1.text.includes('当前平台暂不支持定时管理'), `freebsd enable → exit 1（实际 ${r1.code}）`);
+  assert(t1.calls.length === 0, '不调用任何外部命令');
+  const t2 = makeDepsByCmd({ platform: 'freebsd' });
+  const r2 = runSchedule(['disable'], t2.deps);
+  assert(r2.code === 1 && r2.text.includes('当前平台暂不支持定时管理'), `freebsd disable → exit 1（实际 ${r2.code}）`);
 }
 
 // ── 清理与汇总 ────────────────────────────────────────────

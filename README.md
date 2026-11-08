@@ -70,7 +70,7 @@ evokit status               # 查看各入口是否一致
 | `evokit recall "<关键词>"` | 本地知识检索（按相关度排序，命中自动计数） |
 | `evokit forge` | 把达标的同类知识卡锻造成技能草稿（人工过目后分发） |
 | `evokit hook learn-enqueue` | 会话结束钩子入队（写触发文件立即返回，不阻塞会话） |
-| `evokit schedule enable / disable / list` | 每日定时学习的开启 / 关闭 / 查看（Windows） |
+| `evokit schedule enable / disable / list` | 每日定时学习的开启 / 关闭 / 查看（Windows / macOS / Linux） |
 | `evokit help` / `-h` | 打印完整用法 |
 
 ### 常用选项与别名

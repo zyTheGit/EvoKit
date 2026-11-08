@@ -47,7 +47,7 @@ evokit review              # 查看待审草稿清单（--accept / --reject / --
 evokit recall "<关键词>"     # 本地知识检索 + 命中计数（--limit n / --json）
 evokit forge               # 知识卡聚簇锻造技能（--from-tags a,b / --topic "…" / --audit）
 evokit hook learn-enqueue  # 会话结束钩子入队：写 ~/.evokit/triggers/ 触发文件立即返回，不执行 learn（--session <id> / --json）
-evokit schedule enable [--time HH:MM] [--mode auto|assist]  # 注册每日定时学习（Windows 任务计划）
+evokit schedule enable [--time HH:MM] [--mode auto|assist]  # 注册每日定时学习（Windows 任务计划 / macOS launchd / Linux cron）
 evokit schedule disable [--task <name>]  # 取消定时任务
 evokit schedule list  # 查看正在定时跑的 EvoKit 任务
 ```
@@ -328,7 +328,7 @@ evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消�
 - L1 分发：内置 `knowledge-index` 资源经 `sync --resource knowledge-index` 把 ≤60 行索引写入三入口托管块；索引重建时 pitfall / 被 forge-use 引用的卡带粘性权重（优先保留），源缺失（未 `knowledge init`）时 sync 跳过并提示。
 - forge 锻造（D5/D6）：confirmed 且 type ∈ workflow|pattern 的卡按 tags Jaccard ≥ 0.5 聚簇，≥ `knowledge.forgeClusterMin`（默认 3）张达标；`evokit forge` 列出达标簇，`--from-tags a,b` / `--topic "…"` 委托本机 agent 生成单文件 SKILL.md 草稿到 `~/.agents/skills/<name>/`（附 generation.json，`review.status: trial`，parentCards 记录父卡），执行者链同 distill（claude 不进自动链，`--agent` 显式覆盖）。`review --skill` 人工过目；`--skill-accept <name>` 以 symlink 分发到 `~/.claude/skills`、`~/.codex/skills`，回写 `distributedTo`、对每个父卡追加 `forge-use` 引用，并向 `~/.agents/skills/.skill-lock.json` 无损追加登记（解析失败/非数组则跳过并提示，绝不破坏原文件）；`--skill-veto <name>` 否决。`forge --audit` 月度体检：trial 超 30 天且 0 uses 退役移入 `~/.agents/skills/.retired/<name>/` 并按 distributedTo 回收链接（只删链接/junction，绝不删真实目录）；vetoed 技能提示；confirmed 技能父卡过半 `validUntil` 过期时提示「技能需重审」。
 - L1 自动分发（F2）：`review --accept` / `review --merge`（草稿并入已入库卡）与 `learn` 自动入库（assist/auto 档）后，CLI 编排层**自动把重建后的索引写入三入口托管块**——同一入口文件被多个 text 资源指向（context + knowledge-index）时合并进**同一托管块**（保持一文件一块不变量，uninstall/check/status 按单块解析），context 与知识索引共存，等价对 `knowledge-index` 资源执行了一次 `evokit sync`；源缺失（未 `knowledge init`）时降级为提示，不影响其他资源与退出码。双草稿合并不触发分发（canonical 仍在草稿区）。
-- 定时学习（T-M6，Windows 专属）：`evokit schedule enable [--time HH:MM] [--mode auto|assist] [--task <name>]` 注册每日任务（默认 `EvoKit Learn` / 02:00 / auto，`/F` 幂等覆盖；`--task` 需以 EvoKit 开头），经 PowerShell 读回校验（存储命令不完整或包装脚本内容异常即失败）；包装脚本 `~/.evokit/schedule/<task>.cmd` 三行（`@echo off` / `cd /d ~/.evokit` / `node evokit.mjs learn --<mode>`）——schtasks 无 cwd 参数，wrapper 固定 `cd` 到 `~/.evokit` 避免定时任务 cwd=系统目录（项目内 workbuddy 日报需在 `settings.sources` 配 root）。每日到点**真实执行 learn，产生 LLM 费用**；若此前从未运行过 learn，首次定时运行会提纯 inbox 全部积压（此后按水位线只提纯新增行）。`schedule disable [--task <name>]` 取消并清理包装脚本；`schedule list [--task <name>] [--json]` 查看已注册任务。
+- 定时学习（T-M6，跨平台：Windows 任务计划 / macOS launchd / Linux cron）：`evokit schedule enable [--time HH:MM] [--mode auto|assist] [--task <name>]` 注册每日任务（默认 `EvoKit Learn` / 02:00 / auto，`/F` 幂等覆盖；`--task` 需以 EvoKit 开头），经 PowerShell 读回校验（存储命令不完整或包装脚本内容异常即失败）；包装脚本 `~/.evokit/schedule/<task>.cmd` 三行（`@echo off` / `cd /d ~/.evokit` / `node evokit.mjs learn --<mode>`）——schtasks 无 cwd 参数，wrapper 固定 `cd` 到 `~/.evokit` 避免定时任务 cwd=系统目录（项目内 workbuddy 日报需在 `settings.sources` 配 root）。每日到点**真实执行 learn，产生 LLM 费用**；若此前从未运行过 learn，首次定时运行会提纯 inbox 全部积压（此后按水位线只提纯新增行）。`schedule disable [--task <name>]` 取消并清理包装脚本；`schedule list [--task <name>] [--json]` 查看已注册任务。
 - review --merge 草稿间合并（F1 双区定位）：`--merge <id> <into>` 按 id 各自查 `.pending/` 与 `knowledge/` 两区——双草稿合并为**原地**操作：被并卡原地 `retired`、canonical 保持 draft 留审（无 git、无索引重建与分发）；草稿→已入库走原路径（canonical 保留 + 索引重建 + git commit + 自动分发）。未命中 id 时报错明示两区（「`.pending/` 与 `knowledge/` 均不存在该 id」）；方向反了（已入库→草稿）会提示改用 `--merge <草稿id> <已入库id>`。
 
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
