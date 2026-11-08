@@ -1,8 +1,8 @@
 # EvoKit 知识库网页端技术设计文档
 
-> 状态：**v0.2 草案，待作者评审**（2026-11-08；未提交 git，未开工）
+> 状态：**v0.2.1，已实现收口**（2026-11-08；实现提交 b4f9d61 服务端 / 52d5b44 前端与产物 / e4a7c3c 测试与脚本）
 > 上游需求：[WEB-VIEWER-REQUIREMENTS.md](./WEB-VIEWER-REQUIREMENTS.md)
-> 证据来源：h3 / Koa / Fastify / Express 现状调查（2026-11-08，含来源 URL 的调研记录）+ 本机 PoC 实测（Windows、Node 24.20.0）
+> 证据来源：h3 / Koa / Fastify / Express 现状调查（2026-11-08，含来源 URL 的调研记录）+ 本机 PoC 实测（Windows、Node 24.20.0）+ 真机验收（见 [WEB-VIEWER-ACCEPTANCE.md](./WEB-VIEWER-ACCEPTANCE.md)）
 
 ## 1. 变更记录
 
@@ -11,6 +11,11 @@
   2. 新增**文件规模纪律**：任何单文件超过 400 行必须拆分（含存量文件盘点与强制检查脚本计划）；
   3. 新增**页面/模块模块化纪律**：前端 views / components / composables 三层拆分 + 路由懒加载，服务端 API 按域拆分；
   4. 服务端设计、测试方案、风险、任务拆分相应更新。
+- **v0.2 → v0.2.1 实现期修订（2026-11-08，随实现收口补记的三处踩坑）**：
+  1. **静态托管改自实现**：h3 v2 的 serveStatic 从 event.path 推导资源 id，而 event.path 会携带 query 串；改为自实现（query 剥离 + resolve 前缀防穿越 + SPA 兑底），防护语义等效且行为完全可控；
+  2. **h3 v2 路由语义**（PoC 未暴露、真机集成时发现）：use() 无论带不带 pattern 都属于「中间件阶段」，先于路由表（.get/createRouter）执行——`app.use('/**', 兕底)` 会全量拦截包括 API 在内的一切请求。最终结构：API 路由器以 `app.use('/api/**', withBase('/api', router.handler))` 模式守卫挂载，静态层作为裸中间件殿后；
+  3. **getRouterParam 返回未解码 URL 段**（中文 id 场景，夹具纯 ASCII 未能提前暴露）：server 层统一 decodeURIComponent（解码后仍有 /[\\/] 穿越守卫兑底），夹具补充中文 id 卡防回归；
+  4. 存量超限文件盘点扩展到测试套件（+4 个，见 §11）；最终实跑十套 866 断言全绿。
 
 ## 2. 决策摘要
 
@@ -139,7 +144,7 @@ cli/
 - **装配**：`createApp()` + `createRouter()`；`createServer(toNodeHandler(app)).listen(4177, '127.0.0.1')`（v2 无 `app.listen`，PoC 已验证此形态）。
 - **路由**：全部显式 `router.get(...)` 注册（GET-only 纪律靠「只注册 GET」天然成立）；未匹配请求统一落 JSON 404 兜底 handler。
 - **错误边界**：全局 `onError` 统一输出 `{ "error": { "code", "message" } }`（h3 抛出的 `createError` 保留其 status；未知异常 500 且**进程不退出**，PoC 已验证抛错后服务继续可用）。
-- **静态托管**：`app.use('/assets/**', withBase(...))` 挂 h3 内置 `serveStatic`，配 `getMeta/getContents` fs 适配（官方类型定义明确其内部保留编码分隔符、穿越归一化在 serveStatic 内完成，PoC 两种穿越载荷均 404）；静态根只允许 `cli/web-dist/`。
+- **静态托管**：自实现静态解析（repl 内置 serveStatic，理由见 §1 实现期修订）：query 剥离、`resolve + startsWith(root)` 穿越校验、Content-Type 白名单、`assets/` 带 hash 资源 immutable、index.html no-cache；无扩展名路径兜底回 index.html；staticRoot 缺失时全量 503 并提示构建命令（服务不崩，真机验证）。
 - **端口策略**：默认 4177；显式 `--port` 被占用 → 报错退出；未显式 → 4177 起自动探测至多 +10，打印实际 URL；`--open` 可选（Windows `start`，失败仅提示）。
 - **稳定性纪律**：单请求异常不影响进程；`SIGINT/SIGTERM` → `server.close()` + 3 秒超时兜底退出；无任何写端点；不触发 autoSync、不推进水位线。
 
@@ -198,7 +203,7 @@ cli/
 
 - **规则**：本次新增的所有文件（服务端 + 前端 + 测试 + 脚本）≤400 行（含空行注释）；拆分导向 = 按域/按职责（§6 预估已按此设计）。
 - **强制**：W3 阶段新增 `scripts/check-file-size.mjs`（扫 `cli/src/**`、`cli/web/src/**`，>400 行即非零退出），纳入测试清单与 `evokit web` 完工验收。
-- **存量盘点（2026-11-08 实测，cli/src 共 37 文件 6052 行）**：超限 3 个——`src/distill.js`（657）、`src/commands/review.js`（468）、`src/harvest/adapters.js`（418）。**本次不触碰**（不在任务范围、不擅改无关代码），登记为独立清理任务，待作者单独授权后再拆。
+- **存量盘点（2026-11-08 实测）**：超限 7 个——`src/distill.js`（698）、`src/commands/review.js`（490）、`src/harvest/adapters.js`（450）、四个既有测试套件 `test-local.mjs`（755）/ `test-m2.mjs`（766）/ `test-m6.mjs`（646）/ `test-m1-lib.mjs`（461）。**本次全部不触碰**（不在任务范围、不擅改无关代码），已在 `scripts/check-file-size.mjs` EXEMPTIONS 表登记，拆分待作者单独授权后再立任务。
 
 ## 12. 验收标准映射
 

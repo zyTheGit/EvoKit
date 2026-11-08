@@ -50,6 +50,7 @@ evokit hook learn-enqueue  # 会话结束钩子入队：写 ~/.evokit/triggers/ 
 evokit schedule enable [--time HH:MM] [--mode auto|assist]  # 注册每日定时学习（Windows 任务计划 / macOS launchd / Linux cron）
 evokit schedule disable [--task <name>]  # 取消定时任务
 evokit schedule list  # 查看正在定时跑的 EvoKit 任务
+evokit web [--port <n>] [--open]  # 启动本机网页端（只读浏览偏好/知识库/同步状态；需先在 cli/ 执行 npm install）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -331,6 +332,21 @@ evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消�
 - 定时学习（T-M6，跨平台：Windows 任务计划 / macOS launchd / Linux cron）：`evokit schedule enable [--time HH:MM] [--mode auto|assist] [--task <name>]` 注册每日任务（默认 `EvoKit Learn` / 02:00 / auto，`/F` 幂等覆盖；`--task` 需以 EvoKit 开头），经 PowerShell 读回校验（存储命令不完整或包装脚本内容异常即失败）；包装脚本 `~/.evokit/schedule/<task>.cmd` 三行（`@echo off` / `cd /d ~/.evokit` / `node evokit.mjs learn --<mode>`）——schtasks 无 cwd 参数，wrapper 固定 `cd` 到 `~/.evokit` 避免定时任务 cwd=系统目录（项目内 workbuddy 日报需在 `settings.sources` 配 root）。每日到点**真实执行 learn，产生 LLM 费用**；若此前从未运行过 learn，首次定时运行会提纯 inbox 全部积压（此后按水位线只提纯新增行）。`schedule disable [--task <name>]` 取消并清理包装脚本；`schedule list [--task <name>] [--json]` 查看已注册任务。
 - review --merge 草稿间合并（F1 双区定位）：`--merge <id> <into>` 按 id 各自查 `.pending/` 与 `knowledge/` 两区——双草稿合并为**原地**操作：被并卡原地 `retired`、canonical 保持 draft 留审（无 git、无索引重建与分发）；草稿→已入库走原路径（canonical 保留 + 索引重建 + git commit + 自动分发）。未命中 id 时报错明示两区（「`.pending/` 与 `knowledge/` 均不存在该 id」）；方向反了（已入库→草稿）会提示改用 `--merge <草稿id> <已入库id>`。
 
+### 网页端控制台（evokit web）
+
+一条命令在本机浏览器里浏览「AI 工具们遵守的偏好与知识」的全貌，**纯只读**：浏览与检索不改动 `~/.evokit` 任何数据，review 裁决等写操作仍走 CLI。
+
+```bash
+cd cli && npm install   # 一次性：安装服务端依赖 h3（软依赖，不装不影响其它命令）
+node cli/evokit.mjs web [--port <n>] [--open]
+```
+
+- 默认绑定 `http://127.0.0.1:4177`（仅本机回环，不暴露局域网）；`--port` 显式指定被占用时报错退出，未显式指定时自动探测 +1..+10；`--open` 尝试自动打开浏览器。
+- 页面：总览 / 全局偏好 / 知识索引 / 知识卡（列表+详情+筛选）/ 待审草稿 / 已归档 / 已拒绝 / 检索 / 同步状态 / 变更历史（含单卡下钻）/ 召回统计（图表）/ 报告库（inventory 报告阅读）/ 采集概览。
+- 口径：检索评分与排序与 `evokit recall` 完全一致（tags×3 ＞ 标题×2 ＞ 正文×1），唯一差异是**网页检索不写引用计数**（浏览不污染命中统计）；同步状态判定与 `evokit check` 同口径。
+- 技术：服务端 h3（仅 3 个传递依赖，ESM 原生，JSON 错误边界与穿越防护内置）+ 前端 Vue 3 + Element Plus（构建产物预编译在 `cli/web-dist/`，clone 即用，无 CDN 无外链）。前端改后用 `npm run build:web` 重建产物。
+- 设计与需求文档：`docs/zh/WEB-VIEWER-REQUIREMENTS.md`、`docs/zh/WEB-VIEWER-TECH-DESIGN.md`。
+
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
 
 配置文件里所有路径都经过 `expandPath` 展开，支持以下写法：
@@ -421,6 +437,12 @@ cli/
     ├── cluster.js      # forge 聚簇器（tags Jaccard ≥ 0.5）
     ├── harvest/
     │   └── adapters.js # 收割适配器（claude/codex/memory-cards/trae/daily-log/pi/sqlite）
+    ├── web/             # evokit web 服务端（框架 import 收敛于 server/static 两文件）
+    │   ├── server.js    #   h3 装配 / 端口策略 / 错误边界 / 优雅关闭
+    │   ├── static.js    #   web-dist 静态托管（穿越防护 + SPA 兜底）
+    │   ├── respond.js   #   统一错误 JSON（含 httpError 助手）
+    │   ├── git.js       #   只读 git log 封装（降级纪律）
+    │   └── api/         #   13 端点纯数据函数（cards / sync / history / misc）
     └── commands/       # 各命令实现（按命令族拆分）
         ├── index.js    # 汇总导出（统一入口）
         ├── init.js     # initGlobal / initProject
@@ -490,9 +512,10 @@ node test-m3.mjs           # M3：knowledge-index 分发 / 粘性权重 / recall
 node test-m4.mjs           # M4：forge 生成链 / review --skill / --audit
 node test-m4-lib.mjs       # M4：聚簇器阈值边界（纯函数）
 node test-m5.mjs           # M5：hook learn-enqueue / knowledge gc / inventory 知识库区块
-node test-m6.mjs           # M6：schedule enable/disable/list（假 runner）+ learn --assist
+node test-m6.mjs           # M6：schedule enable/disable/list（跨平台后端注入式）+ learn --assist
+node test-m7-web.mjs       # M7：evokit web 服务端（13 端点契约 / 只读快照 / 穿越/白名单 / 进程存活 / 优雅关闭 / 503 降级）
 ```
 
-九套自包含，任一断言失败即退出码 1。实跑数字（2026-11-08）：test-local 141 通过、test-m0 113、test-m1-lib 33（另 1 项 zstd 特性跳过）、test-m2 158、test-m3 77、test-m4 67、test-m4-lib 25 用例 / 50 断言、test-m5 59、test-m6 76，合计 774 项断言全绿。
+十套自包含，任一断言失败即退出码 1。实跑数字（2026-11-08）：test-local 141 通过、test-m0 113、test-m1-lib 33（另 1 项 zstd 特性跳过）、test-m2 158、test-m3 77、test-m4 67、test-m4-lib 25 用例 / 50 断言、test-m5 59、test-m6 134、test-m7-web 59，合计 866 项断言全绿。新增 `scripts/check-file-size.mjs`：任何单文件超 400 行即失败（存量超限文件在脚本 EXEMPTIONS 表登记待拆）。
 
 隔离与 mock 手法：CLI 用例经 `EVOKIT_HOME` 重定向家目录（spawnSync 子进程注入 env），库级用例先设 env 再动态 import 或走显式路径入参，不触碰真实 `~/.claude`、`~/.pi`、`~/.codex` 与知识根；需要 agent 的用例用 mock agent（`cli.binPath=process.execPath` + 临时 fake 脚本 + `input:'stdin'`）；schedule 测试注入假 runner（deps={run, platform}），绝不真调 `schtasks`。
