@@ -3,7 +3,8 @@
 
 > 基于 2026-11-06 对本机 12 个 AI 工具记忆存储的实测盘点 + 公开方案调研。
 > 目标：让 EvoKit（`C:\zy\project_other\ai-projects\EvoKit`，v2.0 零依赖偏好同步 CLI）长出「经验层」——把分散在各个 agent IDE 文件夹里的记忆/经验提纯成统一知识库，持续自动学习，并自动沉淀成适合自己的 skill。
-> 本文档于 2026-11-06 由 AutoClaw 会话产出，经用户要求入库至 `docs/zh/`（未提交，留待作者审阅后提交）。
+> 本文档于 2026-11-06 由 AutoClaw 会话产出，已随立项入库（commit 81d35f2）。
+> **实施状态（2026-11-08）**：本方案已实现并真机验收——T-0/M0–M5 全部落地，实施中追加 M6 定时学习管理（`evokit schedule enable/disable/list` + `learn --assist`）与三项改进（F1 草稿间合并、F2 入库后自动分发索引、P4 报错文案明确化）；九套测试 774 断言全绿。与设计的已知差异：sqlite 适配器、`discover`、MCP 记忆服务仍为 P2 储备；钩子宿主首版仅 Claude Code（入队模式）。命令面与行为以 [`cli/README.md`](../../cli/README.md) 为准，任务拆分与完成状态见 [`MEMORY-ENGINE-IMPLEMENTATION-PLAN.md`](MEMORY-ENGINE-IMPLEMENTATION-PLAN.md)，关键裁决见 [`docs/adr/0009`](../adr/0009-knowledge-root-v3.md)。
 > harvest 阶段已由零依赖 POC 脚本实机验证（7 源 79 事件、首批 21 张种子卡片、水位线增量与脱敏生效）；
 > 技术栈评估（§14）含 Node 24 本机实测结论。POC 产物保留在会话工作区，M1 落地时作参照。
 

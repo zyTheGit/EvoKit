@@ -4,6 +4,8 @@
 >
 > **基线核实（2026-11-06）**：分支 `main` @ `8e1a4c2`（v2.0 已合并，领先 origin 12 个提交）；`node cli/test-local.mjs` **126 通过 / 0 失败**；`docs/zh/MEMORY-ENGINE-DESIGN.md` 与 `scripts/check-docs-sync.mjs`（豁免表）改动在工作区尚未提交。
 >
+> **完成状态（2026-11-08）**：T-0.x 与 M0–M5 全部任务已完成并提交；实施中追加 M6 定时学习管理（`evokit schedule enable/disable/list` + `learn --assist`）与三项改进（F1 草稿间合并、F2 入库后自动分发索引、P4 报错文案明确化），均已真机验证。分支 `feature/3.0-memory-engine` 累计 23 个 commit（未推送）；九套测试 774 断言全绿。§3.7 的 P2 储备与 §6 开放问题①（双语补译）仍按登记待办；命令最终面以 `cli/README.md` 为准。
+>
 > **执行纪律**：每个任务一个独立 commit（渐进提交）；任务卡中的「验收」均为可运行命令，宣称完成前必须实际执行；只改任务相关文件。
 
 ---
