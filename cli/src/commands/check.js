@@ -6,9 +6,10 @@ import { execSync } from 'node:child_process';
 import { HOME, GLOBAL_SOURCE, BEGIN, END, expandPath } from '../paths.js';
 import { loadAgents, filterAgents } from '../config.js';
 import { readSource } from '../fs-utils.js';
+import { collectPartsForTarget, joinParts } from '../entry-content.js';
 
 /** 通用一致性检查：对比源内容与各入口托管块是否一致 */
-function checkEntries(source, sourceLabel, entries, isProject = false) {
+function checkEntries(source, sourceLabel, entries, isProject = false, expectedFn = null) {
   let allOk = true;
   let missingCount = 0;
   for (const { name, file } of entries) {
@@ -27,7 +28,9 @@ function checkEntries(source, sourceLabel, entries, isProject = false) {
     const start = content.indexOf(BEGIN) + BEGIN.length;
     const end = content.indexOf(END);
     const managed = content.slice(start, end).trim();
-    if (managed === source) {
+    // v3：期望块 = 指向该入口的全部 text 资源合并内容（context + knowledge-index）
+    const expected = expectedFn ? expectedFn(file) : source;
+    if (managed === expected) {
       console.log(`✓ ${name}：一致`);
     } else {
       console.log(`✗ ${name}：不一致（需 sync）`);
@@ -57,7 +60,9 @@ function checkGlobal(filter) {
   const source = readSource(GLOBAL_SOURCE);
   const agents = filterAgents(loadAgents(), filter);
   const entries = agents.map((a) => ({ name: a.name, file: expandPath(a.global) }));
-  return checkEntries(source, GLOBAL_SOURCE, entries, false);
+  // v3：同文件多 text 资源合并进同一托管块，一致性按合并后期望值判定
+  const expectedFn = (file) => joinParts(collectPartsForTarget(file).present).trim();
+  return checkEntries(source, GLOBAL_SOURCE, entries, false, expectedFn);
 }
 
 function checkProject(filter) {

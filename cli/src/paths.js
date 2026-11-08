@@ -10,6 +10,20 @@ export const GLOBAL_SOURCE = join(EVOKIT_DIR, 'context.md');
 // 统一配置文件：agents + resources + prompts 三块合流（settings.json）
 export const CONFIG_FILE = join(EVOKIT_DIR, 'settings.json');
 
+// ── 记忆引擎（v3）路径：知识根 / inbox / 水位线 / 触发队列（ADR 0009）──
+export const KNOWLEDGE_DIR = join(EVOKIT_DIR, 'knowledge');
+export const KNOWLEDGE_INDEX_FILE = join(KNOWLEDGE_DIR, 'knowledge-index.md');
+export const PENDING_DIR = join(KNOWLEDGE_DIR, '.pending');
+export const ORPHAN_DIR = join(PENDING_DIR, 'orphan');
+export const REJECTED_DIR = join(KNOWLEDGE_DIR, '.rejected');
+export const ARCHIVE_DIR = join(KNOWLEDGE_DIR, '.archive');
+export const REFERENCES_FILE = join(KNOWLEDGE_DIR, 'references.jsonl');
+export const INBOX_DIR = join(EVOKIT_DIR, 'inbox');
+export const STATE_FILE = join(EVOKIT_DIR, 'state.json');
+export const TRIGGERS_DIR = join(EVOKIT_DIR, 'triggers');
+// 技能源仓库（forge 产出与 symlink 分发的落点）
+export const AGENTS_SKILLS_DIR = join(HOME, '.agents', 'skills');
+
 // 托管块边界标记
 export const BEGIN = '<!-- evokit-managed:start -->';
 export const END = '<!-- evokit-managed:end -->';

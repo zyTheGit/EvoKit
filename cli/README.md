@@ -2,6 +2,8 @@
 
 个人多工具偏好同步工具（零依赖）。**一份偏好，同步到多个 AI 工具，不用重复维护。**
 
+v3 内置记忆引擎（经验层）：`harvest → distill → review → knowledge → recall/forge`——把各 AI 工具的会话史与私有记忆提纯为统一知识库，自动学习、锻造技能；详见下文「记忆引擎（v3）」。
+
 ## 安装
 
 ```bash
@@ -37,6 +39,17 @@ evokit status --project     # 查看当前项目各入口同步状态
 evokit uninstall            # 移除托管块，恢复入口文件（保留用户内容）
 evokit uninstall --agent claude  # 只卸载指定 agent
 evokit uninstall --project  # 卸载当前项目入口（移除项目级托管块，保留用户内容）
+evokit knowledge init      # 初始化知识根（目录树 + 索引骨架 + git init + 环境体检）
+evokit knowledge gc        # 归档失效卡（retired / validUntil 过期）+ 清理 .rejected 超期文件（--before <YYYY-MM-DD> / --dry-run）
+evokit harvest             # 采集各源新会话到 inbox（--full 全量 / --source <id> / --dry-run）
+evokit learn               # harvest→distill→按档位处理草稿；启动时消费 hook 触发（--no-distill / --agent <id> / --session <id> / --auto / --assist）
+evokit review              # 查看待审草稿清单（--accept / --reject / --merge / --skill / --audit）
+evokit recall "<关键词>"     # 本地知识检索 + 命中计数（--limit n / --json）
+evokit forge               # 知识卡聚簇锻造技能（--from-tags a,b / --topic "…" / --audit）
+evokit hook learn-enqueue  # 会话结束钩子入队：写 ~/.evokit/triggers/ 触发文件立即返回，不执行 learn（--session <id> / --json）
+evokit schedule enable [--time HH:MM] [--mode auto|assist]  # 注册每日定时学习（Windows 任务计划）
+evokit schedule disable [--task <name>]  # 取消定时任务
+evokit schedule list  # 查看正在定时跑的 EvoKit 任务
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -181,19 +194,36 @@ agent 列表由 `~/.evokit/settings.json` 的 `agents` 驱动，**新增工具�
 
 ## 配置文件
 
-统一配置 `~/.evokit/settings.json`，三个顶层块：
+统一配置 `~/.evokit/settings.json`，五个顶层块：
 
 | 块 | 作用 |
 | --- | --- |
 | `agents` | agent 目标清单（`id/name/global/project/cli`），新增工具改这里 |
 | `resources` | 资源清单（`type=text/symlink/remote`），同步规则/skill 改这里 |
-| `prompts` | 内置提示词模板（`inventory` 等），用户只覆盖同名 key，未覆盖仍用默认 |
+| `prompts` | 内置提示词模板（`inventory` / distill 阶段 A·B / `forge`），用户只覆盖同名 key，未覆盖仍用默认 |
+| `sources` | 采集源清单（`id/adapter/root/glob/since/enabled` 等），记忆引擎从哪里收割会话史；内置 11 条（9 启用，2 条 sqlite 储备默认关闭），可增删 |
+| `knowledge` | 记忆引擎参数（默认值见下表），用户配置浅合并覆盖 |
 
 | 文件 | 作用 |
 | --- | --- |
 | `~/.evokit/context.md` | 全局单一事实源（canonical） |
-| `~/.evokit/settings.json` | 统一配置（agents + resources + prompts） |
+| `~/.evokit/settings.json` | 统一配置（agents + resources + prompts + sources + knowledge） |
 | `<project>/.evokit/settings.json` | **项目级覆盖**（可选，按 id/key 覆盖全局） |
+
+### 记忆引擎参数（`knowledge` 块默认值）
+
+| 键 | 默认 | 说明 |
+| --- | --- | --- |
+| `automation` | `manual` | 自动化档位：`manual`（人在环，草稿全留审）/ `assist`（≥`autoThreshold` 自动入库，其余留审）/ `auto`（全自动入库） |
+| `autoThreshold` | `0.9` | `assist` 档自动入库的 confidence 阈值 |
+| `indexBudget` | `60` | L1 索引常驻行数硬上限（ADR 0009 §5，溢出按引用/置信度滚动挤出） |
+| `inboxRetentionDays` | `30` | RawEvent 暂存保留天数 |
+| `rejectedRetentionDays` | `90` | `.rejected/` 保留天数（`knowledge gc` 据此清理） |
+| `distillAgentOrder` | `["codex", "pi"]` | distill 执行者降级链（claude 因长文超时不进自动链） |
+| `batchMaxSessions` | `8` | distill 单批最大会话数 |
+| `batchMaxPromptKB` | `24` | distill 单批 prompt 上限（KB） |
+| `forgeClusterMin` | `3` | forge 聚簇达标最少 confirmed 卡数 |
+| `redact.extraPatterns` | `[]` | 脱敏规则扩充（正则字符串数组，叠加内置 7 类默认规则） |
 
 ### 配置分层（项目级覆盖全局）
 
@@ -256,6 +286,50 @@ evokit inventory --no-output      # 禁用导出，只在终端回显
 > **依赖**：会调用本机的 `claude` / `pi` / `codex` CLI。Pi 和 Codex 依赖 Node 24（经 `fnm` 安装），EvoKit 会自动探测 `fnm` 的 installation 目录。未安装的 agent 会提示「未检测到 CLI，跳过」，不影响其他 agent。
 >
 > **只读安全**：inventory 只扫描和调用 agent 分析，不修改任何文件。agent 返回的是「建议」，具体整理动作仍需你确认后手动执行。
+>
+> **知识库区块**：扫描清单含「知识库」区块——confirmed/draft/retired 卡计数、`.pending` 草稿数、`references.jsonl` 事件数、索引行数，以及每卡一行（id/title/type/status/tags，上限 200 行）的卡片清单，随 `{inventory}` 并入委托 prompt（六区块体检覆盖知识库）。知识根未初始化时只输出一行提示，不影响其他区块。
+
+### 记忆引擎（v3）：harvest / learn / review / forge
+
+经验层流水线 `harvest → distill → review`：把各 AI 工具的会话史提纯成统一知识库（`~/.evokit/knowledge/`，独立 git 版本化，commit 形如 `learn: <标题>`）。
+
+```bash
+evokit harvest                  # 采集所有启用源 → ~/.evokit/inbox/（水位线增量 + 收割即脱敏）
+evokit harvest --full           # 忽略水位线全量处理
+evokit harvest --source claude-sessions  # 只跑指定源
+evokit harvest --dry-run        # 只报告不写盘
+evokit learn                    # harvest→distill→按档位处理草稿，尾部报告各步计数
+evokit learn --no-distill       # 只采集，不提纯
+evokit learn --agent claude     # 显式指定提纯执行者（claude 不在自动链，注意超时风险）
+evokit learn --session <id>     # 只提纯指定会话
+evokit learn --auto             # 本次临时用 auto 档（全部自动入库）
+evokit learn --assist           # 本次临时用 assist 档（高置信自动入库，其余留审；与 --auto 互斥）
+evokit review                   # 待审草稿清单
+evokit review --accept <id>     # 接受草稿入库（confirmed + 索引重建 + git commit）
+evokit review --reject <id>     # 拒绝草稿（移入 .rejected/）
+evokit review --merge <id> <into>  # 并入既有卡（retired + mergedInto，canonical 保留）
+evokit review --audit           # 近期自动入库抽查（acceptedBy=auto + git log）
+evokit review --skill           # forge 技能草稿清单（trial）
+evokit review --skill-accept <name>  # 技能草稿通过并分发（symlink + distributedTo + forge-use 引用 + skill-lock 登记）
+evokit review --skill-veto <name>    # 否决技能草稿（vetoed）
+evokit forge                    # 列出可锻造的达标知识卡簇
+evokit forge --from-tags a,b    # 按标签取卡 → 委托 agent 生成单文件 SKILL.md 草稿（trial，不直接分发）
+evokit forge --topic "发布流程"   # 按主题关键词取卡锻造（--agent <id> 显式指定执行者）
+evokit forge --audit            # 试用期审计：trial 满期退役 / vetoed 提示 / 父卡失效提示重审
+evokit recall "fnm"              # 本地检索 confirmed 卡（tags×3 ＞ 标题×2 ＞ 正文×1，命中写 references 计数）
+evokit recall "fnm" --limit 5    # 只显示前 5 条
+evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消费）
+```
+
+- 自动化层（M5 / T-M5.1）：`evokit hook learn-enqueue [--session <id>] [--json]` 是会话结束钩子的**入队命令**——只往 `~/.evokit/triggers/` 写一条 `learn-*.json`（含 ts/session/cwd）立即返回。任何异常（目录不可写/磁盘满/未知错误）**无条件 exit 0**：非 `--json` 时错误只进 stderr，`--json` 时 stdout 恰好一个合法 JSON（`{"ok":true,"queued":true,"file":"…"}` / `{"ok":true,"queued":false,"error":"…"}`），堆栈禁入 stdout（ADR 0007 纪律）。安装方式 = 把 Stop 钩子命令（`node <evokit.mjs 绝对路径> hook learn-enqueue --session $CLAUDE_SESSION_ID`）手动合并进 `~/.claude/settings.json`，EvoKit 不自动改写工具配置。`evokit learn` 启动时消费并删除这些触发（「收到 N 条会话学习触发」），session 并入本次提纯的会话过滤；无触发时维持全量增量。
+- `evokit knowledge gc [--before <YYYY-MM-DD>] [--dry-run]`（T-M5.3）：把 `status: retired` 或 `validUntil` 早于 before（缺省=今天，当天仍有效）的卡移入 `knowledge/.archive/`（重名加时间戳），删除 `.rejected/` 中 mtime 超过 `knowledge.rejectedRetentionDays`（默认 90 天）的文件；随后重建索引（未知透传段保留）并做独立 git commit（`gc: archive N cards`，非仓库/身份缺失仅警告跳过）；`--dry-run` 只列表不改动。汇总输出归档数 / 清理数 / 剩余 confirmed 数。
+- 源清单与分批/档位参数在 `settings.json` 的 `sources` / `knowledge` 块配置；`knowledge.automation` 默认 `manual`（人在环），`assist` 按 `autoThreshold`（默认 0.9）自动入库，`auto` 全自动。
+- distill 委托本机 agent CLI（默认 codex→pi 降级链，claude 不进自动链），解析失败的内容落 `.pending/orphan/` 绝不丢弃；来源可疑的卡打 `suspect` 标记留审；RawEvent 与卡片入库前双点脱敏。
+- L1 分发：内置 `knowledge-index` 资源经 `sync --resource knowledge-index` 把 ≤60 行索引写入三入口托管块；索引重建时 pitfall / 被 forge-use 引用的卡带粘性权重（优先保留），源缺失（未 `knowledge init`）时 sync 跳过并提示。
+- forge 锻造（D5/D6）：confirmed 且 type ∈ workflow|pattern 的卡按 tags Jaccard ≥ 0.5 聚簇，≥ `knowledge.forgeClusterMin`（默认 3）张达标；`evokit forge` 列出达标簇，`--from-tags a,b` / `--topic "…"` 委托本机 agent 生成单文件 SKILL.md 草稿到 `~/.agents/skills/<name>/`（附 generation.json，`review.status: trial`，parentCards 记录父卡），执行者链同 distill（claude 不进自动链，`--agent` 显式覆盖）。`review --skill` 人工过目；`--skill-accept <name>` 以 symlink 分发到 `~/.claude/skills`、`~/.codex/skills`，回写 `distributedTo`、对每个父卡追加 `forge-use` 引用，并向 `~/.agents/skills/.skill-lock.json` 无损追加登记（解析失败/非数组则跳过并提示，绝不破坏原文件）；`--skill-veto <name>` 否决。`forge --audit` 月度体检：trial 超 30 天且 0 uses 退役移入 `~/.agents/skills/.retired/<name>/` 并按 distributedTo 回收链接（只删链接/junction，绝不删真实目录）；vetoed 技能提示；confirmed 技能父卡过半 `validUntil` 过期时提示「技能需重审」。
+- L1 自动分发（F2）：`review --accept` / `review --merge`（草稿并入已入库卡）与 `learn` 自动入库（assist/auto 档）后，CLI 编排层**自动把重建后的索引写入三入口托管块**——同一入口文件被多个 text 资源指向（context + knowledge-index）时合并进**同一托管块**（保持一文件一块不变量，uninstall/check/status 按单块解析），context 与知识索引共存，等价对 `knowledge-index` 资源执行了一次 `evokit sync`；源缺失（未 `knowledge init`）时降级为提示，不影响其他资源与退出码。双草稿合并不触发分发（canonical 仍在草稿区）。
+- 定时学习（T-M6，Windows 专属）：`evokit schedule enable [--time HH:MM] [--mode auto|assist] [--task <name>]` 注册每日任务（默认 `EvoKit Learn` / 02:00 / auto，`/F` 幂等覆盖；`--task` 需以 EvoKit 开头），经 PowerShell 读回校验（存储命令不完整或包装脚本内容异常即失败）；包装脚本 `~/.evokit/schedule/<task>.cmd` 三行（`@echo off` / `cd /d ~/.evokit` / `node evokit.mjs learn --<mode>`）——schtasks 无 cwd 参数，wrapper 固定 `cd` 到 `~/.evokit` 避免定时任务 cwd=系统目录（项目内 workbuddy 日报需在 `settings.sources` 配 root）。每日到点**真实执行 learn，产生 LLM 费用**；若此前从未运行过 learn，首次定时运行会提纯 inbox 全部积压（此后按水位线只提纯新增行）。`schedule disable [--task <name>]` 取消并清理包装脚本；`schedule list [--task <name>] [--json]` 查看已注册任务。
+- review --merge 草稿间合并（F1 双区定位）：`--merge <id> <into>` 按 id 各自查 `.pending/` 与 `knowledge/` 两区——双草稿合并为**原地**操作：被并卡原地 `retired`、canonical 保持 draft 留审（无 git、无索引重建与分发）；草稿→已入库走原路径（canonical 保留 + 索引重建 + git commit + 自动分发）。未命中 id 时报错明示两区（「`.pending/` 与 `knowledge/` 均不存在该 id」）；方向反了（已入库→草稿）会提示改用 `--merge <草稿id> <已入库id>`。
 
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）
 
@@ -331,12 +405,22 @@ cli/
 ├── package.json
 └── src/
     ├── paths.js        # 路径常量 + expandPath 跨平台路径展开
-    ├── defaults.js     # 默认配置（agents/resources/prompts）+ 源内容
+    ├── defaults.js     # 默认配置（agents/resources/prompts/sources/knowledge）+ 源内容
     ├── config.js       # settings.json 读写 + 过滤器
     ├── fs-utils.js     # 文件工具（托管块、软链接、ensureSource）
     ├── syncers.js      # 同步器分派（text / symlink / remote）
     ├── remote.js       # 远程源拉取（内置 fetch + HTTP CONNECT 代理，本地缓存）
-    ├── agents-cli.js   # agents CLI 探测与调用（inventory 委托 agent 整理用）
+    ├── agents-cli.js   # agents CLI 探测与调用（inventory/distill/forge 委托 agent 用）
+    ├── entry-content.js    # 入口托管块内容组装（同文件多 text 资源合并为单块）
+    ├── knowledge-cards.js  # 知识卡片读写器（受限 frontmatter、id、校验、生命周期）
+    ├── knowledge-index.js  # 索引读写器（唯一可重建桶 + 透传段逐字保留、预算滚动）
+    ├── references.js       # references.jsonl 引用计数追加器（只追加、损坏行跳过）
+    ├── state.js        # 收割水位线 state.json（增量判定）
+    ├── redact.js       # 脱敏引擎（默认 7 类规则 + 用户扩充）
+    ├── distill.js      # 提纯引擎（分批 + 阶段A抽卡 + 阶段B裁决，orphan 容错落盘）
+    ├── cluster.js      # forge 聚簇器（tags Jaccard ≥ 0.5）
+    ├── harvest/
+    │   └── adapters.js # 收割适配器（claude/codex/memory-cards/trae/daily-log/pi/sqlite）
     └── commands/       # 各命令实现（按命令族拆分）
         ├── index.js    # 汇总导出（统一入口）
         ├── init.js     # initGlobal / initProject
@@ -345,6 +429,14 @@ cli/
         ├── status.js   # status（全局 / 项目级）
         ├── uninstall.js# uninstallGlobal / uninstallProject
         ├── inventory.js# inventory 盘点 + 委托 agent 找冗余
+        ├── knowledge.js# knowledgeCommand（knowledge init / gc）
+        ├── harvest.js  # harvestCommand（采集各源到 inbox）
+        ├── learn.js    # learnCommand（harvest→distill→档位处理 + triggers 消费）
+        ├── review.js   # reviewCommand（accept / reject / merge / --skill 分发 / --audit）
+        ├── recall.js   # recallCommand（评分检索 + references 计数）
+        ├── forge.js    # forgeCommand（聚簇列簇 + 生成技能草稿 + --audit）
+        ├── hook.js     # hookCommand（learn-enqueue 入队，任何异常 exit 0）
+        ├── schedule.js # scheduleCommand（enable / disable / list，假 runner 可注入）
         ├── list.js     # listAgents / listResources
         └── help.js     # help
 ```
@@ -352,12 +444,29 @@ cli/
 | 模块 | 职责 |
 | --- | --- |
 | `paths.js` | `HOME`、`EVOKIT_DIR`、`CONFIG_FILE`、`BEGIN`/`END` 标记、`expandPath` |
-| `defaults.js` | `DEFAULT_CONFIG`（`DEFAULT_AGENTS`、`DEFAULT_RESOURCES`、`DEFAULT_PROMPTS`）、`DEFAULT_CONTEXT` |
+| `defaults.js` | `DEFAULT_CONFIG`（`DEFAULT_AGENTS/RESOURCES/PROMPTS/SOURCES/KNOWLEDGE`）、`DEFAULT_CONTEXT` |
 | `config.js` | `loadConfig`、`loadAgents`、`loadResources`、`loadPrompts`、过滤器 |
 | `fs-utils.js` | `readSource`、`applyBlock`、`applyManagedBlock`、`ensureSource`、`makeSymlink` |
 | `syncers.js` | `SYNCERS` 分派、`syncText`、`syncSymlink`、`syncRemote`、`resolveSyncer` |
 | `remote.js` | `fetchRemote`、`isRemote`、`resolveProxy`（远程源拉取 + 代理 + 本地缓存） |
 | `agents-cli.js` | `detectAgentClis`、`runAgentCli`（agents CLI 探测 + fnm 路径解析 + 非交互调用） |
+| `entry-content.js` | `collectPartsForTarget`、`joinParts`（入口托管块内容组装；knowledge-index 隐式内置注入） |
+| `knowledge-cards.js` | 卡片受限 frontmatter 解析/序列化、id 生成、校验、CRUD 与生命周期（ADR 0009） |
+| `knowledge-index.js` | `readIndex`、`rebuildIndex`、`writeIndex`（唯一可重建桶 + 透传段、旧 header 别名、预算滚动） |
+| `references.js` | `references.jsonl` 只追加写入与读取（损坏行跳过；recall/forge/体检共用） |
+| `state.js` | `loadState`、`pickChangedFiles`、`saveState`、`updateSource`（收割水位线与文件指纹） |
+| `redact.js` | `redact`、`DEFAULT_REDACT_RULES`（收割时脱敏，默认 7 类规则 + 用户扩充） |
+| `distill.js` | `runDistill`（分批器 + 阶段A/B 委托执行 + 解析三段容错，orphan 落盘） |
+| `cluster.js` | `findClusters`、`jaccard`（confirmed 卡按 tags 相似度聚簇，供 forge 取卡） |
+| `harvest/adapters.js` | `ADAPTERS`（claude-projects / jsonl-fields / codex-rollout / memory-cards / trae-session-memory / daily-log / pi-sessions / sqlite） |
+| `commands/knowledge.js` | `knowledgeCommand`（knowledge init / gc） |
+| `commands/harvest.js` | `harvestCommand`（采集各源新会话到 inbox） |
+| `commands/learn.js` | `learnCommand`（harvest→distill→档位处理，启动时消费 hook 触发） |
+| `commands/review.js` | `reviewCommand`（accept / reject / merge / --skill 分发 / --audit） |
+| `commands/recall.js` | `recallCommand`（评分检索 + 命中写 references） |
+| `commands/forge.js` | `forgeCommand`（列达标簇 + 生成技能草稿 + --audit） |
+| `commands/hook.js` | `hookCommand`（learn-enqueue 入队，任何异常 exit 0） |
+| `commands/schedule.js` | `scheduleCommand`（enable / disable / list，deps 注入假 runner） |
 | `commands/index.js` | 汇总导出所有命令 |
 | `commands/init.js` | `initGlobal`、`initProject` |
 | `commands/sync.js` | `syncGlobal`、`syncProject`、`syncResources` |
@@ -373,7 +482,17 @@ cli/
 ## 测试
 
 ```bash
-node test-local.mjs        # 隔离测试（EVOKIT_HOME 重定向到临时目录）
+node test-local.mjs        # 隔离测试（EVOKIT_HOME 重定向）：init/sync/check/status/uninstall/inventory、过滤器/位置参数/意图猜测、软链接、远程源与代理、配置分层等主链路
+node test-m0.mjs           # M0 地基：知识卡/索引读写契约（ADR 0009）
+node test-m1-lib.mjs       # M1 收割层库：state 水位线 / redact / 适配器（zstd 用例按运行时特性 skip）
+node test-m2.mjs           # M1.5+M2：harvest / learn / review 裁决与草稿合并
+node test-m3.mjs           # M3：knowledge-index 分发 / 粘性权重 / recall
+node test-m4.mjs           # M4：forge 生成链 / review --skill / --audit
+node test-m4-lib.mjs       # M4：聚簇器阈值边界（纯函数）
+node test-m5.mjs           # M5：hook learn-enqueue / knowledge gc / inventory 知识库区块
+node test-m6.mjs           # M6：schedule enable/disable/list（假 runner）+ learn --assist
 ```
 
-覆盖 init / sync / check / status / uninstall（含项目级 check/status/uninstall）/ agents / resources / inventory、`--agent`/`--resource` 过滤、位置参数回退、错误提示意图猜测、新增 agent/资源零代码改动、软链接、跨平台路径展开、远程源、代理、数据保护（sync 保留块外用户内容）、配置分层、统一配置（settings.json 三块结构 + prompts 覆盖 + cli 字段）等 87 项断言。
+九套自包含，任一断言失败即退出码 1。实跑数字（2026-11-08）：test-local 141 通过、test-m0 113、test-m1-lib 33（另 1 项 zstd 特性跳过）、test-m2 158、test-m3 77、test-m4 67、test-m4-lib 25 用例 / 50 断言、test-m5 59、test-m6 76，合计 774 项断言全绿。
+
+隔离与 mock 手法：CLI 用例经 `EVOKIT_HOME` 重定向家目录（spawnSync 子进程注入 env），库级用例先设 env 再动态 import 或走显式路径入参，不触碰真实 `~/.claude`、`~/.pi`、`~/.codex` 与知识根；需要 agent 的用例用 mock agent（`cli.binPath=process.execPath` + 临时 fake 脚本 + `input:'stdin'`）；schedule 测试注入假 runner（deps={run, platform}），绝不真调 `schtasks`。

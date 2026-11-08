@@ -40,10 +40,10 @@ function mergeByKey(base, override) {
 }
 
 /**
- * 读取统一配置 settings.json（含 agents/resources/prompts），支持项目级覆盖全局。
- * 返回 { agents, resources, prompts }。
- *   - agents/resources：按 id 逐项合并（项目级覆盖全局同名 id）
- *   - prompts：按 key 浅合并（项目级覆盖全局同名模板）
+ * 读取统一配置 settings.json（含 agents/resources/prompts/sources/knowledge），支持项目级覆盖全局。
+ * 返回 { agents, resources, prompts, sources, knowledge }。
+ *   - agents/resources/sources：按 id 逐项合并（项目级覆盖全局同名 id）
+ *   - prompts/knowledge：按 key 浅合并（项目级覆盖全局同名 key/字段）
  * @param {string} projectDir 项目目录；传入则读 <projectDir>/.evokit/settings.json 覆盖全局
  */
 export function loadConfig(projectDir) {
@@ -71,6 +71,8 @@ export function loadConfig(projectDir) {
     agents: mergeById(global.agents || [], proj.agents),
     resources: mergeById(global.resources || [], proj.resources),
     prompts: mergeByKey(global.prompts || {}, proj.prompts),
+    sources: mergeById(global.sources || [], proj.sources),
+    knowledge: mergeByKey(global.knowledge || {}, proj.knowledge),
     debug: proj.debug !== undefined ? proj.debug : global.debug,
   };
 }

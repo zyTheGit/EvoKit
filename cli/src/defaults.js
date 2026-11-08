@@ -25,6 +25,14 @@ export const DEFAULT_AGENTS = [
  * type: symlink  → 把源目录软链接到目标（一处改动多处实时生效）
  * type: remote   → 远程 URL 拉取（http/https）
  */
+/** 内置 knowledge-index 资源（T-M3.1）：单独导出，供 entry-content.js 作为隐式内置资源注入（须先于 DEFAULT_RESOURCES 声明） */
+export const KNOWLEDGE_INDEX_RESOURCE = {
+  id: 'knowledge-index',
+  type: 'text',
+  source: '~/.evokit/knowledge/knowledge-index.md',
+  targets: ['~/.claude/CLAUDE.md', '~/.pi/agent/APPEND_SYSTEM.md', '~/.codex/AGENTS.md'],
+};
+
 export const DEFAULT_RESOURCES = [
   {
     id: 'context',
@@ -32,6 +40,8 @@ export const DEFAULT_RESOURCES = [
     source: '~/.evokit/context.md',
     targets: ['~/.claude/CLAUDE.md', '~/.pi/agent/APPEND_SYSTEM.md', '~/.codex/AGENTS.md'],
   },
+  // 记忆引擎 L1 分发（T-M3.1）：知识索引 → 三入口托管块；源缺失时 sync 跳过并提示（见 commands/sync.js）
+  KNOWLEDGE_INDEX_RESOURCE,
 ];
 
 /** 内置默认提示词模板（用户配置只覆盖同名 key，未覆盖的仍用默认） */
@@ -75,6 +85,117 @@ export const DEFAULT_PROMPTS = {
 - 无明确发现时写"未发现可确认的问题"；信息不足时说明原因。
 - 优先保证知识完整性、规则正确性和可恢复性，不为减少文件数量而盲目合并或删除。
 - 仅输出最终 Markdown 报告。`,
+  // distill 阶段 A：抽卡（T-M2.1）。输入为本批 RawEvent；红线 #9 委托纪律 + 无密钥要求全项写入模板
+  distillA: `# 经验提纯 · 阶段 A：抽卡
+你是记忆提纯执行者。下面是本批从本机会话史收割的 RawEvent（已脱敏）。
+## 输入
+{events}
+## 任务
+只提取**可复用知识**，忽略一次性调试过程、临时变量与过期版本问题：
+- 用户偏好修正（用户明确纠正过 AI 的做法）
+- 踩坑与解法（报错/失败 + 最终可行的解决方案）
+- 项目事实（项目结构、约定、环境、依赖版本等稳定事实）
+- 有效工作流（被验证过的操作序列）
+## 输出格式
+严格输出 JSON 数组，无其他文本、无代码块围栏：
+[{
+  "title": "简短陈述句标题",
+  "type": "fact|preference|pattern|pitfall|workflow 之一",
+  "tags": ["标签1", "标签2"],
+  "statement": "一条自包含的知识陈述（含关键细节，脱离上下文可读）",
+  "evidence": ["来源文件路径"],
+  "confidence": 0.0
+}]
+## 纪律
+- 最多输出 10 张卡；没有可提纯内容时输出 []。
+- evidence 必须取自输入中出现的来源文件路径（「来源:」标注），禁止编造。
+- confidence 取值 0 到 1：有明确证据 0.8 以上，推测 0.5 左右，模糊 0.3 以下。
+- 不调用工具、不读取其他文件、不修改任何数据；只输出约定 JSON。
+- 任何密钥、token、密码、内网地址一律不得出现在输出中；发现则以 [REDACTED] 占位。`,
+  // distill 阶段 B：裁决（T-M2.1）。输入为阶段 A 卡片 + 既有同 tag 卡片摘要
+  distillB: `# 经验提纯 · 阶段 B：裁决
+你是记忆库裁决执行者。输入为两部分：阶段 A 新产出的卡片数组，与知识库中既有同主题卡片的摘要。
+## 输入
+### 新卡片
+{cards}
+### 既有卡片摘要
+{existing}
+## 任务
+对每张新卡片裁决：
+- ADD：知识库中没有同等知识，新增。
+- UPDATE：既有卡 oldId 信息过时或不完整，在 change 字段给出改法。
+- MERGE：与既有卡 mergeInto 重复，应并入该卡。
+- NOOP：完全重复或无价值，不动作。
+## 输出格式
+严格输出 JSON 数组（与输入新卡片一一对应、同序），无其他文本、无代码块围栏：
+[{
+  "title": "对应新卡标题",
+  "type": "fact|preference|pattern|pitfall|workflow",
+  "tags": ["标签1"],
+  "statement": "知识陈述",
+  "evidence": ["来源文件路径"],
+  "confidence": 0.0,
+  "verdict": "ADD|UPDATE|MERGE|NOOP",
+  "oldId": "仅 UPDATE/MERGE 时：既有卡 id",
+  "mergeInto": "仅 MERGE 时：并入的既有卡 id",
+  "change": "仅 UPDATE 时：对 oldId 卡的具体改法",
+  "related": ["疑似相关的既有卡 id"]
+}]
+## 纪律
+- 只依据输入裁决，不调用工具、不读取其他文件、不修改任何数据；只输出约定 JSON。
+- 不得包含任何密钥、token、密码、内网地址。
+- 拿不准时选 NOOP，宁缺毋滥。`,
+  // forge 锻造（T-M4.2）：confirmed 知识卡 → 单文件 SKILL.md 草稿；产出经 review --skill 人工过目后分发（D5）
+  forge: `# 技能锻造：从知识卡生成 SKILL.md
+你是技能锻造执行者。下面是知识库中同一主题的 confirmed 知识卡（JSON 数组）。
+## 输入
+主题：{topic}
+知识卡：
+{cards}
+## 任务
+把知识卡锻造成一个可供 AI 工具加载的技能，输出**一个** SKILL.md 全文（Markdown）。
+## 输出格式（严格遵守）
+第一行 \`---\`，YAML frontmatter 必须包含：
+- name：技能名，小写字母/数字/连字符（lowercase-hyphen），如 \`pms-release-flow\`
+- description：一句话说明技能用途与**触发时机**（什么场景下应加载本技能）
+frontmatter 结束后是正文：
+- 渐进披露：先「快速开始」给最少可用步骤，再按需展开细节章节
+- 内容全部来自输入知识卡，不得编造知识卡之外的流程
+## 纪律
+- 所有内容自足于单个 SKILL.md 文件：不要求 scripts/、references/ 等外部文件，正文不引用不存在的文件。
+- 只输出 SKILL.md 全文，不输出任何解释、前后缀或代码块围栏。
+- 不调用工具、不读取其他文件、不修改任何数据。
+- 任何密钥、token、密码、内网地址不得出现在输出中；发现则以 [REDACTED] 占位。`,
+};
+
+/** 内置默认采集源（设计文档 §4.1；sqlite 两条默认关闭，P2 储备） */
+export const DEFAULT_SOURCES = [
+  { id: 'claude-sessions', adapter: 'claude-projects', root: '~/.claude/projects', since: '2026-08-01', enabled: true },
+  { id: 'claude-history', adapter: 'jsonl-fields', root: '~/.claude/history.jsonl', enabled: true },
+  { id: 'codex-sessions', adapter: 'codex-rollout', root: '~/.codex/sessions', enabled: true },
+  { id: 'qoder-cn-memory', adapter: 'memory-cards', root: '~/.qoder-cn/memory', glob: 'feedback-*.md', enabled: true },
+  { id: 'qoder-memory', adapter: 'memory-cards', root: '~/.qoder/memory', enabled: true },
+  { id: 'codearts-memory', adapter: 'memory-cards', root: '~/.codeartsdoer/memory', recursive: true, enabled: true },
+  { id: 'trae-memory', adapter: 'trae-session-memory', root: '~/.trae-cn/memory/projects', enabled: true },
+  // workbuddy 日报在项目内，root 缺省 = 当前工作目录
+  { id: 'workbuddy-log', adapter: 'daily-log', glob: '**/.workbuddy/memory/*.md', enabled: true },
+  { id: 'pi-sessions', adapter: 'pi-sessions', root: '~/.pi/agent/sessions', enabled: true },
+  { id: 'trae-solo-db', adapter: 'sqlite', root: '~/AppData/Roaming/TRAE SOLO CN/ModularData/ai-agent/database.db', enabled: false },
+  { id: 'autoclaw-db', adapter: 'sqlite', root: '~/AppData/Roaming/AutoClaw-official/accounts/*/runtime/runtime.sqlite', enabled: false },
+];
+
+/** 内置默认 knowledge 配置块（记忆引擎 v3；用户配置浅合并覆盖） */
+export const DEFAULT_KNOWLEDGE = {
+  automation: 'manual',            // manual | assist | auto（默认人在环）
+  autoThreshold: 0.9,              // assist 档自动入库的 confidence 阈值
+  indexBudget: 60,                 // L1 索引常驻行数硬上限（ADR 0009 §5）
+  inboxRetentionDays: 30,          // RawEvent 暂存保留天数
+  rejectedRetentionDays: 90,       // .rejected 保留天数
+  distillAgentOrder: ['codex', 'pi'], // distill 执行者降级链（claude 长文超时 bug，不进自动链）
+  batchMaxSessions: 8,             // distill 单批最大会话数
+  batchMaxPromptKB: 24,            // distill 单批 prompt 上限（KB）
+  forgeClusterMin: 3,              // forge 聚簇达标最少 confirmed 卡数
+  redact: { extraPatterns: [] },   // 脱敏规则扩充（正则字符串数组）
 };
 
 /** 统一默认配置（首次生成 settings.json 用） */
@@ -82,6 +203,8 @@ export const DEFAULT_CONFIG = {
   agents: DEFAULT_AGENTS,
   resources: DEFAULT_RESOURCES,
   prompts: DEFAULT_PROMPTS,
+  sources: DEFAULT_SOURCES,
+  knowledge: DEFAULT_KNOWLEDGE,
 };
 
 /** 默认全局偏好源内容 */

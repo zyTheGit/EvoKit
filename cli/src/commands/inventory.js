@@ -1,8 +1,13 @@
 // inventory 命令：扫描知识库 + 生成通用 prompt + 调 agents cli 整理 + 回显
+// T-M5.3：扫描输出增「知识库」区块（三态卡计数/.pending 草稿/references 事件/索引行 + 每卡一行清单，上限 200 行），
+//   随 {inventory} 占位符并入委托 prompt，使六区块体检覆盖知识库；知识根不存在时输出一行提示，不影响其他区块。
 
 import { existsSync, readdirSync, lstatSync, readlinkSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
-import { HOME, EVOKIT_DIR } from '../paths.js';
+import { HOME, EVOKIT_DIR, KNOWLEDGE_DIR, KNOWLEDGE_INDEX_FILE, PENDING_DIR, REFERENCES_FILE } from '../paths.js';
+import { listCards } from '../knowledge-cards.js';
+import { readIndex } from '../knowledge-index.js';
+import { readReferences } from '../references.js';
 import { loadAgents, loadPrompts } from '../config.js';
 import { DEFAULT_PROMPTS } from '../defaults.js';
 import { detectAgentClis, runAgentCli } from '../agents-cli.js';
@@ -56,6 +61,50 @@ function scanFile(file) {
   return { name: file, path: file, kind: 'file', target: '', size: st.size, mtime: st.mtimeMs };
 }
 
+/** 知识库清单上限（防超长 prompt；超出只计数并标注截断） */
+const KNOWLEDGE_LIST_CAP = 200;
+
+/**
+ * 扫描知识根（T-M5.3）：confirmed/draft/retired 卡计数 + .pending 草稿数 + references.jsonl 事件数 +
+ * 索引行数 + 卡片清单（每卡 id/title/type/status/tags，上限 200 行）。
+ * 知识根不存在返回 null（由 serializeInventory 输出一行提示，不影响其他区块）。
+ */
+function scanKnowledge() {
+  if (!existsSync(KNOWLEDGE_DIR)) return null;
+  const cards = listCards(KNOWLEDGE_DIR, { excludeHidden: true });
+  const counts = { confirmed: 0, draft: 0, retired: 0 };
+  for (const c of cards) {
+    const s = String(c.front.status || '');
+    if (s === 'confirmed' || s === 'draft' || s === 'retired') counts[s] += 1;
+  }
+  let refEvents = 0;
+  try {
+    refEvents = readReferences(REFERENCES_FILE).length;
+  } catch {
+    refEvents = 0; // 读失败按 0 计，不阻断扫描
+  }
+  let indexLines = 0;
+  try {
+    indexLines = readIndex(KNOWLEDGE_INDEX_FILE).evokit.length;
+  } catch {
+    indexLines = 0;
+  }
+  return {
+    counts,
+    pending: listCards(PENDING_DIR).length,
+    refEvents,
+    indexLines,
+    cards: cards.slice(0, KNOWLEDGE_LIST_CAP).map((c) => ({
+      id: c.id,
+      title: String(c.front.title ?? ''),
+      type: String(c.front.type ?? '-'),
+      status: String(c.front.status ?? '-'),
+      tags: Array.isArray(c.front.tags) ? c.front.tags.map(String) : [],
+    })),
+    total: cards.length,
+  };
+}
+
 /** 盘点全局（HOME 下）各 agent 的 agents/skills/rules/commands + 提示词 + MCP */
 function scanGlobal() {
   const claudeSkills = join(HOME, '.claude', 'skills');
@@ -103,6 +152,7 @@ function scanGlobal() {
     promptFiles,
     mcpFiles,
     skillRoot: agentsSkillRoot,
+    knowledge: scanKnowledge(),
   };
 }
 
@@ -171,6 +221,23 @@ function serializeInventory(scan) {
   }
   if (scan.skillRoot && existsSync(scan.skillRoot)) {
     lines.push(`\n## skill 源仓库\n  ${scan.skillRoot}（软链接的真实源）`);
+  }
+
+  // 知识库区块（T-M5.3）：计数行 + 每卡一行清单（≤200 行），随 {inventory} 并入委托 prompt 的体检输入
+  lines.push('\n## 知识库');
+  const k = scan.knowledge;
+  if (!k) {
+    lines.push('  知识根未初始化（evokit knowledge init）');
+  } else {
+    lines.push(`  ${KNOWLEDGE_DIR}`);
+    lines.push(`  confirmed ${k.counts.confirmed} · draft ${k.counts.draft} · retired ${k.counts.retired} · .pending 草稿 ${k.pending} · references 事件 ${k.refEvents} · 索引行 ${k.indexLines}`);
+    for (const c of k.cards) {
+      const tags = c.tags.length > 0 ? ' ' + c.tags.map((t) => `#${t}`).join('') : '';
+      lines.push(`  - [${c.id}] ${c.title}（type=${c.type}, status=${c.status}）${tags}`);
+    }
+    if (k.cards.length < k.total) {
+      lines.push(`  （卡片清单截断：仅列出前 ${k.cards.length}/${k.total} 张）`);
+    }
   }
 
   return lines.join('\n');
@@ -245,6 +312,9 @@ export function inventory(filter = null, promptOnly = false, outputPath = null, 
       ...groupCounts(g),
       promptFiles: g.promptFiles.length,
       mcpFiles: g.mcpFiles.length,
+      knowledge: g.knowledge
+        ? { ...g.knowledge.counts, pending: g.knowledge.pending, refEvents: g.knowledge.refEvents, indexLines: g.knowledge.indexLines, cardsTotal: g.knowledge.total }
+        : null,
     },
     project: groupCounts(p),
     inventory: textMeta(invText),

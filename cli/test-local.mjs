@@ -695,6 +695,56 @@ assert(codexOldRec.argv.includes('-'), 'codex({prompt}旧配置) 追加 stdin �
 
 writeFileSync(debugSettingsPath, debugOriginal, 'utf-8');
 
+// ── MT-A. 配置层：sources / knowledge 块（记忆引擎 v3 T-M0.1）────────────
+console.log('\n【MT-A. 配置层（sources / knowledge 合并）】');
+{
+  const homeA = mkdtempSync(join(tmpdir(), 'evokit-mta-'));
+  const prevHomeA = process.env.EVOKIT_HOME;
+  process.env.EVOKIT_HOME = homeA;
+  try {
+    // 动态 import：paths.js 在模块加载时读 EVOKIT_HOME，必须先改环境再 import
+    const { loadConfig } = await import('./src/config.js');
+    const cfg = loadConfig();
+    assert(Array.isArray(cfg.sources) && cfg.sources.length === 11, '默认 settings 自动生成含 11 个采集源');
+    assert(cfg.sources.every((s) => s.id && s.adapter), '采集源均有 id 与 adapter');
+    assert(cfg.sources.filter((s) => s.enabled === false).length === 2, 'sqlite 源默认 enabled:false');
+    assert(cfg.sources.find((s) => s.id === 'claude-sessions').since === '2026-08-01', 'claude 源默认 since 起始日');
+    assert(cfg.knowledge && cfg.knowledge.automation === 'manual', 'knowledge.automation 默认 manual');
+    assert(cfg.knowledge.autoThreshold === 0.9 && cfg.knowledge.indexBudget === 60, 'knowledge 阈值/预算默认正确');
+    assert(cfg.knowledge.distillAgentOrder[0] === 'codex', 'distill 执行者链默认 codex 优先');
+    assert(cfg.knowledge.batchMaxSessions === 8 && cfg.knowledge.batchMaxPromptKB === 24, 'distill 分批默认正确');
+    assert(cfg.agents.length === 3 && !!cfg.prompts.inventory && Array.isArray(cfg.resources), '既有 agents/prompts/resources 默认不受影响');
+
+    // 项目级覆盖：sources 按 id 合并，knowledge 浅合并
+    const projDirA = join(homeA, 'proj-a');
+    mkdirSync(join(projDirA, '.evokit'), { recursive: true });
+    writeFileSync(join(projDirA, '.evokit', 'settings.json'), JSON.stringify({
+      sources: [
+        { id: 'claude-sessions', adapter: 'claude-projects', root: '~/override', enabled: false },
+        { id: 'extra-src', adapter: 'memory-cards', root: '~/extra', enabled: true },
+      ],
+      knowledge: { automation: 'assist' },
+    }, null, 2) + '\n', 'utf-8');
+    const merged = loadConfig(projDirA);
+    const cs = merged.sources.find((s) => s.id === 'claude-sessions');
+    assert(cs && cs.enabled === false && cs.root.endsWith('override'), '项目级同名 source 按 id 覆盖');
+    assert(merged.sources.some((s) => s.id === 'extra-src'), '项目级新增 source 追加');
+    assert(merged.sources.some((s) => s.id === 'codex-sessions'), '全局独有的 source 保留');
+    assert(merged.knowledge.automation === 'assist', '项目级 knowledge 字段覆盖');
+    assert(merged.knowledge.indexBudget === 60, 'knowledge 未覆盖字段保留全局默认');
+
+    // 项目级缺 sources/knowledge 块 → 原样透传全局
+    const projDirB = join(homeA, 'proj-b');
+    mkdirSync(join(projDirB, '.evokit'), { recursive: true });
+    writeFileSync(join(projDirB, '.evokit', 'settings.json'), '{}\n', 'utf-8');
+    const merged2 = loadConfig(projDirB);
+    assert(merged2.sources.length === 11 && merged2.knowledge.automation === 'manual', '项目级缺省时透传全局 sources/knowledge');
+  } finally {
+    process.env.EVOKIT_HOME = prevHomeA;
+    rmSync(homeA, { recursive: true, force: true });
+  }
+}
+
 // ── 8. 清理 ──────────────────────────────────────────────
 console.log('\n【清理测试目录】');
 rmSync(fakeHome, { recursive: true, force: true });
