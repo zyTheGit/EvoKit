@@ -1,14 +1,15 @@
 {
   "name": "@evokit/cli",
   "version": "3.0.0-rc.1",
-  "description": "EvoKit CLI — 个人多工具偏好同步工具（零依赖，一份偏好同步到 Claude Code / Pi / Codex）",
+  "description": "EvoKit CLI — 个人多工具偏好同步工具（核心零依赖；evokit web 网页端子命令使用 h3）",
   "type": "module",
   "bin": {
     "evokit": "evokit.mjs"
   },
   "files": [
     "evokit.mjs",
-    "src"
+    "src",
+    "web-dist"
   ],
   "license": "MIT",
   "keywords": [
@@ -26,6 +27,10 @@
   "scripts": {
     "test": "node test-local.mjs",
     "start": "node evokit.mjs",
-    "start:debug": "node evokit.mjs -- --debug"
+    "start:debug": "node evokit.mjs -- --debug",
+    "build:web": "npm --prefix web run build"
+  },
+  "dependencies": {
+    "h3": "^2.0.8"
   }
 }

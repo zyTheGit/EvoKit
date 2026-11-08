@@ -43,7 +43,7 @@ function tagsOf(front) {
  * @param {string} token
  * @returns {number}
  */
-function tokenScore(card, token) {
+export function tokenScore(card, token) {
   const t = token.toLowerCase();
   if (tagsOf(card.front).some((tag) => tag.toLowerCase() === t)) return 3;
   if (String(card.front.title ?? '').toLowerCase().includes(t)) return 2;

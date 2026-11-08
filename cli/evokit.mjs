@@ -42,6 +42,7 @@
  *   evokit schedule enable [--time HH:MM] [--mode auto|assist]  注册每日定时学习（Windows 任务计划）
  *   evokit schedule disable [--task <name>]  取消定时任务
  *   evokit schedule list  查看正在定时跑的 EvoKit 任务
+ *   evokit web [--port <n>] [--open]  启动本机网页端（只读浏览偏好/知识库/同步状态）
  *   evokit --help             帮助
  *
  * 说明：方括号 [ ] 表示可选；check/status/uninstall 还支持位置参数（evokit check pi ≡ evokit check --agent pi）。
@@ -78,6 +79,8 @@ import { forgeCommand } from './src/commands/forge.js';
 import { hookCommand } from './src/commands/hook.js';
 // schedule 为 M6 新增命令，直接从命令文件导入（commands/index.js 本轮不在改动范围）
 import { scheduleCommand } from './src/commands/schedule.js';
+// web 为 M7 新增命令，直接从命令文件导入（commands/index.js 本轮不在改动范围）
+import { webCommand } from './src/commands/web.js';
 
 const rawArgs = process.argv.slice(2);
 initDebug(rawArgs);
@@ -90,7 +93,7 @@ let filter = parseAgentFilter(args);
 const resourceFilter = parseResourceFilter(args);
 
 // 已知命令清单（用于未知命令时猜测用户意图）
-const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'knowledge', 'harvest', 'learn', 'review', 'recall', 'forge', 'hook', 'schedule', 'help'];
+const KNOWN_COMMANDS = ['agents', 'resources', 'inventory', 'init', 'sync', 'check', 'status', 'uninstall', 'knowledge', 'harvest', 'learn', 'review', 'recall', 'forge', 'hook', 'schedule', 'web', 'help'];
 
 /** 计算两个字符串的编辑距离（Levenshtein），用于"是否打错命令"猜测 */
 function levenshtein(a, b) {
@@ -195,6 +198,9 @@ async function main() {
       break;
     case 'schedule':
       scheduleCommand(args.slice(1));
+      break;
+    case 'web':
+      await webCommand(args.slice(1));
       break;
     case 'review':
       reviewCommand(args.slice(1));

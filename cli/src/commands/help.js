@@ -34,6 +34,7 @@ export function help() {
   evokit schedule enable [--time HH:MM] [--mode auto|assist]  注册每日定时学习（Windows 任务计划 / macOS launchd / Linux cron）
   evokit schedule disable [--task <name>]  取消定时任务
   evokit schedule list  查看正在定时跑的 EvoKit 任务
+  evokit web [--port <n>] [--open]  启动本机网页端（只读浏览偏好/知识库/同步状态；需在 cli/ 执行 npm install）
 
 提示:
   check / status / uninstall 支持位置参数，如 evokit check pi 等价 evokit check --agent pi
