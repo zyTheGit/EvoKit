@@ -164,7 +164,9 @@ function fillArgs(argsText) {
         </template>
         <pre v-if="rendered" ref="terminalRef" class="terminal" v-html="rendered" />
         <pre v-else-if="errorText" class="terminal error-line">✗ {{ errorText }}</pre>
-        <pre v-else ref="terminalRef" class="terminal">（等待输出…）</pre>
+        <pre v-else-if="running" ref="terminalRef" class="terminal">（执行中，等待输出…）</pre>
+        <pre v-else-if="result" class="terminal">（命令执行完成，无输出）</pre>
+        <pre v-else class="terminal idle-line">空闲——尚未执行命令。选择命令并点击「执行」，输出会实时显示在这里。</pre>
       </el-card>
     </el-tab-pane>
 
@@ -227,4 +229,5 @@ function fillArgs(argsText) {
 .collapse-summary { font-size: 13px; color: var(--el-text-color-secondary); }
 .muted { color: var(--el-text-color-secondary); font-size: 12px; }
 .error-line { color: #f56c6c; }
+.idle-line { color: var(--el-text-color-secondary); }
 </style>
