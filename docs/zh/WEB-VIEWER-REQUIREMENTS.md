@@ -14,7 +14,7 @@
 | 决策项 | 结论 |
 | --- | --- |
 | 部署形态 | **本机本地服务**：`evokit web` 起 localhost 服务，实时读取 `~/.evokit`，数据不出本机，改动即时可见；不做静态快照、不做远程部署 |
-| 交互范围 | 浏览只读 + **白名单命令执行**（2026-11-08 二次变更：网页可直接执行 CLI 命令；浏览类端点仍零写入，命令执行走白名单 + 二次确认 + 互斥 + 超时，见 FR-13） |
+| 交互范围 | 浏览只读 + **白名单命令执行** + **设置编辑** + **技能同步**（2026-11-08 二次变更 + 2026-11-09 三次变更：浏览类端点仍零写入；命令执行见 FR-13，设置编辑见 FR-14，技能同步见 FR-15） |
 | 实现载体 | **EvoKit CLI 新子命令**：进主仓库带测试，复用现有模块保证口径一致 |
 | 技术栈 | **前端与服务端均采用开源框架**（2026-11-08 确认：脚手架/UI 框架优先开源；服务端可用 H3/Koa 等，以服务稳定为首要标准，定稿 h3 见 [WEB-VIEWER-TECH-DESIGN.md](./WEB-VIEWER-TECH-DESIGN.md)）；CLI 核心命令保持零依赖 |
 | 内容范围 | 基线功能 + 五个增强面板全做（同步状态、git 历史、recall 统计、报告库、采集概览） |
@@ -67,11 +67,13 @@
 | FR-10 | recall 命中统计面板 | `references.jsonl` 聚合：按卡计数、按时间分布 |
 | FR-11 | inventory 报告库 | `reports/` 目录列表 + Markdown 渲染阅读 |
 | FR-12 | inbox 采集概览面板 | 9 源 × 事件数/文件数/最近采集时间 + distill 水位线状态；**纯统计数字，不展示会话原文** |
-| FR-13 | 命令执行（2026-11-08 二次变更新增） | 「命令执行」页执行白名单内 CLI 命令：安全命令（check/status/agents/resources/recall/help）直接执行，confirm 类（sync/review/knowledge/harvest/learn/forge/inventory/schedule/uninstall）前端二次确认；服务端互斥 + 5 分钟超时 + 输出截断 512KB；`web`/`hook` 永久禁止；待审草稿详情页提供 accept/reject 快捷按钮 |
+| FR-13 | 命令执行（2026-11-08 二次变更新增） | 「命令执行」页执行白名单内 CLI 命令：安全命令（check/status/agents/resources/recall/help）直接执行，confirm 类（sync/review/knowledge/harvest/learn/forge/inventory/schedule/uninstall）前端二次确认；服务端互斥 + 5 分钟超时 + 流式实时输出（2026-11-09 改 text/plain 直通流，废除输出截断）；`web`/`hook` 永久禁止；待审草稿详情页提供 accept/reject 快捷按钮；每条命令附用法文档面板（/api/exec/docs） |
+| FR-14 | 设置编辑（2026-11-09 三次变更新增） | 「设置编辑」页编辑全局 `~/.evokit/settings.json` 全文：客户端 JSON 预检 + 服务端结构校验（agents/resources/prompts/knowledge 形状，400 带全部错误）+ 时间戳备份 + 临时文件原子替换；保存后提示运行 sync/check；项目级 settings.json 仍走 CLI |
+| FR-15 | 技能同步（2026-11-09 三次变更新增） | 「技能同步」页展示源库（`~/.agents/skills`）× 各工具 skills 目录（~/.claude、~/.codex、~/.pi、~/.codeartsdoer，存在才纳入）同步矩阵：链接（健康/指向外部/断链）、真实目录副本（一致/可更新/本地改动）、仅副本、未分发；「批量更新」只覆盖源较新的副本文件（内容比对，不删副本多余文件，本地改动与断链不动）；forge 生成的技能带 evokit 标签 |
 
 ### 5.2 明确不做（v1 Out of Scope）
 
-- 细粒度写操作：编辑/删除知识卡正文、直接改配置文件——仍走 CLI（网页侧仅提供 FR-13 白名单命令与 accept/reject 快捷按钮）
+- 细粒度写操作：编辑/删除知识卡正文——仍走 CLI；全局 settings.json 编辑已由 FR-14 支持（项目级 settings.json 仍走 CLI）
 - 鉴权、多用户、远程/公网部署、静态导出快照
 - 项目级知识根（`<project>/.evokit`）展示——v3 首版本就只做个人知识根
 - inbox 会话原文、`state.json` 逐文件 hash 明细展示
@@ -82,7 +84,7 @@
 | 编号 | 需求 |
 | --- | --- |
 | NFR-1 | **依赖分层**：CLI 核心命令保持零依赖；`evokit web` 采用开源服务端框架 h3（软依赖，未安装时友好降级提示，不影响其他命令）+ 前端开源栈（Vite + Vue 3 + Element Plus 等，仅构建期 devDependencies，产物预编译入库后由服务端静态托管） |
-| NFR-2 | **只读分层**：13 个浏览类端点全程零写入（AC-6 快照断言）；命令执行是唯一写通道（POST /api/exec：白名单 + 互斥 + 超时，FR-13） |
+| NFR-2 | **只读分层**：全部浏览类（GET）端点全程零写入（AC-6 快照断言）；写通道共三条且全部受控：POST /api/exec（白名单 + 互斥 + 超时，FR-13）、PUT /api/settings（校验 + 备份 + 原子写，FR-14）、POST /api/skills/update（只覆盖落后副本，FR-15） |
 | NFR-3 | **仅绑定 127.0.0.1**：不监听 0.0.0.0，不暴露局域网；远程访问属未来独立需求 |
 | NFR-4 | **路径安全**：静态资源与文件类端点走白名单/规范化校验，拒绝目录穿越 |
 | NFR-5 | **性能**：当前规模（卡 <100、references 万行内）所有页面秒开；数据每次请求现读，无守护进程、无缓存失效问题 |

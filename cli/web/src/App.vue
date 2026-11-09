@@ -22,11 +22,13 @@ const menuGroups = [
     label: '运行与操作',
     items: [
       { path: '/sync', label: '同步状态' },
+      { path: '/skills', label: '技能同步' },
       { path: '/history', label: '变更历史' },
       { path: '/recall-stats', label: '召回统计' },
       { path: '/reports', label: '报告库' },
       { path: '/inbox', label: '采集概览' },
       { path: '/run', label: '命令执行' },
+      { path: '/settings', label: '设置编辑' },
     ],
   },
 ];

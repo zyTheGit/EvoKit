@@ -14,6 +14,8 @@ const routes = [
   { path: '/rejected', redirect: { path: '/cards', query: { zone: 'rejected' } } },
   { path: '/search', name: 'search', component: () => import('./views/SearchView.vue'), meta: { title: '检索' } },
   { path: '/sync', name: 'sync', component: () => import('./views/SyncView.vue'), meta: { title: '同步状态' } },
+  { path: '/skills', name: 'skills', component: () => import('./views/SkillsView.vue'), meta: { title: '技能同步' } },
+  { path: '/settings', name: 'settings', component: () => import('./views/SettingsEditView.vue'), meta: { title: '设置编辑' } },
   { path: '/history/:id?', name: 'history', component: () => import('./views/HistoryView.vue'), props: true, meta: { title: '变更历史' } },
   { path: '/recall-stats', name: 'recall-stats', component: () => import('./views/RecallStatsView.vue'), meta: { title: '召回统计' } },
   { path: '/reports', name: 'reports', component: () => import('./views/ReportsView.vue'), meta: { title: '报告库' } },

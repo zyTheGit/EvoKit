@@ -23,6 +23,8 @@ import * as cardsApi from './api/cards.js';
 import { syncEntries } from './api/sync.js';
 import * as historyApi from './api/history.js';
 import * as miscApi from './api/misc.js';
+import * as settingsApi from './api/settings.js';
+import * as skillsApi from './api/skills.js';
 
 const DEFAULT_PORT = 4177;
 const PROBE_EXTRA = 10; // 未显式指定端口时向后探测的额外次数
@@ -75,6 +77,15 @@ function buildRouter(extraRoutes = []) {
   router.get('/reports', wrap(() => miscApi.reportsList()));
   router.get('/reports/:name', wrap((event) => miscApi.reportData(param(event, 'name'))));
   router.get('/inbox', wrap(() => miscApi.inboxData()));
+  // ── 设置编辑（FR-14）：读取全文 / 受控写入（校验 + 备份 + 原子替换）──
+  router.get('/settings', wrap(() => settingsApi.getSettings()));
+  router.put('/settings', wrap(async (event) => {
+    const body = await readBody(event) ?? {};
+    return settingsApi.putSettings(body.raw);
+  }));
+  // ── 技能同步（FR-15）：源库 × 工具目录矩阵 / 批量更新真实目录副本 ──
+  router.get('/skills', wrap(() => skillsApi.skillsSync()));
+  router.post('/skills/update', wrap(() => skillsApi.updateSkills()));
   // ── 命令执行（FR-13）：唯一写通道，白名单见 src/web/exec.js；流式响应实时回传输出 ──
   router.get('/exec/status', wrap(() => execStatus()));
   router.get('/exec/docs', wrap(() => ({ docs: getCommandDocs() })));

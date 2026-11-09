@@ -29,7 +29,9 @@
 | D6 | 前端语言 | JavaScript（不用 TypeScript），与仓库纯 JS 一致 |
 | D9 | 命令执行（2026-11-08 二次变更） | POST /api/exec **流式响应**（text/plain 直通，实时回传输出，末尾 `---evokit-exit---{json}` 元数据行）：safe 直接执行、confirm 前端二次确认；spawn 不走 shell、全局互斥、5 分钟超时；`web`/`hook` 永久禁止；子进程注入 NO_COLOR/FORCE_COLOR=0，前端手写 SGR→HTML 着色兑底（详见 §7 命令执行段） |
 | D7 | **文件规模上限** | **任何单文件 >400 行必须拆分**（含注释空行）；新增代码由 `scripts/check-file-size.mjs` 强制；存量超限文件仅登记、本次不动（见 §11） |
-| D8 | **模块化要求** | 前端：views（一页一文件）/ components（公共组件）/ composables（数据获取）三层，路由级懒加载；服务端：`api/` 按域拆分（cards / sync / history / misc），每模块只做「取数 → 纯数据对象」 |
+| D8 | **模块化要求** | 前端：views（一页一文件）/ components（公共组件）/ composables（数据获取）三层，路由级懒加载；服务端：`api/` 按域拆分（cards / sync / history / misc / settings / skills），每模块只做「取数 → 纯数据对象」 |
+| D10 | 设置编辑（2026-11-09 三次变更） | GET/PUT `/api/settings`：结构校验（解析层必需项：agents/resources 数组形状与关键字段、prompts/knowledge 对象形状，400 带全部错误）→ 时间戳备份 → 临时文件原子替换；仅全局配置；前端全文编辑器（等宽字体）+ 客户端 JSON 预检 + confirm 弹窗 + 未保存改动标记 |
+| D11 | 技能同步（2026-11-09 三次变更） | GET `/api/skills` 矩阵：源库 ~/.agents/skills × 工具 skills 目录四个内置常量（存在才纳入）；条目判定用 lstat（Windows junction 在 readdir 里未必报目录，不可按 dirent 过滤）；差异比较 size+mtime 疑似不同时读内容比对（内容相同的副本不算差异）；POST `/api/skills/update` 只覆盖源较新的副本文件（不删多余、conflict/断链不动） |
 
 ## 3. 总体架构
 
@@ -131,6 +133,10 @@ cli/
       api/sync.js               # sync-status（<100 行）
       api/history.js            # git 历史两端点（<100 行）
       api/misc.js               # context / recall-stats / reports / inbox（<250 行）
+      api/settings.js           # GET/PUT settings.json：校验 + 备份 + 原子写（<120 行）
+      api/skills.js             # 同步矩阵 + 批量更新（<250 行）
+      command-docs.js           # 命令执行文档面板数据源（与白名单一致性校验）
+      exec.js                   # 命令执行引擎：白名单 / 互斥 / 超时 / 流式（FR-13）
       git.js                    # 只读 git log 封装 + 降级（<100 行）
   package.json                  # dependencies: h3 ^2.0.8；files += web-dist
 ```

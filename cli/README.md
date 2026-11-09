@@ -343,9 +343,11 @@ node cli/evokit.mjs web [--port <n>] [--open]
 ```
 
 - 默认绑定 `http://127.0.0.1:4177`（仅本机回环，不暴露局域网）；`--port` 显式指定被占用时报错退出，未显式指定时自动探测 +1..+10；`--open` 尝试自动打开浏览器。
-- 页面（菜单 2 组 11 项）——内容：总览 / 全局偏好 / 知识索引 / 知识卡（列表+详情+筛选，待审/归档/拒绝为页内 tab）/ 检索；运行与操作：同步状态 / 变更历史（含单卡下钻）/ 召回统计（图表）/ 报告库（inventory 报告阅读）/ 采集概览 / 命令执行。
+- 页面（菜单 2 组 13 项）——内容：总览 / 全局偏好 / 知识索引 / 知识卡（列表+详情+筛选，待审/归档/拒绝为页内 tab）/ 检索；运行与操作：同步状态 / 技能同步 / 变更历史（含单卡下钻）/ 召回统计（图表）/ 报告库（inventory 报告阅读）/ 采集概览 / 命令执行 / 设置编辑。
 - 口径：检索评分与排序与 `evokit recall` 完全一致（tags×3 ＞ 标题×2 ＞ 正文×1），唯一差异是**网页检索不写引用计数**（浏览不污染命中统计）；同步状态判定与 `evokit check` 同口径。
 - 命令执行：「命令执行」页可运行白名单内的 CLI 命令——safe 档（check / status / agents / resources / recall / help）直接执行，confirm 档（sync / review / knowledge / harvest / learn / forge / inventory / schedule / uninstall）前端二次确认后执行；spawn 不走 shell、全局互斥（同时仅一条）、5 分钟超时、流式实时输出（终端风着色）；`web` / `hook` 永久禁止；待审卡详情页提供 accept/reject 快捷按钮，命令执行页附每条命令的说明面板。
+- 设置编辑：全局 `~/.evokit/settings.json` 全文编辑器（结构校验 + 自动时间戳备份 + 原子替换；保存后建议运行 sync / check）；项目级配置仍走 CLI。
+- 技能同步：源库 `~/.agents/skills` × 各工具 skills 目录的同步矩阵（链接健康/副本可更新/断链/未分发一目了然），支持一键批量更新落后副本（只覆盖源较新的文件，本地改动与断链不动）。
 - 技术：服务端 h3（仅 3 个传递依赖，ESM 原生，JSON 错误边界与穿越防护内置）+ 前端 Vue 3 + Element Plus（构建产物在 `cli/web-dist/`，不入库——clone 后需先 `cd cli/web && npm install && npm run build` 构建一次；无 CDN 无外链）。前端改后用 `npm run build:web` 重建产物。
 - 设计与需求文档：`docs/zh/WEB-VIEWER-REQUIREMENTS.md`、`docs/zh/WEB-VIEWER-TECH-DESIGN.md`。
 

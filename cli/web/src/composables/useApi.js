@@ -14,6 +14,21 @@ export async function apiGet(path) {
   return body;
 }
 
+/** 通用 JSON 写请求（PUT/POST）；非 2xx 抛 Error（message 取自 error.message） */
+export async function apiSend(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  });
+  let data = null;
+  try { data = await res.json(); } catch { /* 非 JSON 响应体 */ }
+  if (!res.ok) {
+    throw new Error(data?.error?.message ?? `请求失败（HTTP ${res.status}）`);
+  }
+  return data;
+}
+
 /**
  * 列表/详情加载三件套：data / loading / error + reload。
  * @param {string | () => string} path 静态路径或返回路径的函数（响应式查询用，如 CardsView）

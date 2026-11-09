@@ -3,7 +3,7 @@
  * EvoKit web 服务端测试（M7）
  *
  * 通过 EVOKIT_HOME 把数据根重定向到临时目录，进程内启动 web 服务（listen 0 取实际端口），
- * 用 fetch 验证：13 个只读端点契约 + 命令执行端点（白名单/真实 CLI 语义）、只读纪律（目录快照零变化）、
+ * 用 fetch 验证：15 个只读端点契约 + 命令执行（白名单/真实 CLI 语义）、设置编辑（FR-14）、技能同步（FR-15）、只读纪律（目录快照零变化）、
  * 安全边界（穿越/白名单/未匹配方法）、稳定性（handler 抛错后进程不退出）、优雅关闭、静态托管与产物缺失降级。
  *
  * 运行：node cli/test-m7-web.mjs
@@ -295,6 +295,76 @@ console.log(`\n—— web 服务端测试（${base}）——`);
   assert(Array.isArray(docs.review?.flags) && docs.review.flags.some((f) => f.name === '--accept <id>'), 'review 文档含 --accept flag');
   assert(docs.learn?.notes?.includes('积压'), 'learn 文档标注全量积压风险');
   assert(docs.check?.tier === 'safe' && docs.review?.tier === 'confirm', 'tier 叠加正确');
+}
+
+// ── 16.6 设置编辑（FR-14）：读取 / 校验拒绝 / 备份 / 原子写 ──
+{
+  const before = await jget('/api/settings');
+  assert(before.status === 200 && typeof before.body?.raw === 'string' && before.body.file, 'GET /api/settings 200 + raw/file', before.status);
+  const origRaw = before.body.raw;
+
+  const bad1 = await jget('/api/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ raw: '{ broken' }) });
+  assert(bad1.status === 400 && bad1.body?.error?.message?.includes('JSON 解析失败'), 'settings 坏 JSON → 400', bad1.status);
+
+  const badRaw = JSON.stringify({ agents: [{ id: '' }], resources: [{ id: 'r', type: 'bad', source: 's', targets: [] }] });
+  const bad2 = await jget('/api/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ raw: badRaw }) });
+  assert(bad2.status === 400 && bad2.body?.error?.message?.includes('结构校验未通过'), 'settings 结构非法 → 400 + 明细', bad2.status);
+  const afterBad = await jget('/api/settings');
+  assert(afterBad.body.raw === origRaw, '校验失败后原文件未动');
+
+  const parsed = JSON.parse(origRaw);
+  parsed.debug = true;
+  const good = await jget('/api/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ raw: JSON.stringify(parsed, null, 2) + '\n' }) });
+  assert(good.status === 200 && good.body?.saved === true, 'settings 合法保存 → 200', good.status);
+  assert(typeof good.body?.backup === 'string' && good.body.backup.includes('.bak-'), '保存产生时间戳备份', good.body?.backup);
+  const after = await jget('/api/settings');
+  assert(JSON.parse(after.body.raw).debug === true, '保存后重新读取含新字段');
+}
+
+// ── 16.7 技能同步（FR-15）：矩阵状态机 + 批量更新只覆盖落后副本 ──
+{
+  const { mkdirSync, symlinkSync, lstatSync } = await import('node:fs');
+  const skillsRoot = join(fx.tmp, '.agents', 'skills');
+  const claudeSkills = join(fx.tmp, '.claude', 'skills');
+  const codexSkills = join(fx.tmp, '.codex', 'skills');
+  for (const d of [skillsRoot, claudeSkills, codexSkills]) mkdirSync(d, { recursive: true });
+
+  const writeSkill = (root, name, text) => {
+    mkdirSync(join(root, name), { recursive: true });
+    writeFileSync(join(root, name, 'SKILL.md'), text, 'utf-8');
+  };
+  writeSkill(skillsRoot, 'skill-a', '# skill-a v1');
+  writeSkill(skillsRoot, 'skill-b', '# skill-b v1');
+  writeSkill(claudeSkills, 'skill-extra', '# only in tool dir');
+  const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+  symlinkSync(join(skillsRoot, 'skill-a'), join(claudeSkills, 'skill-a'), linkType);
+  writeSkill(claudeSkills, 'skill-b', '# skill-b v1\nstale-copy');
+  await new Promise((r) => setTimeout(r, 60)); // 保证 mtime 可区分（源比副本新）
+  writeSkill(skillsRoot, 'skill-b', '# skill-b v2');
+  writeSkill(codexSkills, 'skill-b', '# skill-b v2');
+  try {
+    symlinkSync(join(skillsRoot, 'skill-gone'), join(codexSkills, 'skill-a'), linkType); // 指向不存在目标 → 断链
+  } catch { /* 个别环境禁止悬空链接：对应断言容忍 missing */ }
+
+  const list = await jget('/api/skills');
+  assert(list.status === 200 && Array.isArray(list.body?.matrix) && list.body.tools.length >= 2, 'GET /api/skills 200 + 矩阵', list.status);
+  const find = (name) => (list.body?.matrix ?? []).find((r) => r.name === name);
+  const rowA = find('skill-a');
+  const rowB = find('skill-b');
+  assert(!!rowA && !!rowB, '矩阵含夹具技能行');
+  assert(rowA.perTool['~/.claude/skills'] === 'linked', 'claude/skill-a = 链接', JSON.stringify(rowA.perTool));
+  assert(rowB.perTool['~/.claude/skills'] === 'updatable', 'claude/skill-b = 可更新', JSON.stringify(rowB.perTool));
+  assert(rowB.perTool['~/.codex/skills'] === 'current', 'codex/skill-b = 副本一致');
+  assert(find('skill-extra')?.perTool['~/.claude/skills'] === 'extra', 'claude/skill-extra = 仅副本');
+  assert(['broken', 'missing'].includes(rowA.perTool['~/.codex/skills']), 'codex/skill-a = 断链或缺失', JSON.stringify(rowA.perTool));
+  assert((list.body?.summary?.updatable ?? 0) >= 1, 'summary.updatable ≥ 1', JSON.stringify(list.body?.summary));
+
+  const upd = await jget('/api/skills/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  assert(upd.status === 200, 'POST /api/skills/update 200', upd.status);
+  assert(upd.body?.summary?.updatedSkills === 1 && (upd.body?.summary?.writtenFiles ?? 0) >= 1, '更新 1 处副本 / ≥1 文件', JSON.stringify(upd.body?.summary));
+  assert(readFileSync(join(claudeSkills, 'skill-b', 'SKILL.md'), 'utf-8').includes('v2'), '副本内容已更新为源版本');
+  const list2 = await jget('/api/skills');
+  assert((list2.body?.summary?.updatable ?? 0) === 0, '更新后再查无可更新项');
 }
 
 // ── 17. 优雅关闭 + 产物缺失降级 ──
