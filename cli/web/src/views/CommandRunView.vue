@@ -15,6 +15,7 @@ const ALL_CMDS = [...SAFE_CMDS, ...CONFIRM_CMDS];
 const activeTab = ref('run');
 const form = reactive({ cmd: 'check', argsText: '' });
 const running = ref(false);
+const confirming = ref(false);    // confirm 类命令的确认弹窗打开中（防重复触发）
 const liveOutput = ref('');       // 执行中的实时输出（onChunk 逐块累积）
 const result = ref(null);         // 最近一次执行结果（含剥离元数据后的干净 output）
 const history = ref([]);          // 本次会话内的执行历史（内存）
@@ -42,6 +43,7 @@ function parseArgs(text) {
 }
 
 async function run() {
+  if (running.value || confirming.value) return; // 防重复触发：执行中/确认中忽略再次点击与 Enter（服务端互斥 409 仍是最终兑底）
   const args = parseArgs(form.argsText);
   const doRun = async () => {
     running.value = true;
@@ -65,6 +67,7 @@ async function run() {
   };
 
   if (CONFIRM_CMDS.includes(form.cmd)) {
+    confirming.value = true;
     try {
       await ElMessageBox.confirm(
         `「${form.cmd}」会产生实际改动（写托管块/裁决/调用 LLM 等），确认执行？`,
@@ -73,6 +76,8 @@ async function run() {
       );
     } catch {
       return; // 用户取消
+    } finally {
+      confirming.value = false;
     }
   }
   await doRun();
@@ -110,7 +115,7 @@ function fillArgs(argsText) {
             :disabled="running"
             @keyup.enter="run"
           />
-          <el-button type="primary" :loading="running" @click="run">{{ running ? '执行中…' : '执行' }}</el-button>
+          <el-button type="primary" :loading="running" :disabled="running || confirming" @click="run">{{ running ? '执行中…' : '执行' }}</el-button>
         </div>
         <div class="hint">
           命令在本机以 evokit CLI 身份执行（白名单 + 互斥 + 5 分钟超时）；<code>web</code> / <code>hook</code> 永久禁止。learn / inventory / forge 会产生真实 LLM 调用费用。参数含义见下方用法文档。
