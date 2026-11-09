@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { jsonError, errorStatusCode, errorCode } from './respond.js';
 import { staticHandler } from './static.js';
 import { execStatus, validateExecution, startExecution, DEFAULT_TIMEOUT_MS } from './exec.js';
+import { getCommandDocs } from './command-docs.js';
 import { Readable } from 'node:stream';
 import * as cardsApi from './api/cards.js';
 import { syncEntries } from './api/sync.js';
@@ -76,6 +77,7 @@ function buildRouter(extraRoutes = []) {
   router.get('/inbox', wrap(() => miscApi.inboxData()));
   // ── 命令执行（FR-13）：唯一写通道，白名单见 src/web/exec.js；流式响应实时回传输出 ──
   router.get('/exec/status', wrap(() => execStatus()));
+  router.get('/exec/docs', wrap(() => ({ docs: getCommandDocs() })));
   router.post('/exec', wrap(async (event) => {
     const body = await readBody(event) ?? {};
     const v = validateExecution(body.cmd, body.args);

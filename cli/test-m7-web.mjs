@@ -286,6 +286,17 @@ console.log(`\n—— web 服务端测试（${base}）——`);
   assert(fixtureRefLines() === refsBefore + 2, 'CLI recall 写入 2 条 references（网页浏览不写）', `${refsBefore} → ${fixtureRefLines()}`);
 }
 
+// ── 16.5 命令文档（执行页数据源）：与白名单一一对应 ──
+{
+  const docsRes = await jget('/api/exec/docs');
+  assert(docsRes.status === 200, 'exec/docs 200', docsRes.status);
+  const docs = docsRes.body?.docs ?? {};
+  assert(Object.keys(docs).length === 15, 'docs 覆盖 15 条白名单命令', Object.keys(docs).length);
+  assert(Array.isArray(docs.review?.flags) && docs.review.flags.some((f) => f.name === '--accept <id>'), 'review 文档含 --accept flag');
+  assert(docs.learn?.notes?.includes('积压'), 'learn 文档标注全量积压风险');
+  assert(docs.check?.tier === 'safe' && docs.review?.tier === 'confirm', 'tier 叠加正确');
+}
+
 // ── 17. 优雅关闭 + 产物缺失降级 ──
 {
   await srv.close();
