@@ -16,6 +16,7 @@ const activeTab = ref('run');
 const form = reactive({ cmd: 'check', argsText: '' });
 const running = ref(false);
 const confirming = ref(false);    // confirm 类命令的确认弹窗打开中（防重复触发）
+const errorText = ref('');        // 执行失败原因（持久显示在终端区，避免只有 3 秒 toast 导致「永远等待输出」的假象）
 const liveOutput = ref('');       // 执行中的实时输出（onChunk 逐块累积）
 const result = ref(null);         // 最近一次执行结果（含剥离元数据后的干净 output）
 const history = ref([]);          // 本次会话内的执行历史（内存）
@@ -49,6 +50,7 @@ async function run() {
     running.value = true;
     liveOutput.value = '';
     result.value = null;
+    errorText.value = '';
     try {
       const r = await execCommand(form.cmd, args, {
         onChunk: (text) => { liveOutput.value += text; }, // 实时进度：watch(rendered) 负责滚动
@@ -60,7 +62,9 @@ async function run() {
       else if (r.exitCode === 0) ElMessage.success(`执行完成（${(r.durationMs / 1000).toFixed(1)}s）`);
       else ElMessage.warning(`命令退出码 ${r.exitCode}，详见输出`);
     } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      errorText.value = msg; // 终端区持久显示，方便排查
+      ElMessage.error(msg);
     } finally {
       running.value = false;
     }
@@ -158,7 +162,9 @@ function fillArgs(argsText) {
             </span>
           </div>
         </template>
-        <pre ref="terminalRef" class="terminal" v-html="rendered || '（等待输出…）'" />
+        <pre v-if="rendered" ref="terminalRef" class="terminal" v-html="rendered" />
+        <pre v-else-if="errorText" class="terminal error-line">✗ {{ errorText }}</pre>
+        <pre v-else ref="terminalRef" class="terminal">（等待输出…）</pre>
       </el-card>
     </el-tab-pane>
 
@@ -220,4 +226,5 @@ function fillArgs(argsText) {
 .collapse-cmd { background: var(--el-fill-color); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
 .collapse-summary { font-size: 13px; color: var(--el-text-color-secondary); }
 .muted { color: var(--el-text-color-secondary); font-size: 12px; }
+.error-line { color: #f56c6c; }
 </style>

@@ -18,6 +18,7 @@
 | D4 产物不入库（2026-11-09 追加） | ✅ | `git ls-files cli/web-dist` 0 个跟踪文件 + .gitignore 已含 `cli/web-dist/`；产物缺失时静态层统一 503 并提示构建命令（test-m7 断言）；本地产物在 4177 正常服务（首页/端点 200），配套 README×2 / 技术设计 R3 / vite 注释同步收口 |
 | 命令执行页白屏修复（2026-11-09） | ✅ | CommandRunView.vue 漏导入 `reactive`（setup 阶段 ReferenceError 被 Vue 吞掉 → 视图渲染为空注释节点，页面只剩菜单）；补导入 + `npm run build:web` 重建；浏览器真机验证：执行器/文档面板正常渲染，check 流式执行 23.8s exit 0，历史 chips 正常 |
 | 防重复触发（2026-11-09 追加） | ✅ | run() 顶部 `running/confirming` 双守卫 + 按钮 `:disabled`；插桩验证：同一瞬间连点「执行」两次仅发出 1 次 POST /api/exec（fetch 计数），check 实跑 2.1s exit 0、历史仅 1 条；服务端互斥 409 仍为最终兜底 |
+| 执行失败持久显示（2026-11-09 追加） | ✅ | execCommand 抛错时除 3 秒 toast 外，终端区持久显示 `✗ 原因`（修复失败后终端永远停在「等待输出…」易误读为卡死，用户报障即此现象）；浏览器验证：`check web` → 终端显示「参数不允许包含 web / hook」，正常路径 check 2.3s exit 0；失败不记入历史 |
 
 以下为第一轮（纯只读基线）验收记录：
 
