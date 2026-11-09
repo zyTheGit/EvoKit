@@ -36,3 +36,4 @@ __pycache__/
 # 构建产物（可再生，不入库）
 dist/
 .zwork/
+cli/web-dist/
