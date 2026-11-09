@@ -32,7 +32,7 @@ async function reviewDraft(action) {
       ElMessage.success(`${actionLabel}完成（${(r.durationMs / 1000).toFixed(1)}s）`);
       reload();
     } else {
-      ElMessage.error(`退出码 ${r.exitCode}：${(r.stderr || r.stdout || '').slice(-300)}`);
+      ElMessage.error(`退出码 ${r.exitCode}：${(r.output || '').slice(-300)}`);
     }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : String(e));

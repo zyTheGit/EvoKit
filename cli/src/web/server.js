@@ -16,7 +16,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { jsonError, errorStatusCode, errorCode } from './respond.js';
 import { staticHandler } from './static.js';
-import { execStatus, runCommand } from './exec.js';
+import { execStatus, validateExecution, startExecution, DEFAULT_TIMEOUT_MS } from './exec.js';
+import { Readable } from 'node:stream';
 import * as cardsApi from './api/cards.js';
 import { syncEntries } from './api/sync.js';
 import * as historyApi from './api/history.js';
@@ -73,16 +74,28 @@ function buildRouter(extraRoutes = []) {
   router.get('/reports', wrap(() => miscApi.reportsList()));
   router.get('/reports/:name', wrap((event) => miscApi.reportData(param(event, 'name'))));
   router.get('/inbox', wrap(() => miscApi.inboxData()));
-  // ── 命令执行（FR-13）：唯一写通道，白名单见 src/web/exec.js ──
+  // ── 命令执行（FR-13）：唯一写通道，白名单见 src/web/exec.js；流式响应实时回传输出 ──
   router.get('/exec/status', wrap(() => execStatus()));
   router.post('/exec', wrap(async (event) => {
     const body = await readBody(event) ?? {};
-    const result = await runCommand(body.cmd, body.args, { timeoutMs: body.timeoutMs });
-    // runCommand 返回 {status, body} 包装：非 200 转成带 statusCode 的异常（wrap 统一 JSON 错误），200 直接返回结果体
-    if (result.status !== 200) {
-      throw Object.assign(new Error(result.body.error.message), { statusCode: result.status });
+    const v = validateExecution(body.cmd, body.args);
+    if (!v.ok) {
+      throw Object.assign(new Error(v.message), { statusCode: v.status });
     }
-    return result.body;
+    const timeoutMs = Number(body.timeoutMs) > 0 ? Number(body.timeoutMs) : DEFAULT_TIMEOUT_MS;
+    const { stream, done } = startExecution(v.command, v.safeArgs, { timeoutMs });
+    // 命令结束后追加元数据行（协议：---evokit-exit---{json}），前端据此拿 exitCode/耗时
+    done.then((meta) => {
+      stream.write(`\n---evokit-exit---${JSON.stringify(meta)}\n`);
+      stream.end();
+    });
+    return new Response(Readable.toWeb(stream), {
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-cache',
+        'x-accel-buffering': 'no',
+      },
+    });
   }));
   // 测试注入口（如 /api/__boom 验证错误边界与进程存活）；路径兼容带/不带 /api 前缀两种写法
   for (const route of extraRoutes) {

@@ -254,7 +254,7 @@ console.log(`\n—— web 服务端测试（${base}）——`);
   assert(changed.length === 0, `浏览类端点遍历后数据目录零变化（${before.size} 个文件）`, changed.join(', '));
 }
 
-// ── 16. 命令执行（FR-13）：白名单 + 真实 CLI 语义 ──
+// ── 16. 命令执行（FR-13）：白名单 + 流式输出 + 真实 CLI 语义 ──
 {
   const st = await jget('/api/exec/status');
   assert(st.status === 200 && st.body?.busy === false, 'exec/status 空闲态');
@@ -262,15 +262,27 @@ console.log(`\n—— web 服务端测试（${base}）——`);
   assert(bad.status === 400 && bad.body?.error?.code === 'bad_request', '白名单外命令 → 400 bad_request', bad.status);
   const recursion = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'sync', args: ['web'] }) });
   assert(recursion.status === 400, '参数含 web → 400（防递归）', recursion.status);
-  const help = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'help' }) });
-  assert(help.status === 200 && help.body?.exitCode === 0 && help.body?.stdout?.includes('evokit'), '执行 help → 200 + 输出', help.status);
-  assert(help.body?.durationMs >= 0 && typeof help.body?.tier === 'string', '执行结果带耗时与分级');
+  // 流式协议：POST /api/exec 返回 text/plain 流，末尾 ---evokit-exit---{json} 为结果元数据
+  const postExec = async (body) => {
+    const r = await fetch(`${base}/api/exec`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: r.status, ct: r.headers.get('content-type') || '', text: await r.text() };
+  };
+  const MARK = '---evokit-exit---';
+  const parseMeta = (text) => JSON.parse(text.slice(text.lastIndexOf(MARK) + MARK.length).trim());
+  const help = await postExec({ cmd: 'help' });
+  assert(help.status === 200 && help.ct.includes('text/plain'), '执行 help → 200 text/plain 流', `${help.status} ${help.ct}`);
+  assert(help.text.includes('EvoKit') && help.text.includes(MARK), 'help 输出含帮助文本与元数据行');
+  const helpMeta = parseMeta(help.text);
+  assert(helpMeta.exitCode === 0 && helpMeta.tier === 'safe' && helpMeta.durationMs >= 0, 'help 元数据（exit/tier/耗时）', JSON.stringify(helpMeta));
   // 网页执行 recall = 真实 CLI 语义：命中写 references（与浏览检索不写形成对照）
   const refsBefore = fixtureRefLines();
-  const rc = await jget('/api/exec', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'recall', args: ['夹具', '--json'] }) });
-  assert(rc.status === 200 && rc.body?.exitCode === 0, '执行 recall → 200', rc.status);
-  const parsed = JSON.parse(rc.body.stdout);
-  assert(Array.isArray(parsed) && parsed.length === 2, 'recall 命中 2 张 confirmed', rc.body.stdout.slice(0, 80));
+  const rc = await postExec({ cmd: 'recall', args: ['夹具', '--json'] });
+  assert(rc.status === 200 && rc.text.includes(MARK), '执行 recall → 200 流式', rc.status);
+  const rcMeta = parseMeta(rc.text);
+  assert(rcMeta.exitCode === 0, 'recall 退出码 0', rcMeta.exitCode);
+  const stdoutPart = rc.text.slice(0, rc.text.lastIndexOf(MARK)).trim();
+  const parsed = JSON.parse(stdoutPart);
+  assert(Array.isArray(parsed) && parsed.length === 2, 'recall 命中 2 张 confirmed', stdoutPart.slice(0, 80));
   assert(fixtureRefLines() === refsBefore + 2, 'CLI recall 写入 2 条 references（网页浏览不写）', `${refsBefore} → ${fixtureRefLines()}`);
 }
 

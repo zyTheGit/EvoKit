@@ -27,7 +27,7 @@
 | D4 | 构建产物 | `cli/web-dist/` 预编译入库并随 npm `files` 发布；前端 node_modules 不入库 |
 | D5 | 命令与端口 | `evokit web`；默认 127.0.0.1:4177，`--port` 覆盖，未显式指定时占用自动探测（至多 +10）；`--open` 可选 |
 | D6 | 前端语言 | JavaScript（不用 TypeScript），与仓库纯 JS 一致 |
-| D9 | 命令执行（2026-11-08 二次变更） | POST /api/exec 白名单制：safe 直接执行、confirm 前端二次确认；spawn 不走 shell、全局互斥、5 分钟超时、输出截断 512KB；`web`/`hook` 永久禁止（详见 §7 命令执行段） |
+| D9 | 命令执行（2026-11-08 二次变更） | POST /api/exec **流式响应**（text/plain 直通，实时回传输出，末尾 `---evokit-exit---{json}` 元数据行）：safe 直接执行、confirm 前端二次确认；spawn 不走 shell、全局互斥、5 分钟超时；`web`/`hook` 永久禁止；子进程注入 NO_COLOR/FORCE_COLOR=0，前端手写 SGR→HTML 着色兑底（详见 §7 命令执行段） |
 | D7 | **文件规模上限** | **任何单文件 >400 行必须拆分**（含注释空行）；新增代码由 `scripts/check-file-size.mjs` 强制；存量超限文件仅登记、本次不动（见 §11） |
 | D8 | **模块化要求** | 前端：views（一页一文件）/ components（公共组件）/ composables（数据获取）三层，路由级懒加载；服务端：`api/` 按域拆分（cards / sync / history / misc），每模块只做「取数 → 纯数据对象」 |
 
@@ -148,7 +148,7 @@ cli/
 - **静态托管**：自实现静态解析（repl 内置 serveStatic，理由见 §1 实现期修订）：query 剥离、`resolve + startsWith(root)` 穿越校验、Content-Type 白名单、`assets/` 带 hash 资源 immutable、index.html no-cache；无扩展名路径兜底回 index.html；staticRoot 缺失时全量 503 并提示构建命令（服务不崩，真机验证）。
 - **端口策略**：默认 4177；显式 `--port` 被占用 → 报错退出；未显式 → 4177 起自动探测至多 +10，打印实际 URL；`--open` 可选（Windows `start`，失败仅提示）。
 - **稳定性纪律**：单请求异常不影响进程；`SIGINT/SIGTERM` → `server.close()` + 3 秒超时兜底退出；浏览类端点无任何写调用、不触发 autoSync、不推进水位线。
-- **命令执行（FR-13 / D9）**：`src/web/exec.js` 白名单制（6 个 safe + 9 个 confirm），spawn 直传参数不走 shell、全局互斥（busy → 409 conflict）、默认 5 分钟超时（超时 kill 并标记 timedOut）、stdout/stderr 各截断 512KB；`web`/`hook` 在命令与参数两级永久禁止；执行结果带 exitCode/durationMs/tier，与真实 CLI 完全同语义（测试正面断言 recall 执行后 references 增长）。
+- **命令执行（FR-13 / D9）**：`src/web/exec.js` 白名单制（6 个 safe + 9 个 confirm），spawn 直传参数不走 shell、全局互斥（busy → 409 conflict）、默认 5 分钟超时（超时 kill 并标记 timedOut）；`web`/`hook` 在命令与参数两级永久禁止。**流式输出（2026-11-09）**：响应为 text/plain 直通流（Readable.toWeb(PassThrough)），stdout/stderr 逐块实时回传，服务端不留存输出（无截断上限需求）；命令结束后追加 `---evokit-exit---{exitCode,timedOut,durationMs,tier}` 元数据行供前端解析。子进程环境注入 NO_COLOR / FORCE_COLOR=0 / CLICOLOR=0 减少 ANSI 转义，前端 `src/web/../utils/ansi.js` 手写 SGR→HTML 着色兑底（前景 8+8 色/粗体/dim，非 SGR 转义剥离，先转义再注入 span 无 XSS 面）。
 
 ## 8. API 规格（全部 GET）
 

@@ -64,18 +64,40 @@ export function formatSize(bytes) {
 export const CONFIRM_CMDS = ['sync', 'review', 'knowledge', 'harvest', 'learn', 'forge', 'inventory', 'schedule', 'uninstall'];
 
 /**
- * 执行一条白名单命令（POST /api/exec）。
- * @returns {Promise<{cmd,args,tier,exitCode,timedOut,durationMs,stdout,stderr,truncated}>}
+ * 执行一条白名单命令（POST /api/exec，流式响应实时回传输出）。
+ * @param {{ onChunk?: (text: string) => void }} [options] onChunk：每收到一块输出即回调（实时进度）
+ * @returns {Promise<{output: string, exitCode: number, timedOut: boolean, durationMs: number, tier: string, cmd: string, args: string[]}>}
+ *   output 为剥离了结果元数据行的完整输出文本
  */
-export async function execCommand(cmd, args = []) {
+export async function execCommand(cmd, args = [], options = {}) {
   const res = await fetch('/api/exec', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ cmd, args }),
   });
-  const body = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(body?.error?.message ?? `执行失败（HTTP ${res.status}）`);
+    const errBody = await res.json().catch(() => null);
+    throw new Error(errBody?.error?.message ?? `执行失败（HTTP ${res.status}）`);
   }
-  return body;
+  const MARK = '---evokit-exit---';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let output = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    output += text;
+    if (options.onChunk) options.onChunk(text);
+  }
+  output += decoder.decode(); // flush 残留多字节字符
+  // 分离末尾元数据行：---evokit-exit---{json}
+  const idx = output.lastIndexOf(MARK);
+  let meta = { cmd, args, exitCode: -1, timedOut: false, durationMs: 0, tier: '' };
+  if (idx !== -1) {
+    const metaPart = output.slice(idx + MARK.length).trim();
+    output = output.slice(0, idx).replace(/\n$/, '');
+    try { meta = { ...meta, ...JSON.parse(metaPart) }; } catch { /* 元数据损坏保持默认 */ }
+  }
+  return { output, ...meta };
 }

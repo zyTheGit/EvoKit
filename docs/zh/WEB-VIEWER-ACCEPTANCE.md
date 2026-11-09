@@ -13,6 +13,7 @@
 | FR-13 命令执行 | ✅ | test-m7 增至 67 断言：白名单外 400 bad_request、参数含 web/hook 400、help/recall 真实执行、CLI 写口径（网页执行 recall 后 references +2，与浏览检索不写形成对照）；confirm 类前端二次确认；互斥 409 conflict 映射 |
 | 真机冒烟 | ✅ | 4177 重启后总览/抽查端点全 200；命令执行页 check/recall --json 实跑正常 |
 | 轻量美化 | ✅ | 品牌区渐变字、菜单分组与圆角、命令输出终端风深色块；深度美化（暗色主题等）列后续 |
+| 流式实时输出 + ANSI 着色（2026-11-09 追加） | ✅ | POST /api/exec 改 text/plain 直通流（输出逐块实时回显、自动滚动），末尾 `---evokit-exit---` 元数据行；子进程注入 NO_COLOR/FORCE_COLOR=0 + 前端手写 SGR→HTML 着色兑底，终端不再出现 `[90m`/`[33m` 类占位符；test-m7 增至 69 断言 |
 
 以下为第一轮（纯只读基线）验收记录：
 
