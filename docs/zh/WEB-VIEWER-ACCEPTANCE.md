@@ -16,6 +16,7 @@
 | 流式实时输出 + ANSI 着色（2026-11-09 追加） | ✅ | POST /api/exec 改 text/plain 直通流（输出逐块实时回显、自动滚动），末尾 `---evokit-exit---` 元数据行；子进程注入 NO_COLOR/FORCE_COLOR=0 + 前端手写 SGR→HTML 着色兑底，终端不再出现 `[90m`/`[33m` 类占位符；test-m7 增至 69 断言 |
 | 命令文档面板（2026-11-09 追加） | ✅ | `GET /api/exec/docs` 返回 15 条命令说明，与白名单逐项一致（command-docs.js 内置一致性校验，不同步即抛错）；前端「选即显」面板 + 全部文档 tab + 示例点击回填；test-m7 断言 docs 端点契约 |
 | D4 产物不入库（2026-11-09 追加） | ✅ | `git ls-files cli/web-dist` 0 个跟踪文件 + .gitignore 已含 `cli/web-dist/`；产物缺失时静态层统一 503 并提示构建命令（test-m7 断言）；本地产物在 4177 正常服务（首页/端点 200），配套 README×2 / 技术设计 R3 / vite 注释同步收口 |
+| 命令执行页白屏修复（2026-11-09） | ✅ | CommandRunView.vue 漏导入 `reactive`（setup 阶段 ReferenceError 被 Vue 吞掉 → 视图渲染为空注释节点，页面只剩菜单）；补导入 + `npm run build:web` 重建；浏览器真机验证：执行器/文档面板正常渲染，check 流式执行 23.8s exit 0，历史 chips 正常 |
 
 以下为第一轮（纯只读基线）验收记录：
 

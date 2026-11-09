@@ -2,7 +2,7 @@
 // 命令执行（FR-13）：白名单命令在网页上直接执行
 // ① 执行器：实时流式输出 + ANSI 着色 + 自动滚动；② 命令文档：每条命令的用途/语法/参数/示例/注意事项
 // 安全设计：confirm 类命令执行前弹二次确认；参数空格分词（不支持含空格参数）；服务端另有互斥/超时
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useList, execCommand, CONFIRM_CMDS, formatDate } from '../composables/useApi';
 import { ansiToHtml } from '../utils/ansi';
