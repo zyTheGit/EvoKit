@@ -24,7 +24,7 @@
 | D1 | 总体架构 | 服务端 = 开源框架 h3（Node）；前端 = Vue 3 SPA 构建产物（纯静态）；CLI 核心命令保持零依赖，`evokit web` 为软依赖（未安装时给出友好提示，不影响其他命令） |
 | D2 | 前端技术栈 | Vite + Vue 3 + Element Plus + Vue Router + markdown-it + ECharts（全部 MIT/Apache-2.0，仅 devDependencies） |
 | D3 | 服务端框架 | **h3 ^2.0.8**（MIT）：PoC 全绿 + 依赖仅 3 包 + ESM 原生 + 错误边界/穿越防护内置；Koa 3 为第一备选、Fastify 5 为组织化维护最强备选；**h3 的 import 收敛在 `cli/src/web/` 目录内**，业务模块不感知框架 |
-| D4 | 构建产物 | `cli/web-dist/` 预编译入库并随 npm `files` 发布；前端 node_modules 不入库 |
+| D4 | 构建产物 | **不入库**（2026-11-09 依工作区 .gitignore 改动收口，取代原「预编译入库」方案）：`cli/web-dist/` 已从 git 跟踪移除；clone 后需 `cd cli/web && npm install && npm run build` 生成产物，首次使用前需构建一次 |
 | D5 | 命令与端口 | `evokit web`；默认 127.0.0.1:4177，`--port` 覆盖，未显式指定时占用自动探测（至多 +10）；`--open` 可选 |
 | D6 | 前端语言 | JavaScript（不用 TypeScript），与仓库纯 JS 一致 |
 | D9 | 命令执行（2026-11-08 二次变更） | POST /api/exec **流式响应**（text/plain 直通，实时回传输出，末尾 `---evokit-exit---{json}` 元数据行）：safe 直接执行、confirm 前端二次确认；spawn 不走 shell、全局互斥、5 分钟超时；`web`/`hook` 永久禁止；子进程注入 NO_COLOR/FORCE_COLOR=0，前端手写 SGR→HTML 着色兑底（详见 §7 命令执行段） |
@@ -121,7 +121,7 @@ cli/
       components/               # 公共组件：CardMeta / MarkdownView /
         ...                     #   CountCard / StatusTag（各 <200 行）
       views/                    # 一页一文件（各 <250 行，见 §10）
-  web-dist/                     # 构建产物（提交入库，随 files 发布）
+  web-dist/                     # 构建产物（不入库，.gitignore；服务端读磁盘）
   src/
     commands/web.js             # 参数解析 + 软依赖探测 + 启动横幅（<120 行）
     web/
@@ -138,7 +138,7 @@ cli/
 - 每个文件标注了预估行数上限，均 <400（D7）。
 - **软依赖设计**：`evokit web` 启动时 `await import('h3')` 失败 → 打印「`evokit web` 需要 web 服务端依赖：请在 `cli/` 目录执行 `npm install`」后退出（exit 1）；其余 CLI 命令不受 node_modules 是否存在影响。npm 发布时 h3 进 `dependencies`，正常安装即含。
 - `.gitignore` 追加 `cli/web/node_modules/`。
-- 构建链路：`cd cli/web && npm install`（一次性）→ 开发期 `node cli/evokit.mjs web` + `npm run dev`（Vite 5173 代理 /api）→ `npm run build` 产物入库 → 产物模式即最终形态。
+- 构建链路：`cd cli/web && npm install`（一次性）→ 开发期 `node cli/evokit.mjs web` + `npm run dev`（Vite 5173 代理 /api）→ `npm run build` 产物仅存本地（不入库，2026-11-09 策略收口）→ 产物模式即最终形态。npm 发布前需先构建（files 白名单仍含 web-dist）。
 
 ## 7. 服务端设计（h3 实现细节）
 
@@ -249,7 +249,7 @@ cli/
 | --- | --- | --- |
 | R1 | h3 v2 稳定线年轻（~5 周）+ 核心维护者集中 | lockfile 锁 2.0.8；只用核心 API 面；框架隔离纪律（换框架只动 server.js/static.js）；Koa/Fastify 备选预案 |
 | R2 | web 引入运行时依赖（h3）改变「clone 即用」 | 软依赖 + 友好降级提示；核心 CLI 命令零依赖不受影响 |
-| R3 | web-dist 入库 diff 噪音 | 前端改动独立 commit，产物一次一提交 |
+| R3 | 产物不入库（D4 2026-11-09 变更）后 clone 忘构建，页面打不开 | static.js 降级已内置：产物缺失时静态请求统一 503 并提示构建命令（test-m7 有断言）；文档注明构建步骤；原「入库 diff 噪音」风险随 D4 变更消除 |
 | R4 | 组件/图表体积 | unplugin 按需 + echarts/core；路由懒加载分 chunk |
 | R5 | 手写 http 边界（编码/长度）已由 h3 承担 | 保留响应 Content-Length 显式设置 |
 | R6 | git 不可用 / 知识根未 init | history 降级 `{available:false}` |

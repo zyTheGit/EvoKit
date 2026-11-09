@@ -50,7 +50,7 @@ evokit hook learn-enqueue  # 会话结束钩子入队：写 ~/.evokit/triggers/ 
 evokit schedule enable [--time HH:MM] [--mode auto|assist]  # 注册每日定时学习（Windows 任务计划 / macOS launchd / Linux cron）
 evokit schedule disable [--task <name>]  # 取消定时任务
 evokit schedule list  # 查看正在定时跑的 EvoKit 任务
-evokit web [--port <n>] [--open]  # 启动本机网页端（只读浏览偏好/知识库/同步状态；需先在 cli/ 执行 npm install）
+evokit web [--port <n>] [--open]  # 启动本机网页端（浏览偏好/知识库/同步状态 + 白名单命令执行；需先在 cli/ 执行 npm install 并构建前端产物）
 ```
 
 > `check` / `status` / `uninstall` 支持位置参数，`evokit check pi` 等价于 `evokit check --agent pi`。
@@ -337,14 +337,16 @@ evokit recall "fnm" --json       # 输出单个 JSON 数组（供程序/AI 消�
 一条命令在本机浏览器里浏览「AI 工具们遵守的偏好与知识」的全貌，**纯只读**：浏览与检索不改动 `~/.evokit` 任何数据，review 裁决等写操作仍走 CLI。
 
 ```bash
-cd cli && npm install   # 一次性：安装服务端依赖 h3（软依赖，不装不影响其它命令）
+cd cli && npm install                    # 一次性：安装服务端依赖 h3（软依赖，不装不影响其它命令）
+cd web && npm install && npm run build   # 一次性：构建前端产物到 cli/web-dist（不入库）
 node cli/evokit.mjs web [--port <n>] [--open]
 ```
 
 - 默认绑定 `http://127.0.0.1:4177`（仅本机回环，不暴露局域网）；`--port` 显式指定被占用时报错退出，未显式指定时自动探测 +1..+10；`--open` 尝试自动打开浏览器。
-- 页面：总览 / 全局偏好 / 知识索引 / 知识卡（列表+详情+筛选）/ 待审草稿 / 已归档 / 已拒绝 / 检索 / 同步状态 / 变更历史（含单卡下钻）/ 召回统计（图表）/ 报告库（inventory 报告阅读）/ 采集概览。
+- 页面（菜单 2 组 11 项）——内容：总览 / 全局偏好 / 知识索引 / 知识卡（列表+详情+筛选，待审/归档/拒绝为页内 tab）/ 检索；运行与操作：同步状态 / 变更历史（含单卡下钻）/ 召回统计（图表）/ 报告库（inventory 报告阅读）/ 采集概览 / 命令执行。
 - 口径：检索评分与排序与 `evokit recall` 完全一致（tags×3 ＞ 标题×2 ＞ 正文×1），唯一差异是**网页检索不写引用计数**（浏览不污染命中统计）；同步状态判定与 `evokit check` 同口径。
-- 技术：服务端 h3（仅 3 个传递依赖，ESM 原生，JSON 错误边界与穿越防护内置）+ 前端 Vue 3 + Element Plus（构建产物预编译在 `cli/web-dist/`，clone 即用，无 CDN 无外链）。前端改后用 `npm run build:web` 重建产物。
+- 命令执行：「命令执行」页可运行白名单内的 CLI 命令——safe 档（check / status / agents / resources / recall / help）直接执行，confirm 档（sync / review / knowledge / harvest / learn / forge / inventory / schedule / uninstall）前端二次确认后执行；spawn 不走 shell、全局互斥（同时仅一条）、5 分钟超时、流式实时输出（终端风着色）；`web` / `hook` 永久禁止；待审卡详情页提供 accept/reject 快捷按钮，命令执行页附每条命令的说明面板。
+- 技术：服务端 h3（仅 3 个传递依赖，ESM 原生，JSON 错误边界与穿越防护内置）+ 前端 Vue 3 + Element Plus（构建产物在 `cli/web-dist/`，不入库——clone 后需先 `cd cli/web && npm install && npm run build` 构建一次；无 CDN 无外链）。前端改后用 `npm run build:web` 重建产物。
 - 设计与需求文档：`docs/zh/WEB-VIEWER-REQUIREMENTS.md`、`docs/zh/WEB-VIEWER-TECH-DESIGN.md`。
 
 ### 路径写法（跨平台，推荐统一用正斜杠 + `~`）

@@ -1,4 +1,4 @@
-// Vite 配置（网页端技术设计 §5/§6）：产物输出到 cli/web-dist（入库随 npm files 发布）；
+// Vite 配置（网页端技术设计 §5/§6）：产物输出到 cli/web-dist（不入库，D4 2026-11-09 变更为本地构建；npm 发布前需先构建）；
 // dev 模式经 proxy 把 /api 转发到本机 evokit web 服务；组件按需注册（ElementPlusResolver）。
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
